@@ -6,3 +6,4 @@ node_modules/
 Thumbs.db
 # 元の辞書データ（加工前・大容量）
 raw/
+.superpowers/
