@@ -23,12 +23,17 @@ const reduceMotion = () => state.settings.reduceMotion || motionQuery.matches;
 
 let data = null, pools = null, index = null;
 let reels = [], reelCount = 0, cab = null, view = null;
-let tickTimer = null, beat = 0, autoTimers = [], editing = -1;
+let tickTimer = null, beat = 0, autoTimers = [], editing = -1, memoTimer = null;
+const neigh = []; // 止まっている枠の上下の語（止まったときに決め、LOCKしても変えない）
 
 const rebuildPools = () => { pools = buildPools(data, state.custom, state.excluded); index = null; };
 const say = text => view.say(text);
 const rnd = type => { const p = pools[type]; return p.length ? p[Math.floor(Math.random() * p.length)] : ''; };
-const rowsOf = r => (r.running ? [0, 1, 2, 3].map(() => rnd(r.type)) : [rnd(r.type), rnd(r.type), r.value ?? '—', rnd(r.type)]);
+const rowsOf = (r, i, fresh) => {
+  if (r.running) return [0, 1, 2, 3].map(() => rnd(r.type));
+  if (fresh || !neigh[i]) neigh[i] = [rnd(r.type), rnd(r.type), rnd(r.type)];
+  return [neigh[i][0], neigh[i][1], r.value ?? '—', neigh[i][2]];
+};
 const comboText = values => values.map(v => v ?? '—').join(' × ');
 
 function saveSettings() {
@@ -38,8 +43,8 @@ function saveSettings() {
 }
 
 // --- 表示の同期 ---
-function paint(i) {
-  view.setWords(i, rowsOf(reels[i]));
+function paint(i, fresh = false) {
+  view.setWords(i, rowsOf(reels[i], i, fresh));
   view.setState(i, { running: !!reels[i].running, held: reels[i].held });
 }
 
@@ -64,7 +69,7 @@ function setReels(next) {
     view.build(reelCount);
     if (editing >= reelCount) closePick();
   }
-  reels.forEach((_, i) => paint(i));
+  reels.forEach((_, i) => paint(i, true));
   saveSettings();
   renderSetup();
   sync();
@@ -89,7 +94,7 @@ function commitStops(next) {
   reels = next;
   if (!stopped.length) return;
   sound.play('stop');
-  stopped.forEach(i => { paint(i); if (!reduceMotion()) view.bounce(i); });
+  stopped.forEach(i => { paint(i, true); if (!reduceMotion()) view.bounce(i); });
   if (allStopped(reels)) finish();
   sync();
 }
@@ -101,14 +106,15 @@ function pull() {
     return;
   }
   view.hideMenu();
+  clearTimeout(memoTimer);
   reels = r.reels;
   cab.pullLever();
   sound.play('lever');
-  say('SPINNING ... STOPを押せ！ ... SPINNING ...');
+  say('SPINNING ... STOPを押せ！ ...');
   reels.forEach((_, i) => paint(i));
   beat = 0;
   tickTimer = setInterval(() => {
-    reels.forEach((r2, i) => { if (r2.running) view.setWords(i, rowsOf(r2)); });
+    reels.forEach((r2, i) => { if (r2.running) view.setWords(i, rowsOf(r2, i)); });
     if (beat++ % 2 === 0) sound.play('tick');
   }, 120);
   if (state.settings.autoStop) {
@@ -135,12 +141,14 @@ function press(i) {
 // --- IDEA! ---
 function idea() {
   if (cab.celebrating()) return;
-  cab.pressIdea();
   const status = canSave(reels, state.favorites);
+  if (status === 'spinning') { sound.play('deny'); return; }
+  cab.pressIdea();
   if (status === 'saved') say('この組み合わせは当たり帳に保存ずみ');
   if (status !== 'ok') { sound.play('deny'); return; }
   const combo = reels.map(r => r.value);
-  state.favorites = [{ combo, memo: '', savedAt: Date.now() }, ...state.favorites];
+  const saved = { combo, memo: '', savedAt: Date.now() };
+  state.favorites = [saved, ...state.favorites];
   store.save('favorites');
   cab.celebrate();
   sound.play('jackpot');
@@ -148,8 +156,9 @@ function idea() {
   renderHits();
   sync();
   // 演出のあと、まだ他を触っていなければ新しいカードのメモ欄へ（スマホのキーボードで演出を隠さない）
-  setTimeout(() => {
-    const a = document.activeElement, input = $('hits').querySelector('input');
+  clearTimeout(memoTimer);
+  memoTimer = setTimeout(() => {
+    const a = document.activeElement, input = $('hits').querySelector(`input[data-h="${state.favorites.indexOf(saved)}"]`);
     if (input && canEdit(reels) && (!a || a === document.body || a.closest('#ov, #ctl'))) input.focus({ preventScroll: true });
   }, 3300);
 }
@@ -167,7 +176,7 @@ function wordMenu(action, i) {
     reels = rerollOne(reels, i, pools);
     say(`${i + 1}番リールを振り直し`);
   }
-  paint(i);
+  paint(i, true);
   sync();
 }
 
@@ -201,7 +210,7 @@ function fix(w) {
   closePick();
   sound.play('lock');
   say(`LOCK！「${w}」を固定`);
-  paint(i);
+  paint(i, true);
   sync();
 }
 
@@ -231,7 +240,7 @@ $('setup').addEventListener('change', e => {
   reels = rerollOne(setSlotType(reels, i, sel.value), i, pools);
   say(`${i + 1}番リールを「${TYPE_LABELS[sel.value]}」に変更`);
   saveSettings();
-  paint(i);
+  paint(i, true);
   sync();
 });
 $('q').addEventListener('input', renderCards);
@@ -292,8 +301,11 @@ const chipActions = {
   menuBtn() { if (!isSpinning(reels)) $('menu').hidden = !$('menu').hidden; },
   spin: pull,
 };
-$('ctl').addEventListener('click', e => { const b = e.target.closest('button'); if (b && view) chipActions[b.id]?.(); });
-$('menu').addEventListener('click', e => { if (e.target.closest('button')) $('menu').hidden = true; });
+$('ctl').addEventListener('click', e => { const b = e.target.closest('button'); if (b && view) { if (e.detail > 0) b.blur(); chipActions[b.id]?.(); } });
+const closeMenu = () => { $('menu').hidden = true; };
+$('menu').addEventListener('click', e => { if (e.target.closest('button')) closeMenu(); });
+document.addEventListener('click', e => { if (!e.target.closest('#menu, #menuBtn')) closeMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
 
 document.addEventListener('keydown', e => {
   if (!view || e.repeat || e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]')) return;

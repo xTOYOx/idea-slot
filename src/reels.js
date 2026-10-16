@@ -30,6 +30,7 @@ export function createOverlay(wrap, ov, on) {
     },
     setState(i, { running, held }) {
       wins[i].classList.toggle('spin', running);
+      if (running) wins[i].classList.remove('bn'); // 弾みのアニメが回転のアニメを上書きしないように
       wins[i].classList.toggle('lk', held && !running);
       btns[i].className = 'hb sb ' + (running ? 'on' : held ? 'lk1' : 'lk0');
       btns[i].firstChild.textContent = running ? 'STOP' : held ? 'LOCKED' : 'LOCK';
@@ -66,6 +67,7 @@ export function createOverlay(wrap, ov, on) {
   ov.addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
+    if (e.detail > 0) b.blur(); // マウス・タップのあとはキー操作（スペース等）を筐体に返す
     if (b.dataset.s !== undefined) on.reel(+b.dataset.s);
     else if (b.dataset.w !== undefined) on.word(+b.dataset.w);
     else if (b.dataset.m) { const i = menuIndex; view.hideMenu(); on.menu(b.dataset.m, i); }
