@@ -15,6 +15,7 @@ test('nearest root wins', () => {
   assert.equal(categorize('chair', h), 'tool');
   assert.equal(categorize('house', h), 'place');   // structure is closer than artifact
 });
+test('root itself', () => assert.equal(categorize('00015388-n', h), 'animal'));
 test('no root → other', () => assert.equal(categorize('lonely', h), 'other'));
 test('cycle does not hang', () => {
   const c = new Map([['a', ['b']], ['b', ['a']]]);
@@ -26,4 +27,9 @@ test('keepLemma', () => {
   assert.equal(keepLemma('ア'), false);      // かな1文字は除く
   assert.equal(keepLemma('ー'), false);
   assert.equal(keepLemma('・・'), false);    // 記号だけ
+  assert.equal(keepLemma('CPU'), false);     // ASCIIだけ
+  assert.equal(keepLemma('0'), false);
+  assert.equal(keepLemma('boot camp'), false); // 空白入り
+  assert.equal(keepLemma('プリンス オヴ ウェールズ'), false);
+  assert.equal(keepLemma('Tシャツ'), true);  // 日本語が混じれば残す
 });

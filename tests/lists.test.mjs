@@ -18,3 +18,8 @@ test('tags: 3 groups, 250-400 total, no duplicate ja across groups', () => {
   assert.ok(all.every(ok));
   assert.equal(new Set(all.map(x => x.ja)).size, all.length);
 });
+test('genres and tags share no ja', () => {
+  const g = new Set(load('genres.json').map(x => x.ja));
+  const dup = Object.values(load('tags.json')).flat().filter(x => g.has(x.ja)).map(x => x.ja);
+  assert.deepEqual(dup, []);
+});
