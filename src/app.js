@@ -2,10 +2,12 @@ import { TYPE_LABELS, TYPE_KEYS } from './types.js';
 import { buildPools } from './pools.js';
 import { spin, rerollOne, setSlotType, resizeSlots } from './pick.js';
 import { createStore } from './store.js';
+import { initScreens } from './screens.js';
 
 let ls = null;
 try { ls = localStorage; } catch { /* memory only */ }
 const store = createStore(ls);
+try { if (ls.getItem('slot.settings') === null) store.state.settings.animate = !matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { /* keep default */ }
 const app = document.getElementById('app');
 
 // --- app state (module scope so Task 6 dialogs can use it and call render()) ---
@@ -41,7 +43,7 @@ function render() {
     const text = spinning && !s.held ? spinText[i] : s.value;
     const word = text
       ? `<button class="word${spinning ? ' spinning' : ''}" data-act="word" data-i="${i}">${esc(text)}</button>`
-      : `<div class="word empty">語がありません</div>`;
+      : `<div class="word empty">${s.spun ? '語がありません' : '—'}</div>`;
     const menu = menuIndex === i && !spinning
       ? `<div class="menu"><button data-act="exclude" data-i="${i}">この語を除外</button><button data-act="reroll" data-i="${i}">この枠だけ振り直す</button></div>` : '';
     const opts = TYPE_KEYS.map(k => `<option value="${k}"${k === s.type ? ' selected' : ''}>${esc(TYPE_LABELS[k])}</option>`).join('');
@@ -58,8 +60,10 @@ function render() {
     <h2>履歴</h2><ol class="history">${history}</ol>`;
 }
 
+const markSpun = list => list.map(s => ({ ...s, spun: true }));
+
 function finish(result) {
-  slots = result;
+  slots = markSpun(result);
   spinning = false;
   if (slots.every(s => s.value)) store.pushHistory(slots.map(s => s.value));
   render();
@@ -94,19 +98,23 @@ const actions = {
     store.state.excluded = [...store.state.excluded, slots[i].value];
     store.save('excluded');
     rebuildPools();
-    slots = rerollOne(slots.map((s, j) => (j === i ? { ...s, value: null } : s)), i, pools);
+    slots = markSpun(rerollOne(slots.map((s, j) => (j === i ? { ...s, value: null } : s)), i, pools));
     menuIndex = null;
   },
   fav() {
-    store.state.favorites = [{ combo: slots.map(s => s.value), memo: '', savedAt: Date.now() }, ...store.state.favorites];
+    const combo = slots.map(s => s.value);
+    if (store.state.favorites.some(f => f.combo.join('\n') === combo.join('\n'))) return;
+    store.state.favorites = [{ combo, memo: '', savedAt: Date.now() }, ...store.state.favorites];
     store.save('favorites');
   },
-  restore(el) {
-    const combo = store.state.history[Number(el.dataset.i)];
-    slots = resizeSlots(slots, clamp(combo.length)).map((s, i) => ({ ...s, value: combo[i] ?? null, held: false }));
-    saveSettings();
-  },
+  restore(el) { restoreCombo(store.state.history[Number(el.dataset.i)]); },
 };
+
+function restoreCombo(combo) {
+  slots = resizeSlots(slots, clamp(combo.length)).map((s, i) => ({ ...s, value: combo[i] ?? null, held: false, spun: true }));
+  saveSettings();
+  render();
+}
 
 app.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
@@ -126,8 +134,10 @@ document.addEventListener('keydown', e => {
   e.preventDefault();
   doSpin();
 });
-for (const b of document.querySelectorAll('[data-open]')) b.onclick = () => document.getElementById(b.dataset.open).showModal();
-for (const b of document.querySelectorAll('[data-close]')) b.onclick = () => b.closest('dialog').close();
+initScreens({
+  store, typeLabels: TYPE_LABELS, typeKeys: TYPE_KEYS, isSpinning: () => spinning, rebuildPools, restoreCombo,
+  afterImport() { rebuildPools(); initSlots(); slots = markSpun(spin(slots, pools)); render(); },
+});
 
 async function load() {
   try {
@@ -142,7 +152,7 @@ async function load() {
   rebuildPools();
   initSlots();
   saveSettings();
-  slots = spin(slots, pools);
+  slots = markSpun(spin(slots, pools));
   render();
 }
 load();
