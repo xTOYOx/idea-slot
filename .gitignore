@@ -1,0 +1,8 @@
+.env
+.env.*
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+# 元の辞書データ（加工前・大容量）
+raw/
