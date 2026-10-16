@@ -81,3 +81,23 @@ test('version 1 export imports (no stats, animate)', () => {
   assert.equal(s.state.settings.reduceMotion, false);
   assert.deepEqual(s.state.stats, { spins: 0 });
 });
+test('load drops malformed favorites, keeps valid ones, fills memo/savedAt', () => {
+  const favs = [{ combo: ['a', 'b'], memo: 'm', savedAt: 5 }, { memo: 'x' }, { combo: [1] }, null, { combo: ['c'] }];
+  const s = createStore(mem({ 'slot.favorites': JSON.stringify(favs) }));
+  assert.deepEqual(s.state.favorites, [{ combo: ['a', 'b'], memo: 'm', savedAt: 5 }, { combo: ['c'], memo: '', savedAt: 0 }]);
+});
+test('import with malformed favorites → error, state unchanged', () => {
+  const s = createStore(mem()); s.state.excluded.push('猫');
+  const bad = JSON.parse(s.exportJSON()); bad.favorites = [{ memo: 'x' }]; bad.excluded = ['犬'];
+  assert.equal(s.importJSON(JSON.stringify(bad)).ok, false);
+  assert.deepEqual(s.state.favorites, []);
+  assert.deepEqual(s.state.excluded, ['猫']);
+});
+test('custom: load drops non-string-array keys; import rejects them', () => {
+  const raw = { noun: 'x', verb: ['走る'], tag: [1] };
+  assert.deepEqual(createStore(mem({ 'slot.custom': JSON.stringify(raw) })).state.custom, { verb: ['走る'] });
+  const s = createStore(mem());
+  const bad = JSON.parse(s.exportJSON()); bad.custom = raw;
+  assert.equal(s.importJSON(JSON.stringify(bad)).ok, false);
+  assert.deepEqual(s.state.custom, {});
+});

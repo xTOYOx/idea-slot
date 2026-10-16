@@ -54,6 +54,7 @@ const applyBusy = () => app.querySelectorAll('[data-edit]').forEach(el => { el.d
 function sync() {
   cab.update({ spinning: isSpinning(reels), canSave: canSave(reels, state.favorites), ideas: state.stats.spins, hits: state.favorites.length, reduceMotion: reduceMotion() });
   applyBusy();
+  document.body.classList.toggle('reduce-motion', reduceMotion());
 }
 
 function chips() {
@@ -204,7 +205,8 @@ function renderCards() {
 }
 
 function fix(w) {
-  if (!canEdit(reels) || !reels[editing]) return;
+  if (!canEdit(reels)) { sound.play('deny'); return; }
+  if (!reels[editing]) return;
   const i = editing;
   reels = reels.map((r, j) => (j === i ? { ...r, value: w, held: true } : r));
   closePick();
@@ -237,7 +239,8 @@ $('setup').addEventListener('change', e => {
   const sel = e.target.closest('select[data-t]');
   if (!sel || !canEdit(reels)) return;
   const i = Number(sel.dataset.t);
-  reels = rerollOne(setSlotType(reels, i, sel.value), i, pools);
+  // ロック中の枠は種類だけ変える（語とロックは保つ）
+  reels = reels[i].held ? reels.map((r, j) => (j === i ? { ...r, type: sel.value } : r)) : rerollOne(setSlotType(reels, i, sel.value), i, pools);
   say(`${i + 1}番リールを「${TYPE_LABELS[sel.value]}」に変更`);
   saveSettings();
   paint(i, true);
@@ -276,6 +279,7 @@ function restoreCombo(combo) {
 app.addEventListener('click', e => {
   const b = e.target.closest('button');
   if (!b) return;
+  if (e.detail > 0) b.blur(); // マウス・タップのあとはキー操作を筐体に返す
   const d = b.dataset;
   if (d.back !== undefined) restoreCombo(state.favorites[Number(d.back)].combo);
   else if (d.r !== undefined) restoreCombo(state.history[Number(d.r)]);

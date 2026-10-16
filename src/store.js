@@ -29,11 +29,24 @@ const normalizeSettings = v => {
 
 // Each normalizer returns the value to store, or null when `v` is unusable.
 const keep = ok => v => (ok(v) ? v : null);
+const isStrs = v => isArr(v) && v.every(s => typeof s === 'string');
+const fav = f => (isObj(f) && isStrs(f.combo)
+  ? { combo: f.combo, memo: typeof f.memo === 'string' ? f.memo : '', savedAt: typeof f.savedAt === 'number' ? f.savedAt : 0 }
+  : null);
+// `strict` (import): one bad entry rejects the whole value. Otherwise (load) bad entries are dropped.
 const normalize = {
   settings: normalizeSettings,
   history: keep(v => isArr(v) && v.every(isArr)),
-  favorites: keep(isArr),
-  custom: keep(isObj),
+  favorites: (v, strict) => {
+    if (!isArr(v)) return null;
+    const list = v.map(fav);
+    return list.includes(null) && strict ? null : list.filter(Boolean);
+  },
+  custom: (v, strict) => {
+    if (!isObj(v)) return null;
+    const entries = Object.entries(v);
+    return strict && !entries.every(([, w]) => isStrs(w)) ? null : Object.fromEntries(entries.filter(([, w]) => isStrs(w)));
+  },
   excluded: keep(isArr),
   stats: keep(v => isObj(v) && Number.isInteger(v.spins) && v.spins >= 0),
 };
@@ -44,7 +57,7 @@ export function createStore(storage) {
   for (const key of KEYS) {
     try {
       const v = JSON.parse(storage.getItem('slot.' + key));
-      state[key] = normalize[key](v) ?? state[key];
+      state[key] = normalize[key](v, false) ?? state[key];
     } catch { /* missing, broken or inaccessible → default */ }
   }
 
@@ -71,7 +84,7 @@ export function createStore(storage) {
       const next = {};
       for (const key of KEYS) {
         // v1 files have no stats: fall back to the initial value.
-        next[key] = key === 'stats' && data.stats === undefined ? defaults().stats : normalize[key](data[key]);
+        next[key] = key === 'stats' && data.stats === undefined ? defaults().stats : normalize[key](data[key], true);
         if (next[key] === null) return { ok: false, error: `${key} の形が正しくありません` };
       }
       for (const key of KEYS) { state[key] = next[key]; save(key); }

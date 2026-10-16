@@ -126,7 +126,14 @@ export function createCabinet(canvas) {
     for (let k = 0; k < n; k++) parts.push({ x: x0 + Math.random() * (x1 - x0), y, vx: (Math.random() - 0.5) * 2.4, vy: -(Math.random() * vy + 1), f: k });
   }
 
+  let lastDraw = 0, wasBusy = false;
   function frame(t) {
+    requestAnimationFrame(frame);
+    // 動くものが無いときは間引く（点滅などは時刻から決めるので見た目は同じ）
+    const busy = v.spinning || t < celebrateUntil || t < leverUntil || t < pressUntil || parts.length > 0;
+    if (!busy && !wasBusy && t - lastDraw < (v.reduceMotion ? 250 : 100)) return;
+    wasBusy = busy;
+    lastDraw = t;
     const rm = v.reduceMotion, celebrating = t < celebrateUntil;
     const rain = celebrating && !rm; // 低減モードでは電球・回転灯・コインは動かさない
     const el = t - t0;
@@ -147,8 +154,7 @@ export function createCabinet(canvas) {
     // IDEA! ランプ
     const blink = rm ? 1 : Math.floor(el / 320) % 2, ly = 119 + (t < pressUntil ? 1 : 0);
     if (celebrating) {
-      const lf = rm ? Math.floor(el / 300) : fr;
-      box(82, ly, 36, 9, ['#ff3ea5', '#3ef0ff', '#ffe066', '#3eff7a'][lf % 4], '#ffffff', '#a01060'); tiny('IDEA!', 90, ly + 2, '#ffffff');
+      box(82, ly, 36, 9, rm ? '#ffe066' : ['#ff3ea5', '#3ef0ff', '#ffe066', '#3eff7a'][fr % 4], '#ffffff', '#a01060'); tiny('IDEA!', 90, ly + 2, '#ffffff');
     } else if (v.canSave === 'ok') {
       box(82, ly, 36, 9, blink ? '#ff3ea5' : '#a0105a', blink ? '#ffc0e0' : '#d04080', '#5a0030'); tiny(blink ? 'IDEA!' : 'PUSH!', 90, ly + 2, '#ffffff');
       if (blink) { px(78, ly + 3, 2, 3, G3); px(120, ly + 3, 2, 3, G3); }
@@ -173,7 +179,6 @@ export function createCabinet(canvas) {
       px(p.x + (4 - w) / 2, p.y, w, 4, G2); px(p.x + (4 - w) / 2, p.y, Math.max(1, w - 1), 1, G4);
       return true;
     });
-    requestAnimationFrame(frame);
   }
 
   const cab = {
