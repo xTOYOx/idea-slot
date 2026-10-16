@@ -36,8 +36,12 @@ function initSlots() {
   slots = resizeSlots(saved, clamp(store.state.settings.count));
 }
 
+const comboKey = c => c.join('\n');
+
 function render() {
   if (!data) return;
+  const focus = document.activeElement;
+  const f = app.contains(focus) && focus !== app ? { id: focus.id, act: focus.dataset.act, i: focus.dataset.i, n: focus.dataset.n } : null;
   const done = slots.every(s => s.value);
   const reels = slots.map((s, i) => {
     const text = spinning && !s.held ? spinText[i] : s.value;
@@ -51,13 +55,19 @@ function render() {
       <select data-act="type" data-i="${i}">${opts}</select>${word}${menu}
       <button class="hold${s.held ? ' on' : ''}" data-act="hold" data-i="${i}" aria-pressed="${s.held}">HOLD</button></div>`;
   }).join('');
+  const saved = done && store.state.favorites.some(x => comboKey(x.combo) === comboKey(slots.map(s => s.value)));
   const counts = [2, 3, 4].map(n => `<button data-act="count" data-n="${n}" class="${n === slots.length ? 'on' : ''}">${n}</button>`).join('');
   const history = store.state.history.map((c, i) => `<li><button data-act="restore" data-i="${i}">${esc(c.join(' × '))}</button></li>`).join('');
   app.innerHTML = `<div class="counts">枠の数 ${counts}</div>
     <div class="reels">${reels}</div>
     <div class="actions"><button class="go" data-act="spin">かけ合わせる！</button>
-      <button data-act="fav"${done ? '' : ' disabled'}>☆ お気に入り</button></div>
+      <button data-act="fav"${done && !saved ? '' : ' disabled'}>${saved ? '★ 保存済み' : '☆ お気に入り'}</button></div>
     <h2>履歴</h2><ol class="history">${history}</ol>`;
+  if (f) {
+    const el = f.id ? document.getElementById(f.id)
+      : [...app.querySelectorAll('[data-act]')].find(e => e.dataset.act === f.act && e.dataset.i === f.i && e.dataset.n === f.n);
+    el?.focus();
+  }
 }
 
 const markSpun = list => list.map(s => ({ ...s, spun: true }));
@@ -70,7 +80,7 @@ function finish(result) {
 }
 
 function doSpin() {
-  if (spinning || !data) return;
+  if (spinning || !data || slots.every(s => s.held)) return;
   menuIndex = null;
   const result = spin(slots, pools);
   if (!store.state.settings.animate) return finish(result);
@@ -89,7 +99,11 @@ function doSpin() {
 const actions = {
   spin: doSpin,
   count(el) { slots = resizeSlots(slots, Number(el.dataset.n)); saveSettings(); },
-  type(el) { slots = setSlotType(slots, Number(el.dataset.i), el.value); saveSettings(); },
+  type(el) {
+    const i = Number(el.dataset.i);
+    slots = markSpun(rerollOne(setSlotType(slots, i, el.value), i, pools));
+    saveSettings();
+  },
   hold(el) { const i = Number(el.dataset.i); slots = slots.map((s, j) => (j === i ? { ...s, held: !s.held } : s)); },
   word(el) { const i = Number(el.dataset.i); menuIndex = menuIndex === i ? null : i; },
   reroll(el) { slots = rerollOne(slots, Number(el.dataset.i), pools); menuIndex = null; },
@@ -103,7 +117,7 @@ const actions = {
   },
   fav() {
     const combo = slots.map(s => s.value);
-    if (store.state.favorites.some(f => f.combo.join('\n') === combo.join('\n'))) return;
+    if (store.state.favorites.some(f => comboKey(f.combo) === comboKey(combo))) return;
     store.state.favorites = [{ combo, memo: '', savedAt: Date.now() }, ...store.state.favorites];
     store.save('favorites');
   },
@@ -130,7 +144,7 @@ document.addEventListener('click', e => {
   if (menuIndex !== null && !e.target.closest('.menu, .word')) { menuIndex = null; render(); }
 });
 document.addEventListener('keydown', e => {
-  if (e.code !== 'Space' || e.target.closest('button, select, input, textarea, dialog')) return;
+  if (e.code !== 'Space' || e.repeat || e.target.closest('button, select, input, textarea, dialog')) return;
   e.preventDefault();
   doSpin();
 });

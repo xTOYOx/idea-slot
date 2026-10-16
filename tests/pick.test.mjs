@@ -46,3 +46,22 @@ test('resizeSlots keeps existing, pads with any', () => {
   assert.equal(out[3].type, 'any');
   assert.equal(resizeSlots(out, 2).length, 2);
 });
+const anyPools = { noun: ['n1', 'n2', 'n3'], verb: ['v1'], genre: ['g1'], tag: ['t1'], any: ['n1', 'n2', 'n3', 'v1', 'g1', 't1'] };
+const seq = (...v) => { let i = 0; return () => v[Math.min(i++, v.length - 1)]; };
+test("'any' picks a group uniformly, then a word from it", () => {
+  assert.equal(spin([S('any')], anyPools, seq(0.0, 0.5))[0].value.startsWith('n'), true);
+  assert.equal(spin([S('any')], anyPools, seq(0.3, 0))[0].value, 'v1');
+  assert.equal(spin([S('any')], anyPools, seq(0.6, 0))[0].value, 'g1');
+  assert.equal(spin([S('any')], anyPools, seq(0.9, 0))[0].value, 't1');
+});
+test("'any' falls back to other groups when the chosen one is used up", () => {
+  const out = spin([S('any'), S('any'), S('any'), S('any')], anyPools, seq(0.3)).map(s => s.value);
+  assert.equal(new Set(out).size, 4);
+  assert.ok(out.every(Boolean));
+});
+test("'any' is not weighted by pool size", () => {
+  const p = { noun: Array.from({ length: 1000 }, (_, i) => `n${i}`), verb: [], genre: ['g1'], tag: [] };
+  let genre = 0;
+  for (let i = 0; i < 400; i++) if (spin([S('any')], p)[0].value === 'g1') genre++;
+  assert.ok(genre >= 50, `genre appeared ${genre} times`);
+});

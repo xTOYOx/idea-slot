@@ -30,7 +30,7 @@ export function initScreens({ store, typeLabels, typeKeys, isSpinning, rebuildPo
       return `<h2>設定</h2>
         <label><input type="checkbox" data-act="anim"${store.state.settings.animate ? ' checked' : ''}> 演出（回転アニメ）</label>
         <div class="row"><button data-act="export">書き出す</button>
-        <button data-act="import">読み込む</button><input type="file" accept=".json,application/json" hidden></div>
+        <button data-act="import">読み込む</button><input type="file" accept="application/json,text/plain,.json" hidden></div>
         <p class="err" role="alert">${esc(importError)}</p>`;
     },
   };
@@ -50,10 +50,11 @@ export function initScreens({ store, typeLabels, typeKeys, isSpinning, rebuildPo
     export() {
       const d = new Date();
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([store.exportJSON()], { type: 'application/json' }));
+      const url = URL.createObjectURL(new Blob([store.exportJSON()], { type: 'application/json' }));
+      a.href = url;
       a.download = `idea-slot-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.json`;
       a.click();
-      URL.revokeObjectURL(a.href);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     },
     import(el) { el.parentElement.querySelector('input[type=file]').click(); },
   };
@@ -80,6 +81,8 @@ export function initScreens({ store, typeLabels, typeKeys, isSpinning, rebuildPo
     const t = type.value;
     const list = store.state.custom[t] ??= [];
     if (!list.includes(w)) list.push(w);
+    const ex = store.state.excluded.indexOf(w);
+    if (ex >= 0) { store.state.excluded.splice(ex, 1); store.save('excluded'); }
     changed('custom');
     show('custom');
     document.querySelector('#custom select[name=type]').value = t;
