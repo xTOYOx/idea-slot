@@ -1,0 +1,31 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, "Hiragino Sans", "Yu Gothic", sans-serif; background: #1b1b2f; color: #eee; }
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; background: #11111f; }
+h1 { margin: 0; font-size: 1.1rem; }
+nav { display: flex; gap: 6px; flex-wrap: wrap; }
+button, select { font: inherit; color: inherit; background: #34345a; border: 1px solid #55558a; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; }
+main { max-width: 900px; margin: 0 auto; padding: 12px; }
+.counts { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+.counts .on { background: #e8b130; color: #222; border-color: #e8b130; }
+.reels { display: flex; align-items: stretch; gap: 4px; }
+.reel { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.reel select { width: 100%; }
+.word { min-height: 5.5em; display: flex; align-items: center; justify-content: center; text-align: center; padding: 6px; background: #f4f0e0; color: #222; border: 3px solid #e8b130; border-radius: 8px; font-size: clamp(1rem, 4.5vw, 1.6rem); font-weight: bold; overflow-wrap: anywhere; word-break: break-word; width: 100%; }
+.word.empty { color: #888; font-size: 1rem; font-weight: normal; }
+.word.spinning { opacity: .75; }
+.hold.on { background: #d33; border-color: #d33; font-weight: bold; }
+.sep { align-self: center; font-size: 1.5rem; color: #e8b130; }
+.menu { display: flex; flex-direction: column; gap: 4px; }
+.actions { margin: 14px 0; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.go { font-size: 1.3rem; padding: 10px 28px; background: #e8b130; color: #222; border-color: #e8b130; font-weight: bold; }
+h2 { font-size: 1rem; margin: 18px 0 6px; }
+ol.history { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+ol.history button { width: 100%; text-align: left; overflow-wrap: anywhere; }
+.error { text-align: center; padding: 30px 0; }
+dialog { max-width: min(90vw, 600px); width: 100%; background: #2a2a48; color: #eee; border: 1px solid #55558a; border-radius: 8px; }
+dialog::backdrop { background: rgba(0,0,0,.6); }
+@media (max-width: 599px) {
+  .reels { flex-direction: column; }
+  .sep { font-size: 1.2rem; line-height: 1; }
+}
