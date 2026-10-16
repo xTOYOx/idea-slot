@@ -1,48 +1,98 @@
+@font-face { font-family: 'DotGothic16'; src: url('fonts/DotGothic16-Regular.ttf'); font-display: swap; }
 * { box-sizing: border-box; }
-body { margin: 0; font-family: system-ui, "Hiragino Sans", "Yu Gothic", sans-serif; background: #1b1b2f; color: #eee; }
-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; background: #11111f; }
-h1 { margin: 0; font-size: 1.1rem; }
-nav { display: flex; gap: 6px; flex-wrap: wrap; }
-button, select { touch-action: manipulation; font: inherit; color: inherit; background: #34345a; border: 1px solid #55558a; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
-button:disabled { opacity: .5; cursor: default; }
-main { max-width: 900px; margin: 0 auto; padding: 12px; }
-.counts { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
-.counts .on { background: #e8b130; color: #222; border-color: #e8b130; }
-.reels { display: flex; align-items: stretch; gap: 4px; }
-.reel { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.reel select { width: 100%; }
-.word { min-height: 5.5em; display: flex; align-items: center; justify-content: center; text-align: center; padding: 6px; background: #f4f0e0; color: #222; border: 3px solid #e8b130; border-radius: 8px; font-size: clamp(1rem, 4.5vw, 1.6rem); font-weight: bold; overflow-wrap: anywhere; word-break: break-word; width: 100%; }
-.word.empty { color: #888; font-size: 1rem; font-weight: normal; }
-.word.spinning { opacity: .75; }
-.hold.on { background: #d33; border-color: #d33; font-weight: bold; }
-.sep { align-self: center; font-size: 1.5rem; color: #e8b130; }
-.menu { display: flex; flex-direction: column; gap: 4px; }
-.actions { margin: 14px 0; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-.go { font-size: 1.3rem; padding: 10px 28px; background: #e8b130; color: #222; border-color: #e8b130; font-weight: bold; }
-h2 { font-size: 1rem; margin: 18px 0 6px; }
-ol.history { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-ol.history button { width: 100%; text-align: left; overflow-wrap: anywhere; }
+body { margin: 0; padding: 16px; background: #1b0b14; color: #fff; font-family: 'DotGothic16', monospace; }
+button, select, input { font: inherit; touch-action: manipulation; }
+button:disabled { opacity: .45; cursor: default; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+#app { max-width: 620px; margin: 0 auto; }
+[hidden] { display: none !important; }
+
+/* 筐体と重ね物（1論理ピクセル = --u） */
+#wrap { position: relative; --u: 3.1px; user-select: none; }
+#cv { width: 100%; display: block; image-rendering: pixelated; }
+.ov, .rw, .wm { position: absolute; }
+.rw { overflow: hidden; }
+.rw.lk { box-shadow: inset 0 0 0 var(--u) #ffe066, inset 0 0 0 calc(var(--u) * 2) #e0303e; }
+.strip { height: 133.34%; transform: translateY(-25%); display: flex; flex-direction: column; }
+.strip > * { flex: 1; min-height: 0; margin: 0; border: 0; background: none; font-family: inherit; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.05; padding: 0 calc(var(--u) * 1.5); overflow: hidden; }
+.strip span { max-width: 100%; overflow-wrap: anywhere; }
+.e { font-size: calc(var(--u) * 3.4); color: #8a6a34; }
+.e span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m { font-size: max(calc(var(--u) * 5.2), 12px); color: #2a1020; cursor: pointer; }
+.m span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.spin .m { pointer-events: none; }
+.spin .strip { animation: rl .12s steps(3) infinite; }
+@keyframes rl { from { transform: translateY(-25%); } to { transform: translateY(0); } }
+.bn .strip { animation: bn .28s steps(5); }
+@keyframes bn { 0% { transform: translateY(-4%); } 55% { transform: translateY(-30%); } 100% { transform: translateY(-25%); } }
+
+/* 押すボタンは見た目の枠より大きく取る（スマホで 40px 以上）。見た目は .f（STOP/LOCK）かキャンバスが担当 */
+.hb { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 100%; height: 100%; padding: 0; border: 0; background: none; cursor: pointer; }
+.sb, #idea { height: max(100%, 44px); }
+#lev { width: max(100%, 44px); cursor: grab; }
+.f { position: absolute; left: 0; right: 0; top: 50%; height: calc(var(--u) * 13); transform: translateY(-50%); display: flex; align-items: center; justify-content: center; font-family: inherit; border: calc(var(--u) * .8) solid #000; font-size: calc(var(--u) * 3.4); }
+.sb.on .f { background: #ff3a3a; color: #fff; box-shadow: inset 0 calc(var(--u) * 1.2) 0 #ffb0b0, inset 0 calc(var(--u) * -1.5) 0 #a01010; }
+.sb.lk0 .f { background: #5a4010; color: #ffe9a0; box-shadow: inset 0 calc(var(--u) * -1.5) 0 #2a1a05; }
+.sb.lk1 .f { background: #ffe066; color: #3a2000; box-shadow: inset 0 calc(var(--u) * 1.2) 0 #fff7c2, inset 0 calc(var(--u) * -1.5) 0 #a8700c; }
+.sb:active .f { transform: translateY(calc(-50% + var(--u) * .8)); }
+.ov button:focus-visible, .m:focus-visible { outline: 2px solid #3ef0ff; outline-offset: 1px; }
+.tk { overflow: hidden; white-space: nowrap; color: #ffb020; font-size: calc(var(--u) * 5.4); line-height: calc(var(--u) * 8); }
+.tk span { display: inline-block; padding-left: 100%; animation: tk 9s steps(90) infinite; }
+@keyframes tk { to { transform: translateX(-100%); } }
+.wm { z-index: 2; display: flex; flex-direction: column; gap: 4px; padding: 4px; background: #0f5a3a; border: 2px solid #e8b020; outline: 2px solid #000; }
+.wm button { font-size: 14px; min-height: 40px; padding: 4px 10px; white-space: nowrap; background: #fff8ec; color: #1a1020; border: 2px solid #000; border-radius: 0; cursor: pointer; }
+
+/* チップ */
+#ctl { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin: 14px auto 0; }
+.chip { width: 68px; height: 68px; border-radius: 50%; border: 5px dashed #fff; font-size: 12px; color: #fff; cursor: pointer; line-height: 1.2; padding: 0; background: var(--c); box-shadow: inset 0 0 0 7px var(--c), inset 0 0 0 9px #fff, 0 4px 0 #000; }
+.chip:active { transform: translateY(3px); }
+#spin { display: none; }
+#menu { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
+
+/* フェルトのパネル */
+.felt { margin: 14px auto 1rem; background: #0f5a3a; border: 4px solid #e8b020; outline: 4px solid #000; padding: 10px 12px; color: #fff; }
+.felt h3 { margin: 0 0 8px; font-size: 15px; color: #ffe066; font-weight: 400; text-align: center; }
+.felt input, .felt select { font-size: 15px; background: #083a26; color: #fff; border: 2px solid #e8b020; border-radius: 0; padding: 6px; }
+.felt input { width: 100%; }
+.srow { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.srow span { color: #ffe066; min-width: 44px; }
+.srow select { flex: 1; min-width: 0; min-height: 40px; }
+.sbtn, dialog button { font-size: 14px; min-height: 40px; background: #fff8ec; color: #1a1020; border: 2px solid #000; box-shadow: 3px 3px 0 #000; border-radius: 0; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
+.sbtn:active, dialog button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #000; }
+.sbtn.on { background: #ffe066; }
+#cards { margin-top: 6px; }
+.card { display: inline-block; vertical-align: top; text-align: left; font-size: 14px; background: #fff8ec; color: #1a1020; border: 2px solid #000; box-shadow: 3px 3px 0 #000; border-radius: 0; padding: 6px 9px; margin: 5px; cursor: pointer; min-width: 60px; min-height: 40px; }
+.card small { display: block; color: #c8202f; font-size: 11px; }
+.card.g { background: #ffe066; }
+.card.p { background: #ffb0d8; }
+.hit { background: #fff8ec; color: #1a1020; border: 2px solid #000; box-shadow: 3px 3px 0 #000; padding: 8px 10px; margin: 8px 0; }
+.hit b { font-weight: 400; font-size: 15px; display: block; margin-bottom: 6px; overflow-wrap: anywhere; }
+.hit b i { font-style: normal; color: #c8202f; }
+.hit input { background: #fff; color: #1a1020; border: 2px solid #1a1020; font-size: 13px; padding: 4px 6px; min-height: 40px; }
+.hit.new { background: #ffe066; }
+.hit .row { display: flex; gap: 8px; margin: 8px 0 0; }
+#empty { color: #9fd8b8; font-size: 13px; text-align: center; margin: 4px 0; }
+#history summary { color: #ffe066; font-size: 15px; text-align: center; cursor: pointer; min-height: 40px; line-height: 40px; }
+#history ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; max-height: 40vh; overflow-y: auto; }
+#history li { max-width: 100%; }
+#history .card { overflow-wrap: anywhere; }
 .error { text-align: center; padding: 30px 0; }
-dialog { max-width: min(90vw, 600px); width: 100%; background: #2a2a48; color: #eee; border: 1px solid #55558a; border-radius: 8px; }
-dialog::backdrop { background: rgba(0,0,0,.6); }
-@media (max-width: 599px) {
-  .reels { flex-direction: column; }
-  .sep { font-size: 1.2rem; line-height: 1; }
-  .reel { flex-direction: row; gap: 4px; align-items: stretch; flex-wrap: wrap; }
-  .reel select { flex: 1 1 100%; padding: 3px 6px; }
-  .reel .word, .reel .empty { flex: 1 1 0; min-width: 0; min-height: 2.6em; width: auto; padding: 2px 6px; }
-  .reel .hold { flex: 0 0 auto; }
-  .reel .menu { flex: 1 1 100%; flex-direction: row; }
-  .actions { position: sticky; bottom: 0; margin: 0; padding: 8px 0 10px; background: #1b1b2f; z-index: 1; }
-}
-dialog { max-height: 85vh; overflow-y: auto; }
+
+/* ダイアログ（自分の語・設定） */
+dialog { max-width: min(92vw, 600px); width: 100%; max-height: 85vh; overflow-y: auto; background: #0f5a3a; color: #fff; border: 4px solid #e8b020; outline: 4px solid #000; border-radius: 0; padding: 12px; font-family: inherit; }
+dialog::backdrop { background: rgba(0, 0, 0, .7); }
+dialog h2 { font-size: 15px; color: #ffe066; font-weight: 400; margin: 14px 0 6px; }
 dialog h2:first-of-type { margin-top: 0; }
-dialog h3 { font-size: .9rem; margin: 10px 0 4px; }
+dialog h3 { font-size: .9rem; color: #ffe066; font-weight: 400; margin: 10px 0 4px; }
 dialog .close { float: right; }
-dialog input[type=text], dialog input:not([type]) { font: inherit; color: #222; background: #f4f0e0; border: 1px solid #55558a; border-radius: 6px; padding: 6px; min-width: 0; }
+dialog input[type=text], dialog input:not([type]), dialog select { font-size: 15px; background: #083a26; color: #fff; border: 2px solid #e8b020; border-radius: 0; padding: 6px; min-width: 0; min-height: 40px; }
 .list { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.list li:not(.row) { padding: 8px; background: #34345a; border-radius: 6px; display: flex; flex-direction: column; gap: 6px; }
-.combo, .list span { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
+.list span { overflow-wrap: anywhere; min-width: 0; }
 .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
 .row input { flex: 1 1 8em; }
-.err { color: #f88; }
+.err { color: #ffb0b0; }
+
+@media (max-width: 599px) {
+  #spin { display: block; }
+  #ctl { gap: 10px; }
+}
