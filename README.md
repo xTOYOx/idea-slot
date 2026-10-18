@@ -2,7 +2,7 @@
 
 ランダムな単語・動詞・ゲームジャンル・タグを 2〜4 枠のリールで組み合わせて、ゲームやアプリのアイデアの種を出すツールです。依存なしの静的Webアプリ。
 
-公開URL: https://xtoyox.github.io/idea-slot/
+公開URL: https://toyogame.github.io/idea-slot/ （公開用リポジトリ toyogame/idea-slot。反映は `node tools/publish.mjs`）
 
 ## 使い方
 
