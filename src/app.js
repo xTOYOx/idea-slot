@@ -199,7 +199,6 @@ function finish() {
   if (values.every(Boolean)) store.pushHistory(values);
   store.countSpin();
   sound.play('chime');
-  cab.dribble();
   say(`♦ ${comboText(values)} ♦ いいね！と思ったら IDEA! ボタン ♦`);
   renderHistory();
 }
@@ -517,8 +516,9 @@ async function start() {
   rebuildPools();
   sound.enabled = state.settings.sound;
   cab = createCabinet($('cv'));
+  cab.initPile(state.favorites.length); // 受け皿の山は当たり帳の件数から
   view = createOverlay($('wrap'), $('ov'), {
-    reel: press, lever: pull, idea,
+    reel: press, lever: pull, leverPos: a => cab.setLever(a), idea,
     word: copyWord,
     mon(i) {
       if (!ready || !canEdit(reels) || !reels[i]) return;

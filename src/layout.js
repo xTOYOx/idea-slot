@@ -8,6 +8,10 @@ export const MONITOR_Y = 62, MONITOR_H = 8, REEL_Y = 79, REEL_H = 48;
 // リール数の＋－ボタンの台座（筐体の左の外、カーペットの上）。＋は上、－は下
 export const COUNT_BTN = { x: 3, size: 14, plusY: 88, minusY: 108 };
 
+// レバーの玉の上端(論理y)。引いていないとき〜一番下まで引いたとき。引いた量 0〜1 を dy(px)/travel(px) から決め、LEVER_PULL 以上で離すと引いた扱い
+export const LEVER_REST = 46, LEVER_DOWN = 78, LEVER_PULL = 0.7;
+export const leverAmount = (dy, travel) => (travel > 0 ? Math.max(0, Math.min(1, dy / travel)) : 0);
+
 export function reelRects(n, W = W_MIN) {
   const WIDTH = W - 2 * LEFT;
   const w = Math.floor((WIDTH - GAP * (n - 1)) / n);

@@ -43,7 +43,7 @@ button:disabled { opacity: .45; cursor: default; }
 /* 広げる向きを分ける: STOP は下へ、IDEA! は上へ（間のすき間で重ならない） */
 .sb { top: 0; height: max(100%, 44px); transform: translateX(-50%); }
 #idea { top: auto; bottom: 0; height: max(100%, 44px); transform: translateX(-50%); }
-#lev { width: max(100%, 44px); cursor: grab; }
+#lev { width: max(100%, 44px); cursor: grab; touch-action: none; } /* 縦にドラッグして引くので、触って画面がスクロールしない */
 /* リール数の＋－: 台座は筐体の絵。＋は上へ、－は下へ押す範囲を広げる（間のすき間で重ならない） */
 .rb { width: max(100%, 40px); height: max(100%, 40px); transform: translateX(-50%); }
 .rb.up { top: auto; bottom: 0; }
