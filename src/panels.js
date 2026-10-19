@@ -1,11 +1,10 @@
-// ポーズメニューと引き出し（履歴・当たり帳）。DOM だけを扱い、中身の描画と状態は app.js が持つ。
+// ポーズメニューと引き出し（履歴・テンプレート・当たり帳）。DOM だけを扱い、中身の描画と状態は app.js が持つ。
 // pauseAction(key): ポーズメニューの auto / snd / rm が押された。open(): ポーズを開く直前（ラベル更新用）
 export function initPanels({ pauseAction, open }) {
   const pause = document.getElementById('pause');
   const drawers = Object.fromEntries([...document.querySelectorAll('.drawer')].map(el => [el.dataset.d, el]));
   const order = []; // 開いている引き出し（開いた順。いちばん後ろが一番上）
   const via = {}; // ポーズから開いた引き出し → 押したポーズの項目。閉じたらポーズに戻る
-  const noBack = new Set(); // ポーズに戻らずに閉じる画面（closeScreen）
 
   const isOpen = name => order.includes(name);
   // from: ポーズから開くときに押した項目。閉じるとポーズに戻る（back=false なら戻らない）
@@ -14,6 +13,8 @@ export function initPanels({ pauseAction, open }) {
     if (on === isOpen(name)) return;
     if (on) order.push(name); else order.splice(order.indexOf(name), 1);
     el.classList.toggle('open', on);
+    order.forEach((n, i) => { drawers[n].style.zIndex = 5 + i; }); // 開いた順に重ねる（閉じた引き出しのタブは CSS で最前面）
+    if (!on) el.style.zIndex = '';
     el.querySelector('.dbody').inert = !on;
     el.querySelector('.dtab').setAttribute('aria-expanded', String(on));
     const b = on ? from : via[name];
@@ -33,13 +34,6 @@ export function initPanels({ pauseAction, open }) {
     openDrawer: name => setDrawer(name, true),
     // 一番上の引き出しを閉じる。閉じたら true
     closeTop() { if (!order.length) return false; setDrawer(order.at(-1), false); return true; },
-    // ポーズから開いた画面(data-open)を、ポーズに戻らずに閉じる（テンプレートを使ったあとなど）
-    closeScreen(id) {
-      const dlg = document.getElementById(id);
-      if (!dlg.open) return;
-      noBack.add(id);
-      dlg.close();
-    },
     closeAll(back = true) { [...order].forEach(n => setDrawer(n, false, { back })); },
     toggleDrawer: name => setDrawer(name, !isOpen(name)),
     setCount(name, n) { drawers[name].querySelector('.bdg').textContent = n; },
@@ -56,7 +50,14 @@ export function initPanels({ pauseAction, open }) {
     el.querySelector('[data-dclose]').addEventListener('click', e => { if (e.detail > 0) e.currentTarget.blur(); setDrawer(name, false); });
   }
   // 外側をクリックしたら閉じる（引き出しの中とダイアログの中は除く）
-  document.addEventListener('click', e => { if (!e.target.closest('.drawer, dialog')) panels.closeAll(); });
+  // composedPath: 中のボタンが描き直しで外れたあとでも、元の親をたどれる
+  // テンプレの引き出しは、筐体（#wrap）を操作しても閉じない（リールやテーマを変えながら構成を保存できるように）
+  document.addEventListener('click', e => {
+    const path = e.composedPath();
+    if (path.some(n => n.matches?.('.drawer, dialog'))) return;
+    const keepTpl = path.some(n => n.id === 'wrap');
+    [...order].forEach(n => { if (!(keepTpl && n === 'tpl')) setDrawer(n, false); });
+  });
 
   document.getElementById('pbtn').addEventListener('click', e => { if (e.detail > 0) e.currentTarget.blur(); panels.openPause(); });
   pause.addEventListener('click', e => {
@@ -70,10 +71,10 @@ export function initPanels({ pauseAction, open }) {
     if (e.detail > 0) b.blur();
     const p = b.dataset.p;
     if (p === 'resume') pause.close();
-    else if (p === 'hits' || p === 'hist') { pause.close(); setDrawer(p, true, { from: b }); }
+    else if (p in drawers) { pause.close(); setDrawer(p, true, { from: b }); }
     else if (p) pauseAction(p);
   });
-  // テーマ・テンプレート・キー設定・書き出し: 開けるときだけポーズを閉じる（開くのは各画面の onclick）
+  // テーマ・キー設定・書き出し: 開けるときだけポーズを閉じる（開くのは各画面の onclick）
   pause.addEventListener('click', e => { if (e.target.closest('[data-open]:not(:disabled)')) pause.close(); }, true);
   // ポーズを閉じたとき、フォーカスが閉じたダイアログの中の項目に残っていると Esc（app.js の keydown）が効かなくなるので外す
   pause.addEventListener('close', () => {
@@ -90,10 +91,7 @@ export function initPanels({ pauseAction, open }) {
       const r = dlg.getBoundingClientRect(); // パネルの余白かバックドロップか: 座標で外側だけ閉じる
       if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dlg.close();
     });
-    dlg.addEventListener('close', () => {
-      if (!noBack.delete(dlg.id)) backToPause(b);
-      else if (dlg.contains(document.activeElement)) document.activeElement.blur(); // 閉じた画面にフォーカスが残ると、キー操作（app.js の keydown）が効かなくなる
-    });
+    dlg.addEventListener('close', () => backToPause(b));
   }
   return panels;
 }

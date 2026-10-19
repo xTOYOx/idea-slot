@@ -1,6 +1,7 @@
 @font-face { font-family: 'DotGothic16'; src: url('fonts/DotGothic16-Regular.ttf'); font-display: swap; }
 * { box-sizing: border-box; }
 html { height: 100%; }
+:root { --th: 140px; } /* 端のタブの高さ */
 body { margin: 0; padding: 16px; min-height: 100%; background: #1b0b14; color: #fff; font-family: 'DotGothic16', monospace; }
 button, select, input { font: inherit; touch-action: manipulation; }
 button:disabled { opacity: .45; cursor: default; }
@@ -93,7 +94,7 @@ dialog h2 { font-size: 15px; color: #ffe066; font-weight: 400; margin: 14px 0 6p
 dialog h2:first-of-type { margin-top: 0; }
 dialog h3 { font-size: .9rem; color: #ffe066; font-weight: 400; margin: 10px 0 4px; }
 dialog .close { float: right; }
-dialog input[type=text], dialog input:not([type]), dialog select, dialog textarea { font-size: 15px; background: #083a26; color: #fff; border: 2px solid #e8b020; border-radius: 0; padding: 6px; min-width: 0; min-height: 40px; }
+dialog input[type=text], dialog input:not([type]), dialog select, dialog textarea, #tpl input { font-size: 15px; background: #083a26; color: #fff; border: 2px solid #e8b020; border-radius: 0; padding: 6px; min-width: 0; min-height: 40px; }
 .list { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .list span { overflow-wrap: anywhere; min-width: 0; flex: 1; }
 .list .row { flex-wrap: nowrap; }
@@ -120,7 +121,7 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 #themes .more { display: block; width: 100%; margin: 6px 0; }
 
 /* ⏸ ポーズボタン（画面の左上の角） */
-#pbtn, #hbtn { position: fixed; left: 6px; top: 6px; z-index: 6; width: 44px; height: 44px; padding: 0; display: flex; gap: 6px; align-items: center; justify-content: center; background: #6a2fb0; border: 3px solid #000; box-shadow: inset 0 0 0 2px #fff, 3px 3px 0 #000; cursor: pointer; }
+#pbtn, #hbtn { position: fixed; left: 6px; top: 6px; z-index: 30; width: 44px; height: 44px; padding: 0; display: flex; gap: 6px; align-items: center; justify-content: center; background: #6a2fb0; border: 3px solid #000; box-shadow: inset 0 0 0 2px #fff, 3px 3px 0 #000; cursor: pointer; }
 #pbtn i { width: 6px; height: 18px; background: #fff; }
 #hbtn { left: 56px; font-size: 24px; line-height: 1; color: #fff; }
 #pbtn:active, #hbtn:active { transform: translate(2px, 2px); box-shadow: inset 0 0 0 2px #fff, 1px 1px 0 #000; }
@@ -163,9 +164,9 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 [aria-checked=true] > .sw i::after { content: 'ON'; }
 #pause .prow[data-edit]:disabled { box-shadow: none; transform: none; background: #d8d0bc; }
 #pause .prow:focus-visible, #pause .resume:focus-visible { outline: 2px solid #3ef0ff; outline-offset: 2px; }
-/* テンプレート・キー設定の画面 */
-#templates, #keys { max-width: min(92vw, 560px); }
-#templates .body > :not(h2), #keys .body > :not(h2) { clear: right; } /* 「← もどる」（右上に浮く）の横に回り込まない */
+/* キー設定の画面、テンプレの引き出しの中身 */
+#keys { max-width: min(92vw, 560px); }
+#keys .body > :not(h2) { clear: right; } /* 「← もどる」（右上に浮く）の横に回り込まない */
 .cur { margin: 4px 0 8px; color: #9fd8b8; overflow-wrap: anywhere; }
 .tpl li, .krows li { padding: 8px 10px; background: #083a26; border: 2px solid #1d7a52; }
 .tpl b { display: block; font-weight: 400; color: #ffe066; overflow-wrap: anywhere; }
@@ -180,11 +181,14 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 #help .thead { margin-bottom: 4px; }
 #help h4 { margin: 12px 0 2px; font-size: 1em; font-weight: 400; color: #ffe066; }
 #help ul { margin: 0; padding-left: 1.4em; }
+#tpl h4 { margin: .8em 0 .3em; font-size: 1em; font-weight: 400; color: #ffe066; }
+#tpl form.row { flex-wrap: wrap; }
+#tpl form.row input { flex: 1 1 100%; } /* 引き出しは細いので、名前の欄は1行まるごと使い、保存ボタンはその下に */
 #pick h3 { text-align: center; margin: 0 0 8px; }
 #pick input { width: 100%; }
 
-/* 引き出し（履歴は左端・当たり帳は右端）。タブは引き出しにくっついて動く */
-.drawer { position: fixed; top: 0; bottom: 0; z-index: 5; width: min(380px, 90vw); transition: transform .25s steps(6); }
+/* 引き出し（履歴・テンプレは左端、当たり帳は右端）。タブは引き出しにくっついて動く。閉じている間は最前面（開いた引き出しの上でもタブを押せる）。開くと app の panels.js が開いた順に 5 から重ねる */
+.drawer { position: fixed; top: 0; bottom: 0; z-index: 20; width: min(380px, 90vw); transition: transform .25s steps(6); }
 .drawer.l { left: 0; transform: translateX(-100%); }
 .drawer.r { right: 0; transform: translateX(100%); }
 .drawer.open { transform: none; }
@@ -193,9 +197,10 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 .l .dhead { margin-left: 100px; } /* ⏸ と ？ の下に隠れないように */
 .dhead { flex-wrap: wrap; display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 8px; }
 .dhead h3 { flex: 1 1 auto; margin: 0; font-size: 15px; color: #ffe066; font-weight: 400; }
-.dtab { position: absolute; top: 50%; margin-top: -70px; width: 44px; height: 140px; padding: 0; writing-mode: vertical-rl; letter-spacing: .15em; font-size: 15px; color: #fff; background: #0f5a3a; border: 3px solid #000; box-shadow: inset 0 0 0 2px #e8b020; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.l .dtab { left: 100%; border-left: 0; }
-.r .dtab { right: 100%; border-right: 0; }
+.dtab { position: absolute; top: 50%; width: 44px; height: var(--th); padding: 0; writing-mode: vertical-rl; letter-spacing: .15em; font-size: 15px; color: #fff; background: #0f5a3a; border: 3px solid #000; box-shadow: inset 0 0 0 2px #e8b020; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.l .dtab { left: 100%; border-left: 0; margin-top: calc(var(--th) * -1 - 3px); } /* 左は履歴（上）とテンプレ（下）を縦に並べ、全体を中央に置く */
+#d-tpl .dtab { margin-top: 3px; }
+.r .dtab { right: 100%; border-right: 0; margin-top: calc(var(--th) * -.5); }
 .bdg { writing-mode: horizontal-tb; letter-spacing: 0; font-weight: 400; font-size: 12px; min-width: 22px; padding: 1px 3px; text-align: center; background: #c8202f; color: #fff; border: 2px solid #000; }
 .bdg:empty { display: none; }
 .dtab.flash { animation: fl .4s steps(2) 5; }
@@ -225,15 +230,16 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   body { height: 100dvh; overflow: hidden; }
   #app { max-width: none; height: 100%; margin: 0; display: grid; place-items: center; }
   .grip { display: block; }
+  [data-narrow] { display: none !important; } /* ポーズのテンプレート（端のタブがあるので PC では出さない） */
   #wrap { width: min(100vw - 2 * var(--tab) - 32px, (100dvh - 32px) * var(--W) / 190); } /* 左右は端のタブの分を空ける（app.js も同じ式で W を決める） */
 
   /* 画面に合わせて UI を大きくする。基準の文字サイズ --fs（1280×800 で約 19px、1920×1080 で 26px）。スマホ（600 未満）は上の元の大きさのまま */
-  :root { --fs: clamp(16px, min(1.1vw + .6vh, 2.5vh), 26px); --tab: max(44px, calc(var(--fs) * 2.8)); }
+  :root { --fs: clamp(16px, min(1.1vw + .6vh, 2.5vh), 26px); --tab: max(44px, calc(var(--fs) * 2.8)); --th: calc(var(--fs) * 9.4); }
   .sbtn, dialog button { font-size: var(--fs); min-height: max(40px, 2.4em); padding: .3em .7em; }
   dialog { font-size: var(--fs); max-width: min(820px, 92vw); }
   dialog h2 { font-size: 1.2em; }
   dialog h3 { font-size: 1em; }
-  dialog input[type=text], dialog input:not([type]), dialog select, dialog textarea { font-size: var(--fs); min-height: max(40px, 2.4em); padding: .3em .4em; }
+  dialog input[type=text], dialog input:not([type]), dialog select, dialog textarea, #tpl input { font-size: var(--fs); min-height: max(40px, 2.4em); padding: .3em .4em; }
   #pause { max-width: min(calc(var(--fs) * 32), 92vw); max-height: 94dvh; }
   #pause h2 { font-size: 1.4em; margin-bottom: .5em; }
   #pause .prow { min-height: 2.6em; }
@@ -247,10 +253,12 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   .hit input { width: 100%; font-size: var(--fs); min-height: max(40px, 2.4em); padding: .2em .4em; }
   #empty { font-size: .9em; }
   .drawer { width: min(560px, 42vw); }
+  #d-tpl { width: min(calc(var(--fs) * 24), 34vw); } /* 筐体のリールがなるべく見えるように、テンプレは細く */
   .dbody { font-size: var(--fs); padding: .7em .8em; }
   .dhead h3 { font-size: 1.2em; }
+  .l .dbody { padding-left: calc(var(--tab) + .5em); } /* 閉じている側の左のタブが重なる分 */
   .l .dhead { margin-left: calc(var(--tab) * 2 + 24px); } /* ⏸ と ？ の下に隠れないように */
-  .dtab { width: var(--tab); height: calc(var(--fs) * 9.4); margin-top: calc(var(--fs) * -4.7); font-size: var(--fs); gap: .5em; }
+  .dtab { width: var(--tab); font-size: var(--fs); gap: .5em; }
   .bdg { font-size: .8em; min-width: 1.5em; }
   #pbtn, #hbtn { width: var(--tab); height: var(--tab); left: 8px; top: 8px; gap: calc(var(--fs) * .4); }
   #hbtn { left: calc(var(--tab) + 16px); font-size: calc(var(--fs) * 1.5); }
@@ -260,7 +268,6 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   #types button { font-size: var(--fs); }
   .tg { grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); }
   #themes { max-width: min(calc(var(--fs) * 58), 94vw); max-height: 94dvh; }
-  #templates { max-width: min(calc(var(--fs) * 34), 94vw); max-height: 94dvh; }
   #keys { max-width: min(calc(var(--fs) * 42), 94vw); max-height: 94dvh; }
   .krows { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; }
   .krows button { flex-basis: 7.5em; }

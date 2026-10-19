@@ -42,6 +42,7 @@ let ready = false; // 起動の最初の spin が済むまで、回す・IDEA!�
 let graphP = null; // data/graph.json を読む Promise（最初にテーマを使うときだけ。失敗したら捨てて次回やり直す）
 let reels = [], reelCount = 0, cab = null, view = null;
 let cabW = 200, widthTimer = 0, widthFrame = 0, liveW = null; // 筐体の論理幅（自動は画面の縦横比、手動は settings.cabW。cabinet.js・reels.js・CSS の --W と揃える）。liveW: ドラッグ中の仮の幅
+let tpl = null; // テンプレの引き出し（tplscreen.js）
 let tickTimer = null, beat = 0, autoTimers = [], editing = -1;
 const neigh = []; // 止まっている枠の上下の語（止まったときに決め、LOCKしても変えない）
 
@@ -102,6 +103,7 @@ function sync() {
   cab.update({ spinning: isSpinning(reels), canSave: canSave(reels, state.favorites), ideas: state.stats.spins, hits: state.favorites.length, reduceMotion: reduceMotion() });
   view.setCount(reels.length, canEdit(reels));
   applyBusy();
+  tpl?.refresh(); // テンプレの「今の構成」
   document.body.classList.toggle('reduce-motion', reduceMotion());
 }
 
@@ -112,6 +114,7 @@ function pauseLabels() {
   $('cabw-d').textContent = manual ? `横幅 ${st.cabW}（左右の端をドラッグで調整）` : '画面に合わせます';
   p.querySelector('[data-p="hits"] em').textContent = `（${state.favorites.length}）`;
   p.querySelector('[data-p="hist"] em').textContent = `（${state.history.length}）`;
+  p.querySelector('[data-p="tpl"] em').textContent = `（${state.templates.length}）`;
 }
 
 function pauseAction(k) {
@@ -467,6 +470,7 @@ function useTemplate(t) {
   if (!ready || !canEdit(reels)) return false;
   setReels(spin(applySlots(t.slots, validType).map(s => ({ ...s, value: null, held: false })), pools));
   say(`テンプレート「${t.name}」を使いました`);
+  if (matchMedia('(max-width: 599px)').matches) panels.closeAll(false); // スマホではシートを閉じて筐体を見せる（ポーズには戻らない）。PC は開いたまま
   return true;
 }
 
@@ -494,7 +498,7 @@ const keyActions = {
   lever: pull, idea,
   reel1: () => press(0), reel2: () => press(1), reel3: () => press(2), reel4: () => press(3),
   more: () => changeCount(1), less: () => changeCount(-1),
-  hist: () => panels.toggleDrawer('hist'), hits: () => panels.toggleDrawer('hits'),
+  hist: () => panels.toggleDrawer('hist'), tpl: () => panels.toggleDrawer('tpl'), hits: () => panels.toggleDrawer('hits'),
   help: () => help.open(),
 };
 
@@ -523,12 +527,12 @@ async function start() {
     count: changeCount,
   });
   initThemeScreen({ store, data, isSpinning: () => isSpinning(reels), changed: themesChanged });
-  initTemplateScreen({
+  tpl = initTemplateScreen({
     store, isSpinning: () => isSpinning(reels),
     current: () => reels.map(r => ({ type: r.base ?? r.type })),
     label: type => typeText(normalizeType(type, validType)), // 使うときと同じ見え方（消えたテーマは外れる）
     use: useTemplate,
-    close: () => panels.closeScreen('templates'),
+    count: n => { panels.setCount('tpl', n); pauseLabels(); },
   });
   initKeyScreen({ store, changed: renderKeyHelp });
   initScreens({
@@ -550,6 +554,7 @@ async function start() {
         setReels(initialReels());
         renderHits();
         renderHistory();
+        tpl.render();
         if (!ok) say(THEME_FAIL);
       } finally { ready = true; }
     },
@@ -569,6 +574,7 @@ async function start() {
   ready = true;
   renderHits();
   renderHistory();
+  tpl.render();
   say(themesOk ? '★ WELCOME TO IDEA CASINO ★ レバーで回す ★ 気に入った語はLOCK ★ いいね！と思ったら IDEA! ★' : `${THEME_FAIL} ... テーマなしで開始`);
 }
 

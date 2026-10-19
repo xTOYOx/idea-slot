@@ -18,6 +18,10 @@
   <button class="dtab" aria-expanded="false" aria-controls="d-hist-body">履歴<b class="bdg"></b></button>
   <div class="dbody" id="d-hist-body" inert><div class="dhead"><h3>♥ 履歴 ♥</h3><button class="sbtn" id="hclear" disabled>全部消す</button><button class="sbtn" data-dclose>閉じる</button></div><ol id="hist"></ol></div>
 </aside>
+<aside class="drawer l" id="d-tpl" data-d="tpl">
+  <button class="dtab" aria-expanded="false" aria-controls="d-tpl-body">テンプレ<b class="bdg"></b></button>
+  <div class="dbody" id="d-tpl-body" inert><div class="dhead"><h3>♣ テンプレート ♣</h3><button class="sbtn" data-dclose>閉じる</button></div><div id="tpl"></div></div>
+</aside>
 <aside class="drawer r" id="d-hits" data-d="hits">
   <button class="dtab" aria-expanded="false" aria-controls="d-hits-body">当たり帳<b class="bdg"></b></button>
   <div class="dbody" id="d-hits-body" inert><div class="dhead"><h3>♠ 当たり帳 ♠</h3><button class="sbtn" data-dclose>閉じる</button></div><div id="hits"></div></div>
@@ -44,7 +48,7 @@
         <button class="prow" data-p="hits"><span class="nm">当たり帳<em></em></span><b class="chev" aria-hidden="true">›</b></button>
         <button class="prow" data-p="hist"><span class="nm">履歴<em></em></span><b class="chev" aria-hidden="true">›</b></button>
         <button class="prow" data-edit data-open="themes"><span class="nm">テーマ</span><b class="chev" aria-hidden="true">›</b></button>
-        <button class="prow" data-edit data-open="templates"><span class="nm">テンプレート</span><b class="chev" aria-hidden="true">›</b></button>
+        <button class="prow" data-narrow data-p="tpl"><span class="nm">テンプレート<em></em></span><b class="chev" aria-hidden="true">›</b></button>
         <button class="prow" data-wide data-open="keys"><span class="nm">キー設定</span><b class="chev" aria-hidden="true">›</b></button>
         <button class="prow" data-edit data-open="settings"><span class="nm">書き出し・読み込み</span><b class="chev" aria-hidden="true">›</b></button>
       </div>
@@ -63,6 +67,8 @@
   <ul><li>左右の端のつまみをドラッグ（PC）</li></ul>
   <h4>当たり帳・履歴</h4>
   <ul><li>左右の端のタブ</li></ul>
+  <h4>テンプレート</h4>
+  <ul><li>左端の「テンプレ」タブ（T キー）で、リールの構成を保存・呼び出し（スマホはポーズから）</li></ul>
   <h4>キー操作（PC）</h4>
   <ul id="help-keys"></ul>
 </dialog>
@@ -76,7 +82,6 @@
   <div id="cards"></div>
 </dialog>
 <dialog id="themes"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
-<dialog id="templates"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
 <dialog id="keys"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
 <dialog id="settings"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
 <script type="module" src="src/app.js"></script>

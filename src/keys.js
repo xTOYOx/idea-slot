@@ -10,6 +10,7 @@ export const ACTIONS = [
   { id: 'less', label: 'リールを減らす', key: 'ArrowDown' },
   { id: 'hist', label: '履歴', key: 'KeyH' },
   { id: 'hits', label: '当たり帳', key: 'KeyB' },
+  { id: 'tpl', label: 'テンプレート', key: 'KeyT' },
   { id: 'help', label: '使い方', key: 'Slash' },
 ];
 export const DEFAULT_KEYS = Object.fromEntries(ACTIONS.map(a => [a.id, a.key]));
@@ -46,7 +47,7 @@ export function keyHelp(keys) {
   return [
     ...['lever', 'idea'].map(id => `${keyName(keys[id])}：${label(id)}`),
     `${reels}：リール1〜4の STOP / LOCK`,
-    ...['more', 'less', 'hist', 'hits', 'help'].map(id => `${keyName(keys[id])}：${label(id)}`),
+    ...['more', 'less', 'hist', 'hits', 'tpl', 'help'].map(id => `${keyName(keys[id])}：${label(id)}`),
     'Esc：ポーズ',
   ];
 }
