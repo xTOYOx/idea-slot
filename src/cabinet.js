@@ -141,6 +141,9 @@ export function createCabinet(canvas) {
     const busy = v.spinning || t < celebrateUntil || t < leverUntil || t < pressUntil || parts.length > 0;
     if (!busy && !wasBusy && t - lastDraw < (v.reduceMotion ? 250 : 100)) return;
     wasBusy = busy;
+    render(t);
+  }
+  function render(t) {
     lastDraw = t;
     const rm = v.reduceMotion, celebrating = t < celebrateUntil;
     const rain = celebrating && !rm; // 低減モードでは電球・回転灯・コインは動かさない
@@ -200,6 +203,9 @@ export function createCabinet(canvas) {
         while (pile.length < Math.round(18 * (128 + D) / 128)) pile.push(coin());
         canvas.width = st.width = W;
         parts = []; // 粒の位置は古い幅のもの
+        drawStatic(n);
+        render(performance.now()); // 幅を変えると canvas が空になるので、次のフレームを待たずに描く（ドラッグ中のちらつき防止）
+        return;
       }
       drawStatic(n);
     },

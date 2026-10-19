@@ -86,7 +86,7 @@ button:disabled { opacity: .45; cursor: default; }
 #hist .card { overflow-wrap: anywhere; }
 .error { text-align: center; padding: 30px 0; }
 
-/* ダイアログ（自分の語・テーマ・設定） */
+/* ダイアログ（テーマ・設定） */
 dialog { max-width: min(92vw, 600px); width: 100%; max-height: 85vh; overflow-y: auto; background: #0f5a3a; color: #fff; border: 4px solid #e8b020; outline: 4px solid #000; border-radius: 0; padding: 12px; font-family: inherit; }
 dialog::backdrop { background: rgba(0, 0, 0, .7); }
 dialog h2 { font-size: 15px; color: #ffe066; font-weight: 400; margin: 14px 0 6px; }
@@ -105,6 +105,17 @@ dialog input[type=text], dialog input:not([type]), dialog select, dialog textare
 .err:empty, .note:empty { margin: 0; }
 dialog textarea { width: 100%; font: inherit; resize: vertical; }
 .list li > button { max-width: 100%; white-space: normal; text-align: left; }
+/* テーマ画面: 種類のボタン（.tg）と語の一覧（.wg） */
+.hint { margin: 4px 0; font-size: .8em; color: #9fd8b8; }
+#themes .tg button { text-align: left; white-space: normal; overflow-wrap: anywhere; }
+#themes .tg button small { display: block; font-size: .8em; color: #4a6a58; }
+.wg { list-style: none; margin: 6px 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5em, 1fr)); gap: 6px; }
+.wg li { display: flex; align-items: center; gap: 6px; min-width: 0; padding-left: 8px; background: #083a26; border: 2px solid #1d7a52; }
+.wg li.off { opacity: .55; }
+.wg span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.wg button { flex: none; min-height: 36px; }
+.wg .mk { flex: none; padding: 0 .3em; font-style: normal; font-size: .75em; color: #1a1020; background: #ffe066; }
+#themes .more { display: block; width: 100%; margin: 6px 0; }
 
 /* ⏸ ポーズボタン（画面の左上の角） */
 #pbtn { position: fixed; left: 6px; top: 6px; z-index: 6; width: 44px; height: 44px; padding: 0; display: flex; gap: 6px; align-items: center; justify-content: center; background: #6a2fb0; border: 3px solid #000; box-shadow: inset 0 0 0 2px #fff, 3px 3px 0 #000; cursor: pointer; }
@@ -212,6 +223,9 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   #types { max-width: min(calc(var(--fs) * 58), 94vw); }
   #types button { font-size: var(--fs); }
   .tg { grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); }
+  #themes { max-width: min(calc(var(--fs) * 58), 94vw); max-height: 94dvh; }
+  .wg { grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); }
+  .wg button { min-height: max(36px, 2em); }
 }
 @media (max-width: 599px) {
   #spin { display: block; }

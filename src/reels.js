@@ -5,7 +5,11 @@ import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H, COUNT_BTN } 
 const SLOT = '<div class="e"><span></span></div>';
 
 export function createOverlay(wrap, ov, on) {
-  let W = 200, rects = [], wins = [], btns = [], mons = [], ticker = null, said = '', plus = null, minus = null;
+  let W = 200, rects = [], wins = [], btns = [], mons = [], plus = null, minus = null;
+  // 掲示板は作り直さない（流れるアニメーションが幅の変更のたびに頭から始まって、ちらつかないように）
+  const board = Object.assign(document.createElement('div'), { className: 'ov tk', innerHTML: '<span id="tks"></span>' });
+  wrap.appendChild(board);
+  const ticker = board.firstChild;
   const pos = (x, y, w, h) => `left:${x / W * 100}%;top:${y / 1.9}%;width:${w / W * 100}%;height:${h / 1.9}%`;
   const fit = () => wrap.style.setProperty('--u', wrap.clientWidth / W + 'px');
   fit(); // 最初の描画から合わせる（ResizeObserver の通知を待たない）
@@ -26,13 +30,11 @@ export function createOverlay(wrap, ov, on) {
       }).join('') + `<div class="ov" style="${pos(COUNT_BTN.x, COUNT_BTN.plusY, COUNT_BTN.size, COUNT_BTN.size)}"><button class="hb rb up" id="rp" data-c="1" aria-label="リールを1つ増やす"><span class="cf plus"></span></button></div>
         <div class="ov" style="${pos(COUNT_BTN.x, COUNT_BTN.minusY, COUNT_BTN.size, COUNT_BTN.size)}"><button class="hb rb dn" id="rn" data-c="-1" aria-label="リールを1つ減らす"><span class="cf"></span></button></div>
         <div class="ov" style="${pos(CX - 20, 127, 40, 12)}"><button class="hb" id="idea" aria-label="このアイデアを当たりとして保存"></button></div>
-        <div class="ov tk" style="${pos(71, 51, 58 + D, 8)}"><span id="tks"></span></div>
         <div class="ov" style="${pos(178 + D, 40, 20, 84)}"><button class="hb" id="lev" aria-label="レバーを引く"></button></div>`;
       mons = [...ov.querySelectorAll('.mon span')];
       wins = [...ov.querySelectorAll('.rw')];
       btns = [...ov.querySelectorAll('.sb')];
-      ticker = ov.querySelector('#tks');
-      ticker.textContent = said; // 作り直しても掲示板の文は残す
+      board.style.cssText = pos(71, 51, 58 + D, 8);
       plus = ov.querySelector('#rp');
       minus = ov.querySelector('#rn');
     },
@@ -68,7 +70,6 @@ export function createOverlay(wrap, ov, on) {
       wins[i].classList.add('bn');
     },
     say(text) {
-      said = text;
       ticker.textContent = text;
       ticker.style.animation = 'none';
       void ticker.offsetWidth;
