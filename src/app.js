@@ -13,6 +13,7 @@ import { createOverlay } from './reels.js';
 import { initScreens } from './screens.js';
 import { initThemeScreen } from './themescreen.js';
 import { addWords } from './mythemes.js';
+import { cabinetWidth } from './layout.js';
 
 // テーマ機能のスイッチ。false の間は語メニューに出さず、保存済みのテーマも使わない（保存データからは消さない）
 const THEMES_ON = false;
@@ -34,6 +35,7 @@ let themes = Object.create(null); // テーマの語 → 集めた語のリス�
 let ready = false; // 起動の最初の spin が済むまで、回す・IDEA!・リール設定を受け付けない（保存テーマの読み込み待ち）
 let graphP = null; // data/graph.json を読む Promise（最初にテーマを使うときだけ。失敗したら捨てて次回やり直す）
 let reels = [], reelCount = 0, cab = null, view = null;
+let cabW = 200, widthTimer = 0; // 筐体の論理幅（画面の縦横比で決まる。cabinet.js・reels.js・CSS の --W と揃える）
 let tickTimer = null, beat = 0, autoTimers = [], editing = -1;
 const neigh = []; // 止まっている枠の上下の語（止まったときに決め、LOCKしても変えない）
 
@@ -126,14 +128,33 @@ function setReels(next) {
   reels = next;
   if (reels.length !== reelCount) {
     reelCount = reels.length;
-    cab.setReels(reelCount);
-    view.build(reelCount);
+    cab.setReels(reelCount, cabW);
+    view.build(reelCount, cabW);
     if (editing >= reelCount) closePick();
   }
   reels.forEach((_, i) => paint(i, true));
   saveSettings();
   sync();
 }
+
+// --- 筐体の幅（画面に合わせる） ---
+const wantedWidth = () => cabinetWidth(innerWidth, innerHeight, document.querySelector('.dtab').offsetWidth);
+function setCabW(w) {
+  cabW = w;
+  $('wrap').style.setProperty('--W', w); // CSS の筐体の幅（縦横比）と canvas の幅を同じ値にする
+}
+// 画面が変わって幅 W が変わったら、静的レイヤーと重ね物を作り直す。連続リサイズ（回転中など）では止まるまで待つ
+function fitCabinet() {
+  widthTimer = 0;
+  const w = wantedWidth();
+  if (!view || w === cabW) return;
+  setCabW(w);
+  cab.setReels(reelCount, w);
+  view.build(reelCount, w);
+  reels.forEach((_, i) => paint(i));
+  sync();
+}
+addEventListener('resize', () => { clearTimeout(widthTimer); widthTimer = setTimeout(fitCabinet, 200); });
 
 // --- 回す・止める・ロック ---
 function finish() {
@@ -509,8 +530,9 @@ async function start() {
   pauseLabels();
   // 保存したテーマがあれば、筐体を出してからグラフを読む（読めなければテーマなしで続ける）
   reelCount = clamp(state.settings.count);
-  cab.setReels(reelCount);
-  view.build(reelCount); // 空の筐体を先に出す（掲示板もここで使えるようになる）
+  setCabW(wantedWidth());
+  cab.setReels(reelCount, cabW);
+  view.build(reelCount, cabW); // 空の筐体を先に出す（掲示板もここで使えるようになる）
   if (savedThemes().length) say('テーマを準備中…');
   const themesOk = await prepareThemes();
   rebuildPools();
