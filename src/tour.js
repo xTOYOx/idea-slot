@@ -56,6 +56,9 @@ export function createTour(onDone) {
   });
   dlg.addEventListener('close', () => onDone());
   addEventListener('resize', () => { if (dlg.open) render(); });
+  // 筐体はリサイズの少しあとに作り直される（幅 W が変わる）ので、その大きさの変化でも指す位置を取り直す
+  const wrap = document.getElementById('wrap');
+  if (wrap) new ResizeObserver(() => { if (dlg.open) render(); }).observe(wrap);
 
   return {
     // 指す要素が無い（まだ組み立て前など）ステップは飛ばす
