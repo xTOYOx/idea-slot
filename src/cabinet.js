@@ -262,12 +262,16 @@ export function createCabinet(canvas, { onCollect = () => {} } = {}) {
   };
   // 受け皿のコインをなぞって回収する（押したまま・指でなぞる）。縦のスクロールはそのまま使えるよう pan-y
   canvas.style.touchAction = 'pan-y';
-  let swiping = false;
+  // 同じ列にとどまっている間は取らない（新しい列に入ったときだけ）。1回なぞると、各列は両隣のぶんも合わせて3段ほど減る
+  let swiping = false, lastCol = -1;
   const sweep = e => {
     const r = canvas.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
     const tr = tray(), top = PILE_Y + DY - MAX_H * PILE_STEP - 6;
-    if (x < tr.l - 2 || x > tr.r + 2 || y < top || y > H) return;
-    const got = takeCoins(pile, colOf(x));
+    if (x < tr.l - 2 || x > tr.r + 2 || y < top || y > H) { lastCol = -1; return; }
+    const col = colOf(x);
+    if (col === lastCol) return;
+    lastCol = col;
+    const got = takeCoins(pile, col);
     if (!got.length) return;
     const now = performance.now();
     for (const g of got) picks.push({ x: PILE_X + g.col * COL_W, y: PILE_Y + DY - g.k * PILE_STEP, t: now });
@@ -275,7 +279,7 @@ export function createCabinet(canvas, { onCollect = () => {} } = {}) {
   };
   canvas.addEventListener('pointerdown', e => { if (e.button === 0) { swiping = true; sweep(e); } });
   canvas.addEventListener('pointermove', e => { if (swiping || e.pointerType === 'mouse' && e.buttons & 1) sweep(e); });
-  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) canvas.addEventListener(ev, () => { swiping = false; });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) canvas.addEventListener(ev, () => { swiping = false; lastCol = -1; });
 
   cab.setReels(3);
   requestAnimationFrame(frame);
