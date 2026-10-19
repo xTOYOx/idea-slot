@@ -414,7 +414,7 @@ function renderHits() {
   const list = state.favorites.map((f, i) => `<div class="hit${i === 0 ? ' new' : ''}"><b>${f.combo.map(esc).join(' <i>×</i> ')}</b>
     <input data-h="${i}" value="${esc(f.memo)}" placeholder="ひとことメモ（思いついたことを書いておく）" aria-label="メモ">
     <div class="row"><button class="sbtn" data-edit data-back="${i}">枠に戻す</button><button class="sbtn" data-del="${i}">削除</button></div></div>`).join('');
-  $('hits').innerHTML = list || '<div id="empty">いいね！と思ったら IDEA! ボタン</div>';
+  $('hits').innerHTML = list || '<div id="empty">まだありません</div>';
   panels.setCount('hits', state.favorites.length);
   pauseLabels();
   applyBusy();
