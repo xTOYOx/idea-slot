@@ -1,4 +1,5 @@
-// 「使い方」ダイアログ。左上の「？」で開く（ポーズの外なので、閉じるは「閉じる」）。中身は index.html にある
+// 「使い方」ダイアログ。左上の「？」かキーで開く（ポーズの外なので、閉じるは「閉じる」）。中身は index.html にある。
+// setKeys(lines): 「キー操作」の行を差し替える（キー設定から作る）。open(): キーから開く
 export function initHelp() {
   const dlg = document.getElementById('help'), btn = document.getElementById('hbtn');
   btn.addEventListener('click', e => {
@@ -14,4 +15,8 @@ export function initHelp() {
     const r = dlg.getBoundingClientRect(); // 余白かバックドロップか: 座標で外側だけ閉じる
     if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dlg.close();
   });
+  return {
+    open: () => dlg.showModal(),
+    setKeys: lines => dlg.querySelector('#help-keys').replaceChildren(...lines.map(s => Object.assign(document.createElement('li'), { textContent: s }))),
+  };
 }

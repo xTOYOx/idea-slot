@@ -5,6 +5,7 @@ export function initPanels({ pauseAction, open }) {
   const drawers = Object.fromEntries([...document.querySelectorAll('.drawer')].map(el => [el.dataset.d, el]));
   const order = []; // 開いている引き出し（開いた順。いちばん後ろが一番上）
   const via = {}; // ポーズから開いた引き出し → 押したポーズの項目。閉じたらポーズに戻る
+  const noBack = new Set(); // ポーズに戻らずに閉じる画面（closeScreen）
 
   const isOpen = name => order.includes(name);
   // from: ポーズから開くときに押した項目。閉じるとポーズに戻る（back=false なら戻らない）
@@ -32,6 +33,13 @@ export function initPanels({ pauseAction, open }) {
     openDrawer: name => setDrawer(name, true),
     // 一番上の引き出しを閉じる。閉じたら true
     closeTop() { if (!order.length) return false; setDrawer(order.at(-1), false); return true; },
+    // ポーズから開いた画面(data-open)を、ポーズに戻らずに閉じる（テンプレートを使ったあとなど）
+    closeScreen(id) {
+      const dlg = document.getElementById(id);
+      if (!dlg.open) return;
+      noBack.add(id);
+      dlg.close();
+    },
     closeAll(back = true) { [...order].forEach(n => setDrawer(n, false, { back })); },
     toggleDrawer: name => setDrawer(name, !isOpen(name)),
     setCount(name, n) { drawers[name].querySelector('.bdg').textContent = n; },
@@ -65,7 +73,7 @@ export function initPanels({ pauseAction, open }) {
     else if (p === 'hits' || p === 'hist') { pause.close(); setDrawer(p, true, { from: b }); }
     else if (p) pauseAction(p);
   });
-  // テーマ・書き出し: 開けるときだけポーズを閉じる（開くのは screens.js / themescreen.js の onclick）
+  // テーマ・テンプレート・キー設定・書き出し: 開けるときだけポーズを閉じる（開くのは各画面の onclick）
   pause.addEventListener('click', e => { if (e.target.closest('[data-open]:not(:disabled)')) pause.close(); }, true);
   // ポーズを閉じたとき、フォーカスが閉じたダイアログの中の項目に残っていると Esc（app.js の keydown）が効かなくなるので外す
   pause.addEventListener('close', () => {
@@ -82,7 +90,10 @@ export function initPanels({ pauseAction, open }) {
       const r = dlg.getBoundingClientRect(); // パネルの余白かバックドロップか: 座標で外側だけ閉じる
       if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dlg.close();
     });
-    dlg.addEventListener('close', () => backToPause(b));
+    dlg.addEventListener('close', () => {
+      if (!noBack.delete(dlg.id)) backToPause(b);
+      else if (dlg.contains(document.activeElement)) document.activeElement.blur(); // 閉じた画面にフォーカスが残ると、キー操作（app.js の keydown）が効かなくなる
+    });
   }
   return panels;
 }

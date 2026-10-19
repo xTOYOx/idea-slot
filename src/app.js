@@ -16,6 +16,10 @@ import { effectiveWidth, fitWidth, widthAt, W_MIN } from './layout.js';
 import { initGrips } from './grips.js';
 import { initTypePanel } from './typepanel.js';
 import { initHelp } from './help.js';
+import { actionFor, canonCode, keyHelp } from './keys.js';
+import { applySlots } from './templates.js';
+import { initKeyScreen } from './keyscreen.js';
+import { initTemplateScreen } from './tplscreen.js';
 
 // 保存済みの WordNet テーマ（設定の slots[].theme）を読み込むかのスイッチ。false の間は読み込まない（保存データからは消さない）
 const THEMES_ON = false;
@@ -453,7 +457,18 @@ $('hits').addEventListener('input', e => {
   store.save('favorites');
 });
 
-initHelp();
+const help = initHelp();
+const renderKeyHelp = () => help.setKeys(keyHelp(state.settings.keys)); // 使い方の「キー操作」はキー設定から作る
+renderKeyHelp();
+
+// --- テンプレート（リールの本数と各リールの種類） ---
+// 使う: 本数と種類をテンプレートにして振り直す（ロックは外れる）。消えた自作テーマ・知らない種類は「全部ランダム」
+function useTemplate(t) {
+  if (!ready || !canEdit(reels)) return false;
+  setReels(spin(applySlots(t.slots, validType).map(s => ({ ...s, value: null, held: false })), pools));
+  say(`テンプレート「${t.name}」を使いました`);
+  return true;
+}
 
 // --- SPIN・キー操作 ---
 $('spin').addEventListener('click', e => { if (e.detail > 0) e.currentTarget.blur(); pull(); });
@@ -469,13 +484,19 @@ document.addEventListener('keydown', e => {
     return;
   }
   if (a?.tagName === 'BUTTON' && (e.code === 'Space' || e.key === 'Enter')) return; // ボタン自身の押下に任せる
-  const k = e.key.toLowerCase();
-  if (e.code === 'Space') { e.preventDefault(); pull(); }
-  else if (e.key === 'Enter') { e.preventDefault(); idea(); }
-  else if (/^[1-4]$/.test(k)) press(Number(k) - 1);
-  else if (k === 'h') panels.toggleDrawer('hist');
-  else if (k === 'b') panels.toggleDrawer('hits');
+  const act = actionFor(state.settings.keys, canonCode(e.code || ''));
+  if (!act) return;
+  e.preventDefault();
+  keyActions[act]();
 });
+// キー設定（settings.keys）の操作 → 動作。Esc（ポーズ）は割り当てず、上の keydown が固定で受ける
+const keyActions = {
+  lever: pull, idea,
+  reel1: () => press(0), reel2: () => press(1), reel3: () => press(2), reel4: () => press(3),
+  more: () => changeCount(1), less: () => changeCount(-1),
+  hist: () => panels.toggleDrawer('hist'), hits: () => panels.toggleDrawer('hits'),
+  help: () => help.open(),
+};
 
 // --- 起動 ---
 const validType = k => TYPE_KEYS.includes(k) || state.themes.some(m => MY + m.name === k);
@@ -502,6 +523,14 @@ async function start() {
     count: changeCount,
   });
   initThemeScreen({ store, data, isSpinning: () => isSpinning(reels), changed: themesChanged });
+  initTemplateScreen({
+    store, isSpinning: () => isSpinning(reels),
+    current: () => reels.map(r => ({ type: r.base ?? r.type })),
+    label: type => typeText(normalizeType(type, validType)), // 使うときと同じ見え方（消えたテーマは外れる）
+    use: useTemplate,
+    close: () => panels.closeScreen('templates'),
+  });
+  initKeyScreen({ store, changed: renderKeyHelp });
   initScreens({
     store, isSpinning: () => isSpinning(reels),
     async afterImport() {
@@ -515,6 +544,7 @@ async function start() {
         sound.enabled = state.settings.sound;
         fitCabinet(); // 読み込んだ設定の筐体の幅に合わせる
         pauseLabels();
+        renderKeyHelp();
         closePick();
         typePanel.close();
         setReels(initialReels());

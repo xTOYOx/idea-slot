@@ -44,6 +44,8 @@
         <button class="prow" data-p="hits"><span class="nm">当たり帳<em></em></span><b class="chev" aria-hidden="true">›</b></button>
         <button class="prow" data-p="hist"><span class="nm">履歴<em></em></span><b class="chev" aria-hidden="true">›</b></button>
         <button class="prow" data-edit data-open="themes"><span class="nm">テーマ</span><b class="chev" aria-hidden="true">›</b></button>
+        <button class="prow" data-edit data-open="templates"><span class="nm">テンプレート</span><b class="chev" aria-hidden="true">›</b></button>
+        <button class="prow" data-wide data-open="keys"><span class="nm">キー設定</span><b class="chev" aria-hidden="true">›</b></button>
         <button class="prow" data-edit data-open="settings"><span class="nm">書き出し・読み込み</span><b class="chev" aria-hidden="true">›</b></button>
       </div>
     </section>
@@ -62,7 +64,7 @@
   <h4>当たり帳・履歴</h4>
   <ul><li>左右の端のタブ</li></ul>
   <h4>キー操作（PC）</h4>
-  <ul><li>スペース：レバー</li><li>Enter：IDEA!</li><li>1〜4：リールの STOP / LOCK</li><li>H：履歴</li><li>B：当たり帳</li><li>Esc：ポーズ</li></ul>
+  <ul id="help-keys"></ul>
 </dialog>
 <dialog id="types"><div class="thead"><h3>1番リールのテーマ<small></small></h3><button data-close>閉じる</button></div>
   <div class="tbody"></div>
@@ -74,6 +76,8 @@
   <div id="cards"></div>
 </dialog>
 <dialog id="themes"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
+<dialog id="templates"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
+<dialog id="keys"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
 <dialog id="settings"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
 <script type="module" src="src/app.js"></script>
 </body>

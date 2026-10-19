@@ -163,6 +163,18 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 [aria-checked=true] > .sw i::after { content: 'ON'; }
 #pause .prow[data-edit]:disabled { box-shadow: none; transform: none; background: #d8d0bc; }
 #pause .prow:focus-visible, #pause .resume:focus-visible { outline: 2px solid #3ef0ff; outline-offset: 2px; }
+/* テンプレート・キー設定の画面 */
+#templates, #keys { max-width: min(92vw, 560px); }
+#templates .body > :not(h2), #keys .body > :not(h2) { clear: right; } /* 「← もどる」（右上に浮く）の横に回り込まない */
+.cur { margin: 4px 0 8px; color: #9fd8b8; overflow-wrap: anywhere; }
+.tpl li, .krows li { padding: 8px 10px; background: #083a26; border: 2px solid #1d7a52; }
+.tpl b { display: block; font-weight: 400; color: #ffe066; overflow-wrap: anywhere; }
+.tpl span { display: block; flex: none; margin: 2px 0 4px; }
+.tpl .row { margin: 4px 0 0; }
+.krows li { display: flex; align-items: center; gap: .6em; padding: 4px 10px; }
+.krows span { flex: 1; }
+.krows button { flex: 0 1 12em; white-space: normal; }
+.krows button[aria-pressed=true] { background: #ffe066; }
 /* 使い方 */
 #help { font-size: 15px; line-height: 1.7; }
 #help .thead { margin-bottom: 4px; }
@@ -248,6 +260,10 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   #types button { font-size: var(--fs); }
   .tg { grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); }
   #themes { max-width: min(calc(var(--fs) * 58), 94vw); max-height: 94dvh; }
+  #templates { max-width: min(calc(var(--fs) * 34), 94vw); max-height: 94dvh; }
+  #keys { max-width: min(calc(var(--fs) * 42), 94vw); max-height: 94dvh; }
+  .krows { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; }
+  .krows button { flex-basis: 7.5em; }
   .wg { grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); }
   .wg button { min-height: max(36px, 2em); }
 }
@@ -259,5 +275,5 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   .drawer.open { transform: none; }
   .dbody { border-width: 0; box-shadow: none; }
   .r .dhead { margin-left: 100px; }
-  .pw[data-wide] { display: none; }
+  [data-wide] { display: none !important; } /* 横幅の自動調整・キー設定（PC のみ） */
 }

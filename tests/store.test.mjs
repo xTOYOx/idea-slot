@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStore } from '../src/store.js';
+import { DEFAULT_KEYS } from '../src/keys.js';
 const mem = (init = {}) => { const m = { ...init }; return { getItem: k => m[k] ?? null, setItem: (k, v) => { m[k] = v; }, m }; };
 
 test('defaults when empty', () => {
@@ -53,7 +54,7 @@ test('wrong-typed settings → default; saved settings load', () => {
 });
 test('v1 settings with animate migrate to reduceMotion', () => {
   const s = createStore(mem({ 'slot.settings': JSON.stringify({ count: 2, slots: [{ type: 'verb' }, { type: 'any' }], animate: false }) }));
-  assert.deepEqual(s.state.settings, { count: 2, slots: [{ type: 'verb' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: true, width: 620, cabW: null });
+  assert.deepEqual(s.state.settings, { count: 2, slots: [{ type: 'verb' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: true, width: 620, cabW: null, keys: DEFAULT_KEYS });
 });
 test('defaults include stats and new settings', () => {
   const s = createStore(mem());
@@ -181,4 +182,46 @@ test('cabW travels through export / import', () => {
   const t = createStore(mem());
   assert.deepEqual(t.importJSON(s.exportJSON()), { ok: true });
   assert.equal(t.state.settings.cabW, 300);
+});
+
+test('settings.keys: defaults, kept when valid, bad values fall back; old data gets the defaults', () => {
+  assert.deepEqual(createStore(mem()).state.settings.keys, DEFAULT_KEYS);
+  const load = keys => createStore(mem({ 'slot.settings': JSON.stringify({ count: 3, slots: [], ...(keys === undefined ? {} : { keys }) }) })).state.settings.keys;
+  assert.deepEqual(load(undefined), DEFAULT_KEYS);
+  assert.deepEqual(load({ lever: 'KeyZ', ghost: 'KeyQ', idea: 7 }), { ...DEFAULT_KEYS, lever: 'KeyZ' });
+  assert.deepEqual(load('x'), DEFAULT_KEYS);
+  const a = createStore(mem()); a.state.settings.keys = { ...DEFAULT_KEYS, lever: 'KeyZ' };
+  const b = createStore(mem());
+  assert.deepEqual(b.importJSON(a.exportJSON()), { ok: true });
+  assert.equal(b.state.settings.keys.lever, 'KeyZ');
+});
+test('templates default to []; load drops bad and duplicate entries', () => {
+  assert.deepEqual(createStore(mem()).state.templates, []);
+  const raw = [{ name: ' 動物 ', slots: [{ type: 'noun:animal' }, { type: 'any', x: 1 }] }, { name: '', slots: [{ type: 'a' }, { type: 'b' }] }, { name: '動物', slots: [{ type: 'a' }, { type: 'b' }] },
+    { name: '一本', slots: [{ type: 'a' }] }, null, { name: 'x' }];
+  assert.deepEqual(createStore(mem({ 'slot.templates': JSON.stringify(raw) })).state.templates, [{ name: '動物', slots: [{ type: 'noun:animal' }, { type: 'any' }] }]);
+  assert.deepEqual(createStore(mem({ 'slot.templates': '{"a":1}' })).state.templates, []);
+});
+test('templates export → import roundtrip; export stays version 3; old files import as []', () => {
+  const a = createStore(mem());
+  a.state.templates = [{ name: 'A', slots: [{ type: 'verb' }, { type: 'mix:verb|my:海' }] }]; a.save('templates');
+  const d = JSON.parse(a.exportJSON());
+  assert.equal(d.version, 3);
+  assert.deepEqual(d.templates, a.state.templates);
+  const b = createStore(mem());
+  assert.deepEqual(b.importJSON(a.exportJSON()), { ok: true });
+  assert.deepEqual(b.state.templates, a.state.templates);
+  delete d.templates;
+  assert.deepEqual(b.importJSON(JSON.stringify(d)), { ok: true });
+  assert.deepEqual(b.state.templates, []);
+});
+test('import with malformed or duplicate templates → error, state unchanged', () => {
+  const two = [{ type: 'a' }, { type: 'b' }];
+  const s = createStore(mem()); s.state.templates = [{ name: 'A', slots: two }]; s.state.excluded = ['猫'];
+  for (const bad of [[{ name: '', slots: two }], [{ name: 'a', slots: [{ type: 'a' }] }], [{ name: 'a', slots: [{ type: 1 }, { type: 'b' }] }], [{ name: 'a', slots: two }, { name: 'a ', slots: two }], 'x', {}]) {
+    const d = JSON.parse(s.exportJSON()); d.templates = bad; d.excluded = ['犬'];
+    assert.equal(s.importJSON(JSON.stringify(d)).ok, false, JSON.stringify(bad));
+  }
+  assert.deepEqual(s.state.templates, [{ name: 'A', slots: two }]);
+  assert.deepEqual(s.state.excluded, ['猫']);
 });
