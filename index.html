@@ -30,7 +30,6 @@
     <button data-p="rm"></button>
     <button data-p="cabw"></button>
     <button data-edit data-open="themes">テーマ…</button>
-    <button data-edit data-open="custom">自分の語…</button>
     <button data-edit data-open="settings">書き出し・読み込み…</button>
     <button data-p="hits">当たり帳<span></span></button>
     <button data-p="hist">履歴<span></span></button>
@@ -45,9 +44,8 @@
   <input id="q" placeholder="さがす / 入力してEnterで固定" aria-label="語をさがす" autocomplete="off">
   <div id="cards"></div>
 </dialog>
-<dialog id="custom"><button class="close" data-close aria-label="閉じる">閉じる</button><div class="body"></div></dialog>
-<dialog id="themes"><button class="close" data-close aria-label="閉じる">閉じる</button><div class="body"></div></dialog>
-<dialog id="settings"><button class="close" data-close aria-label="閉じる">閉じる</button><div class="body"></div></dialog>
+<dialog id="themes"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
+<dialog id="settings"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
 <script type="module" src="src/app.js"></script>
 </body>
 </html>

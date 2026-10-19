@@ -292,7 +292,7 @@ async function copyWord(i) {
   if (!reduceMotion()) view.flash(i);
 }
 
-// 自作テーマが変わった（作成・語の増減・名前変更・削除）。remap = {from, to}（to が null なら削除）で、その種類のリールを付け替える
+// 自作テーマや語が変わった（作成・語の増減・名前変更・削除・除外）。remap = {from, to}（to が null なら削除）で、その種類のリールを付け替える
 function themesChanged(remap) {
   rebuildPools();
   const hit = [];
@@ -308,7 +308,8 @@ function themesChanged(remap) {
     if (to === null) for (const i of hit) if (!reels[i].held) reels = rerollOne(reels, i, pools); // 消えたテーマの語が窓に残らないように
     saveSettings();
   }
-  reels.forEach((r, i) => { if (parseType(r.type).some(k => k.startsWith(MY)) || hit.includes(i)) paint(i, true); }); // 語が減った・名前が変わった・振り直した枠を描き直す
+  // 語が減った・名前が変わった・振り直した枠を描き直す。語の追加・除外（remap なし）は、どの枠の上下の語にも関わる
+  reels.forEach((r, i) => { if (!remap || parseType(r.type).some(k => k.startsWith(MY)) || hit.includes(i)) paint(i, true); });
   sync();
   if (editing >= 0) renderCards();
 }
@@ -440,7 +441,7 @@ document.addEventListener('click', e => {
   const d = b.dataset;
   if (d.back !== undefined || d.r !== undefined) {
     restoreCombo(d.back !== undefined ? state.favorites[Number(d.back)].combo : state.history[Number(d.r)]);
-    if (matchMedia('(max-width: 599px)').matches) panels.closeAll(); // スマホではシートを閉じて筐体を見せる
+    if (matchMedia('(max-width: 599px)').matches) panels.closeAll(false); // スマホではシートを閉じて筐体を見せる（ポーズには戻らない）
   }
   else if (d.del !== undefined) { state.favorites.splice(Number(d.del), 1); store.save('favorites'); renderHits(); sync(); }
 });
@@ -496,9 +497,9 @@ async function start() {
     },
     count: changeCount,
   });
-  initThemeScreen({ store, isSpinning: () => isSpinning(reels), changed: themesChanged });
+  initThemeScreen({ store, data, isSpinning: () => isSpinning(reels), changed: themesChanged });
   initScreens({
-    store, typeLabels: TYPE_LABELS, typeKeys: TYPE_KEYS, isSpinning: () => isSpinning(reels), rebuildPools,
+    store, isSpinning: () => isSpinning(reels),
     async afterImport() {
       ready = false; // テーマを読み込む間は回さない
       try {
