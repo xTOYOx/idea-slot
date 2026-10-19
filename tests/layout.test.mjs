@@ -42,8 +42,8 @@ test('cabinetWidth: ratio of usable area x 190, clamped 200..340, phones fixed a
   assert.equal(cabinetWidth(800, 1000, 44), 200);
   assert.equal(cabinetWidth(1280, 800, 60), 279); // wider tabs leave less room
 });
-test('fitWidth: biggest W that fits the usable area (floored, at least 200)', () => {
-  assert.equal(fitWidth(1280, 800, 44), 286); // 1160 / 768 x 190 = 286.97
+test('fitWidth: biggest W that fits the usable area (rounded like cabinetWidth, so auto never exceeds it; at least 200)', () => {
+  assert.equal(fitWidth(1280, 800, 44), 287); // 1160 / 768 x 190 = 286.97
   assert.equal(fitWidth(1920, 1080, 44), 326);
   assert.equal(fitWidth(2560, 1080, 44), 442); // may exceed 340
   assert.equal(fitWidth(800, 1000, 44), 200);
