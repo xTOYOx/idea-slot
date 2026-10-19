@@ -547,6 +547,7 @@ async function start() {
         rebuildPools();
         sound.enabled = state.settings.sound;
         fitCabinet(); // 読み込んだ設定の筐体の幅に合わせる
+        cab.initPile(state.favorites.length); // 受け皿の山も読み込んだ当たり帳の件数に合わせる
         pauseLabels();
         renderKeyHelp();
         closePick();
