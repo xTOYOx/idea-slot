@@ -4,7 +4,7 @@ body { margin: 0; padding: 16px; background: #1b0b14; color: #fff; font-family: 
 button, select, input { font: inherit; touch-action: manipulation; }
 button:disabled { opacity: .45; cursor: default; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-#app { max-width: 620px; margin: 0 auto; }
+#app { max-width: var(--app-w, 620px); margin: 0 auto; }
 [hidden] { display: none !important; }
 
 /* 筐体と重ね物（1論理ピクセル = --u） */

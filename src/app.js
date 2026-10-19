@@ -26,6 +26,8 @@ const app = $('app');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const clamp = n => (Number.isInteger(n) ? Math.min(4, Math.max(2, n)) : 3);
 const reduceMotion = () => state.settings.reduceMotion || motionQuery.matches;
+const applyWidth = () => document.documentElement.style.setProperty('--app-w', `${state.settings.width}px`);
+applyWidth();
 
 let data = null, pools = null, index = null;
 let themes = Object.create(null); // テーマの語 → 集めた語のリスト（除外語を引く前のもの。プールは rebuildPools のたびに除外語を除いて作る）
@@ -456,7 +458,7 @@ async function start() {
   initThemeScreen({ store, isSpinning: () => isSpinning(reels), changed: themesChanged });
   initScreens({
     store, typeLabels: TYPE_LABELS, typeKeys: TYPE_KEYS, isSpinning: () => isSpinning(reels), rebuildPools,
-    onSettingsChange() { sync(); },
+    onSettingsChange() { applyWidth(); sync(); },
     async afterImport() {
       ready = false; // テーマを読み込む間は回さない
       try {
