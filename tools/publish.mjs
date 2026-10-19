@@ -1,9 +1,10 @@
 // 公開用リポジトリ（別アカウント）へ、サイトに必要なファイルだけを送る。
 // 使い方: node tools/publish.mjs   （gh に公開用アカウントでログイン済みであること）
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readdirSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { stampHtml, stampJs } from './stamp.mjs';
 
 const ACCOUNT = 'toyogame';
 const REPO = `${ACCOUNT}/idea-slot`;
@@ -24,6 +25,10 @@ try {
   git(['checkout', '-q', '-B', 'main']);
   for (const f of readdirSync(dir)) if (f !== '.git') rmSync(join(dir, f), { recursive: true, force: true });
   for (const f of FILES) cpSync(f, join(dir, f), { recursive: true });
+  // 参照に版番号を付けて、公開のたびにブラウザが新しいファイルを読むようにする
+  const stamp = (f, fn) => writeFileSync(f, fn(readFileSync(f, 'utf8'), source));
+  stamp(join(dir, 'index.html'), stampHtml);
+  for (const f of readdirSync(join(dir, 'src'))) if (f.endsWith('.js')) stamp(join(dir, 'src', f), stampJs);
   writeFileSync(join(dir, 'README.md'),
     `# アイデアスロット\n\nゲーム企画のアイデア出しに使うスロットです。\n\nhttps://${ACCOUNT}.github.io/idea-slot/\n\n語データの出典は LICENSE-DATA.md、フォントは fonts/OFL.txt を参照してください。\n`);
   git(['add', '-A']);
