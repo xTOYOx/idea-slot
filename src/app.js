@@ -107,7 +107,7 @@ const applyBusy = () => document.querySelectorAll('[data-edit]').forEach(el => {
 
 function sync() {
   if (!reels.length) return; // 起動中（リール未作成）はランプを触らない
-  cab.update({ spinning: isSpinning(reels), canSave: canSave(reels, state.favorites), ideas: state.stats.spins, hits: state.favorites.length, reduceMotion: reduceMotion() });
+  cab.update({ spinning: isSpinning(reels), canSave: canSave(reels, state.favorites), ideas: state.stats.spins, hits: state.favorites.length, coins: state.stats.coins, reduceMotion: reduceMotion() });
   view.setCount(reels.length, canEdit(reels));
   applyBusy();
   tpl?.refresh(); // テンプレの「今の構成」
@@ -602,7 +602,7 @@ function initialReels() {
 async function start() {
   rebuildPools();
   sound.enabled = state.settings.sound;
-  cab = createCabinet($('cv'), { onCollect: () => sound.play('coin') });
+  cab = createCabinet($('cv'), { onCollect: n => { store.addCoins(n); cab.update({ coins: state.stats.coins }); sound.play('coin'); } });
   cab.initPile(state.favorites.length); // 受け皿の山は当たり帳の件数から
   view = createOverlay($('wrap'), $('ov'), {
     reel: press, lever: pull, leverPos: a => cab.setLever(a), idea,
