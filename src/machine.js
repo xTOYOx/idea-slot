@@ -22,7 +22,6 @@ export function startSpin(reels, pools, rng = Math.random) {
 export const stopReel = (reels, i, now) =>
   mapAt(reels, i, r => (r.running ? { ...r, value: r.target, running: false, stoppedAt: now } : { ...r }));
 
-export const stopAll = (reels, now) => reels.reduce((acc, _, i) => stopReel(acc, i, now), reels);
 
 export function pressReel(reels, i, now) {
   const r = reels[i];

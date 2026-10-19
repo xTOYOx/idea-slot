@@ -52,7 +52,7 @@ export function initThemeScreen({ store, isSpinning, changed }) {
     if (act === 'back') { open = null; show(); }
     else if (act === 'rmw') {
       try { set(store.state.themes.map(x => (x === t ? removeWord(x, t.words[i]) : x))); } finally { show(); }
-    } else if (act === 'del' && confirm(`テーマ「${t.name}」を削除します。このテーマのリールは「全部ランダム」に戻ります`)) {
+    } else if (act === 'del' && confirm(`テーマ「${t.name}」を削除します。このテーマを使っているリールからは外れます（ほかに無ければ全部ランダム）`)) {
       try { set(deleteTheme(store.state.themes, t.name), { from: t.name, to: null }); } finally { open = null; show(); }
     }
   });

@@ -10,6 +10,7 @@ export const TYPE_LABELS = {
   ...Object.fromEntries(Object.entries(NOUN).map(([k, v]) => [`noun:${k}`, v])),
   verb: '動詞',
   genre: 'ゲームジャンル',
+  game: 'ゲーム',
   tag: 'タグ（全部）',
   ...Object.fromEntries(Object.entries(TAG).map(([k, v]) => [`tag:${k}`, v])),
 };

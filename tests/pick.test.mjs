@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spin, rerollOne, setSlotType, resizeSlots } from '../src/pick.js';
+import { spin, rerollOne, setSlotType, resizeSlots, pickWord } from '../src/pick.js';
 const pools = { a: ['x', 'y', 'z'], one: ['solo'], empty: [] };
 const S = (type, value = null, held = false) => ({ type, value, held });
 
@@ -64,4 +64,30 @@ test("'any' is not weighted by pool size", () => {
   let genre = 0;
   for (let i = 0; i < 400; i++) if (spin([S('any')], p)[0].value === 'g1') genre++;
   assert.ok(genre >= 50, `genre appeared ${genre} times`);
+});
+const mixPools = { a: ['a1', 'a2'], b: ['b1'], e: [], big: Array.from({ length: 1000 }, (_, i) => `n${i}`) };
+test("mix picks a kind uniformly, then a word from it", () => {
+  assert.equal(spin([S('mix:a|b')], mixPools, seq(0.0, 0.0))[0].value, 'a1');
+  assert.equal(spin([S('mix:a|b')], mixPools, seq(0.6, 0.0))[0].value, 'b1');
+});
+test("mix skips empty kinds and falls back to the others", () => {
+  for (let i = 0; i < 50; i++) assert.equal(spin([S('mix:e|b')], mixPools)[0].value, 'b1');
+  const out = spin([S('mix:a|b'), S('mix:a|b'), S('mix:a|b')], mixPools, seq(0.0)).map(s => s.value);
+  assert.deepEqual(out.slice().sort(), ['a1', 'a2', 'b1'].sort());
+});
+test("mix with every kind empty or used up → null", () => {
+  assert.equal(spin([S('mix:e|e')], mixPools)[0].value, null);
+  assert.equal(spin([S('mix:e')], mixPools)[0].value, null);
+  assert.equal(spin([S('mix:'), S('mix:b|e')], mixPools)[0].value, null);
+  assert.deepEqual(spin([S('mix:b'), S('mix:b')], mixPools).map(s => s.value), ['b1', null]);
+});
+test("mix is not weighted by pool size", () => {
+  let small = 0;
+  for (let i = 0; i < 400; i++) if (spin([S('mix:big|b')], mixPools)[0].value === 'b1') small++;
+  assert.ok(small >= 120, `b1 appeared ${small} times`);
+});
+test("pickWord is usable for display words (mix and plain)", () => {
+  assert.equal(pickWord(mixPools, 'mix:e|b', new Set(), Math.random), 'b1');
+  assert.equal(pickWord(mixPools, 'b', new Set(), Math.random), 'b1');
+  assert.equal(pickWord(mixPools, 'missing', new Set(), Math.random), null);
 });

@@ -24,14 +24,6 @@ test('stopReel reveals target', () => {
   assert.equal(s[0].running, false);
   assert.equal(s[1].running, true);
 });
-test('stopAll stops every spinning reel', () => {
-  const { reels } = M.startSpin([R('x'), R('y', true), R('z')], pools);
-  const s = M.stopAll(reels, 500);
-  assert.equal(M.allStopped(s), true);
-  assert.equal(s[0].value, reels[0].target);
-  assert.equal(s[2].stoppedAt, 500);
-  assert.equal(s[1].stoppedAt, undefined);
-});
 test('pressReel: stop, then ignored within 300ms, then lock/unlock', () => {
   let { reels } = M.startSpin([R('x'), R('y')], pools);
   let p = M.pressReel(reels, 0, 1000); assert.equal(p.action, 'stop');

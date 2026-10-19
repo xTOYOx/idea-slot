@@ -1,7 +1,9 @@
 import { TYPE_LABELS, TYPE_KEYS } from './types.js';
 import { buildPools } from './pools.js';
-import { spin, rerollOne, setSlotType, resizeSlots } from './pick.js';
-import { startSpin, stopReel, stopAll, pressReel, isSpinning, allStopped, canEdit, canSave, autoStopDelays, excludeAt, restore } from './machine.js';
+import { spin, rerollOne, setSlotType, resizeSlots, pickWord } from './pick.js';
+import { parseType, toggleType, normalizeType, remapType } from './typekey.js';
+import { initPanels } from './panels.js';
+import { startSpin, stopReel, pressReel, isSpinning, allStopped, canEdit, canSave, autoStopDelays, excludeAt, restore } from './machine.js';
 import { buildIndex, searchWords } from './search.js';
 import { indexGraph, themeWords } from './theme.js';
 import { createStore } from './store.js';
@@ -26,21 +28,26 @@ const app = $('app');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const clamp = n => (Number.isInteger(n) ? Math.min(4, Math.max(2, n)) : 3);
 const reduceMotion = () => state.settings.reduceMotion || motionQuery.matches;
-const applyWidth = () => document.documentElement.style.setProperty('--app-w', `${state.settings.width}px`);
-applyWidth();
 
 let data = null, pools = null, index = null;
 let themes = Object.create(null); // テーマの語 → 集めた語のリスト（除外語を引く前のもの。プールは rebuildPools のたびに除外語を除いて作る）
 let ready = false; // 起動の最初の spin が済むまで、回す・IDEA!・リール設定を受け付けない（保存テーマの読み込み待ち）
 let graphP = null; // data/graph.json を読む Promise（最初にテーマを使うときだけ。失敗したら捨てて次回やり直す）
 let reels = [], reelCount = 0, cab = null, view = null;
-let tickTimer = null, beat = 0, autoTimers = [], editing = -1, memoTimer = null;
+let tickTimer = null, beat = 0, autoTimers = [], editing = -1;
 const neigh = []; // 止まっている枠の上下の語（止まったときに決め、LOCKしても変えない）
 
 const themeOf = r => (r.type.startsWith('theme:') ? r.type.slice(6) : null);
 const MY = 'my:'; // 自作テーマの種類キーの頭（my:<名前>）
-const myOf = r => (r.type.startsWith(MY) ? r.type.slice(MY.length) : null);
 const typeLabel = t => (t.startsWith(MY) ? '★' + t.slice(MY.length) : TYPE_LABELS[t]);
+const typeText = type => parseType(type).map(typeLabel).join('＋'); // 掲示板用（完全な名前）
+// モニターの札: 1つなら今まで通り（タグ：は省く）、複数なら短くして「＋」でつなぐ。自作テーマを含むと金色
+const shortLabel = k => (k.startsWith(MY) ? '★' + k.slice(MY.length) : TYPE_LABELS[k].replace(/^タグ：/, '').replace(/（全部）$/, '').replace(/^ゲーム(?=.)/, ''));
+function monitorOf(r) {
+  const th = themeOf(r), keys = parseType(r.type);
+  if (th) return { text: '★' + th, gold: true };
+  return { text: keys.length === 1 ? (keys[0].startsWith(MY) ? '★' + keys[0].slice(MY.length) : TYPE_LABELS[keys[0]].replace(/^タグ：/, '')) : keys.map(shortLabel).join('＋'), gold: keys.some(k => k.startsWith(MY)) };
+}
 function rebuildPools() {
   pools = buildPools(data, state.custom, state.excluded);
   const drop = new Set(state.excluded);
@@ -49,7 +56,7 @@ function rebuildPools() {
   index = null;
 }
 const say = text => view.say(text);
-const rnd = type => { const p = pools[type] ?? []; return p.length ? p[Math.floor(Math.random() * p.length)] : ''; };
+const rnd = type => pickWord(pools, type, new Set(), Math.random) ?? '';
 const loadGraph = () => (graphP ??= fetch('data/graph.json', { signal: AbortSignal.timeout?.(15000) })
   .then(r => { if (!r.ok) throw new Error('graph'); return r.json(); })
   .then(indexGraph) // 15秒で打ち切る（signal は本文の読み込みにも効く）
@@ -74,26 +81,46 @@ function saveSettings() {
 
 // --- 表示の同期 ---
 function paint(i, fresh = false) {
-  const th = themeOf(reels[i]) ?? myOf(reels[i]);
-  view.setMonitor(i, th ?? TYPE_LABELS[reels[i].type].replace(/^タグ：/, ''), !!th); // 窓の札は短く（設定画面は完全な名前）
+  const m = monitorOf(reels[i]);
+  view.setMonitor(i, m.text, m.gold); // 窓の札は短く（リストは完全な名前）
   view.setWords(i, rowsOf(reels[i], i, fresh));
   view.setState(i, { running: !!reels[i].running, held: reels[i].held });
 }
 
 // 回転中だけ押せない部品（枠の数・種類・語えらび・枠に戻す）をまとめて切り替える
-const applyBusy = () => app.querySelectorAll('[data-edit]').forEach(el => { el.disabled = !canEdit(reels); });
+const applyBusy = () => document.querySelectorAll('[data-edit]').forEach(el => { el.disabled = !canEdit(reels); });
 
 function sync() {
   if (!reels.length) return; // 起動中（リール未作成）はランプを触らない
   cab.update({ spinning: isSpinning(reels), canSave: canSave(reels, state.favorites), ideas: state.stats.spins, hits: state.favorites.length, reduceMotion: reduceMotion() });
+  view.setCount(reels.length, canEdit(reels));
   applyBusy();
   document.body.classList.toggle('reduce-motion', reduceMotion());
 }
 
-function chips() {
-  $('mode').innerHTML = state.settings.autoStop ? '自動<br>STOP' : '手動<br>STOP';
-  $('snd').innerHTML = state.settings.sound ? '音<br>ON' : '音<br>OFF';
+// ポーズメニューの入／切の表示
+function pauseLabels() {
+  const st = state.settings, p = $('pause');
+  [['auto', '自動STOP', st.autoStop], ['snd', '音', st.sound], ['rm', '演出を減らす', st.reduceMotion]].forEach(([k, t, on]) => {
+    const b = p.querySelector(`[data-p="${k}"]`);
+    b.textContent = `${t}：${on ? '入' : '切'}`;
+    b.setAttribute('aria-pressed', String(on));
+  });
+  p.querySelector('[data-p="hits"] span').textContent = `（${state.favorites.length}）`;
+  p.querySelector('[data-p="hist"] span').textContent = `（${state.history.length}）`;
 }
+
+function pauseAction(k) {
+  const st = state.settings;
+  if (k === 'auto') st.autoStop = !st.autoStop;
+  else if (k === 'snd') st.sound = sound.enabled = !st.sound;
+  else if (k === 'rm') st.reduceMotion = !st.reduceMotion;
+  store.save('settings');
+  pauseLabels();
+  sync();
+}
+
+const panels = initPanels({ pauseAction, open: pauseLabels });
 
 function setReels(next) {
   reels = next;
@@ -105,7 +132,6 @@ function setReels(next) {
   }
   reels.forEach((_, i) => paint(i, true));
   saveSettings();
-  renderSetup();
   sync();
 }
 
@@ -141,7 +167,6 @@ function pull() {
     return;
   }
   view.hideMenu();
-  clearTimeout(memoTimer);
   reels = r.reels;
   cab.pullLever();
   sound.play('lever');
@@ -191,12 +216,7 @@ function idea() {
   say(`★★★ BIG IDEA!! ★★★ ${combo.join(' × ')} を当たり帳に保存 ★★★`);
   renderHits();
   sync();
-  // 演出のあと、まだ他を触っていなければ新しいカードのメモ欄へ（スマホのキーボードで演出を隠さない）
-  clearTimeout(memoTimer);
-  memoTimer = setTimeout(() => {
-    const a = document.activeElement, input = $('hits').querySelector(`input[data-h="${state.favorites.indexOf(saved)}"]`);
-    if (input && canEdit(reels) && (!a || a === document.body || a.closest('#ov, #ctl'))) input.focus({ preventScroll: true });
-  }, 3300);
+  if (!reduceMotion()) panels.flash('hits');
 }
 
 // --- 窓の語メニュー ---
@@ -245,19 +265,19 @@ function themesChanged(remap, quiet = false) {
   rebuildPools();
   const hit = [];
   if (remap) {
-    const from = MY + remap.from, to = remap.to === null ? 'any' : MY + remap.to;
-    // base も付け替える（WordNet テーマを戻したときに元の種類へ戻るので）
+    const from = MY + remap.from, to = remap.to === null ? null : MY + remap.to;
+    // 複数選択の中の my:旧名 も付け替え／削除する。base も付け替える（WordNet テーマを戻したときに元の種類へ戻るので）
     reels = reels.map((r, i) => {
-      if (r.type !== from && r.base !== from) return r;
-      if (r.type === from) hit.push(i);
-      return { ...r, ...(r.type === from && { type: to }), ...(r.base === from && { base: to }) };
+      const type = remapType(r.type, from, to), base = r.base === undefined ? undefined : remapType(r.base, from, to);
+      if (type === r.type && base === r.base) return r;
+      if (type !== r.type) hit.push(i);
+      return { ...r, type, ...(base !== undefined && { base }) };
     });
-    if (to === 'any') for (const i of hit) if (!reels[i].held) reels = rerollOne(reels, i, pools);
+    if (to === null) for (const i of hit) if (!reels[i].held) reels = rerollOne(reels, i, pools); // 消えたテーマの語が窓に残らないように
     saveSettings();
   }
-  if (!quiet) reels.forEach((r, i) => { if (myOf(r) || hit.includes(i)) paint(i, true); }); // 語が減った・名前が変わった・振り直した枠を描き直す
+  if (!quiet) reels.forEach((r, i) => { if (parseType(r.type).some(k => k.startsWith(MY)) || hit.includes(i)) paint(i, true); }); // 語が減った・名前が変わった・振り直した枠を描き直す
   sync();
-  renderSetup();
   if (editing >= 0) renderCards();
 }
 
@@ -292,21 +312,53 @@ async function prepareThemes() {
   } catch { return false; }
 }
 
-// --- リール設定・語えらび ---
-function renderSetup() {
-  if ($('setup').hidden) return;
-  const counts = [2, 3, 4].map(n => `<button class="sbtn${n === reels.length ? ' on' : ''}" data-edit data-n="${n}">${n}</button>`).join('');
-  const opt = (k, text, t) => `<option value="${esc(k)}"${k === t ? ' selected' : ''}>${esc(text)}</option>`;
-  const opts = t => TYPE_KEYS.map(k => opt(k, TYPE_LABELS[k], t)).join('')
-    + (state.themes.length ? `<optgroup label="自作テーマ">${state.themes.map(m => opt(MY + m.name, `★${m.name}（${m.words.length}語）`, t)).join('')}</optgroup>` : '');
-  const rows = reels.map((r, i) => `<div class="srow"><span>${i + 1}番</span>
-    <select data-edit data-t="${i}" aria-label="${i + 1}番リールの種類">${opts(r.base ?? r.type)}</select>
-    <button class="sbtn" data-edit data-p="${i}">語をえらぶ</button></div>`).join('');
-  $('setup').innerHTML = `<h3>♣ リール設定 ♣</h3><div class="srow"><span>枠の数</span>${counts}</div>${rows}`;
-  applyBusy();
+// --- 種類の選択・語えらび ---
+function openPick(i) {
+  if (!ready || !canEdit(reels) || !reels[i]) return;
+  editing = i;
+  $('ph').textContent = `♦ ${i + 1}番リールに固定する語をえらぶ ♦`;
+  $('q').value = '';
+  renderCards();
+  $('pick').showModal();
+  $('q').focus({ preventScroll: true });
 }
 
-function closePick() { editing = -1; $('pick').hidden = true; }
+function closePick() { if ($('pick').open) $('pick').close(); editing = -1; }
+$('pick').addEventListener('close', () => { editing = -1; });
+$('pick').querySelector('[data-close]').onclick = closePick;
+
+// モニターのリスト: ふつうの種類（TYPE_KEYS の順）→ 区切り → 自作テーマ。いまの種類にチェック
+function showTypes(i) {
+  const cur = parseType(reels[i].base ?? reels[i].type);
+  const item = (k, text) => ({ k, text, on: cur.includes(k) });
+  view.showTypes(i, [...TYPE_KEYS.map(k => item(k, TYPE_LABELS[k])),
+    ...(state.themes.length ? [{ sep: true }, ...state.themes.map(m => item(MY + m.name, `★${m.name}（${m.words.length}語）`))] : [])]);
+}
+
+// 種類を変える。ロック中の枠は種類だけ変える（語とロックは保つ）、ロックなしなら振り直す
+function changeType(i, type) {
+  reels = reels[i].held ? reels.map((r, j) => (j === i ? { ...r, type, base: undefined, savedTheme: undefined } : r)) : rerollOne(setSlotType(reels, i, type), i, pools);
+  say(`${i + 1}番リールを「${typeText(type)}」に変更`);
+  saveSettings();
+  paint(i, true);
+  sync();
+}
+
+function toggleReelType(k, i) {
+  if (!ready || !canEdit(reels) || !reels[i]) return;
+  const cur = reels[i].base ?? reels[i].type, next = toggleType(cur, k);
+  if (next !== cur) changeType(i, next); else sound.play('deny'); // 最後の1つは外せない
+  showTypes(i);
+}
+
+function changeCount(d) {
+  const from = reels.length, n = from + d;
+  if (!ready || !canEdit(reels) || n < 2 || n > 4) return;
+  let next = resizeSlots(reels, n);
+  for (let i = from; i < n; i++) next = rerollOne(next, i, pools);
+  setReels(next);
+  say(`リール ${from} → ${n}`);
+}
 
 function renderCards() {
   const q = $('q').value.trim(), cur = reels[editing]?.value;
@@ -329,36 +381,6 @@ function fix(w) {
   sync();
 }
 
-$('setup').addEventListener('click', e => {
-  const b = e.target.closest('button');
-  if (!b || !canEdit(reels)) return;
-  if (b.dataset.n) {
-    const n = Number(b.dataset.n);
-    if (n === reels.length) return;
-    let next = resizeSlots(reels, n);
-    for (let i = reels.length; i < n; i++) next = rerollOne(next, i, pools);
-    setReels(next);
-    say(`リールを${n}枠にしました`);
-  } else if (b.dataset.p) {
-    editing = Number(b.dataset.p);
-    $('ph').textContent = `♦ ${editing + 1}番リールに固定する語をえらぶ ♦`;
-    $('pick').hidden = false;
-    $('q').value = '';
-    renderCards();
-    $('q').focus({ preventScroll: true });
-  }
-});
-$('setup').addEventListener('change', e => {
-  const sel = e.target.closest('select[data-t]');
-  if (!sel || !canEdit(reels)) return;
-  const i = Number(sel.dataset.t);
-  // ロック中の枠は種類だけ変える（語とロックは保つ）
-  reels = reels[i].held ? reels.map((r, j) => (j === i ? { ...r, type: sel.value, base: undefined, savedTheme: undefined } : r)) : rerollOne(setSlotType(reels, i, sel.value), i, pools);
-  say(`${i + 1}番リールを「${typeLabel(sel.value)}」に変更`);
-  saveSettings();
-  paint(i, true);
-  sync();
-});
 $('q').addEventListener('input', renderCards);
 $('q').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229 && e.target.value.trim()) fix(e.target.value.trim());
@@ -370,13 +392,16 @@ function renderHits() {
   const list = state.favorites.map((f, i) => `<div class="hit${i === 0 ? ' new' : ''}"><b>${f.combo.map(esc).join(' <i>×</i> ')}</b>
     <input data-h="${i}" value="${esc(f.memo)}" placeholder="ひとことメモ（思いついたことを書いておく）" aria-label="メモ">
     <div class="row"><button class="sbtn" data-edit data-back="${i}">枠に戻す</button><button class="sbtn" data-del="${i}">削除</button></div></div>`).join('');
-  $('hits').innerHTML = `<h3>♠ 当たり帳 ♠</h3>${list || '<div id="empty">いいね！と思ったら IDEA! ボタン</div>'}`;
+  $('hits').innerHTML = list || '<div id="empty">いいね！と思ったら IDEA! ボタン</div>';
+  panels.setCount('hits', state.favorites.length);
+  pauseLabels();
   applyBusy();
 }
 
 function renderHistory() {
-  $('hc').textContent = `（${state.history.length}）`;
-  $('history').querySelector('ol').innerHTML = state.history.map((c, i) =>
+  panels.setCount('hist', state.history.length);
+  pauseLabels();
+  $('hist').innerHTML = state.history.map((c, i) =>
     `<li><button class="card" data-edit data-r="${i}">${esc(c.join(' × '))}</button></li>`).join('');
   applyBusy();
 }
@@ -389,13 +414,15 @@ function restoreCombo(combo) {
   say(`${comboText(next.map(r => r.value))} を枠に戻しました`);
 }
 
-app.addEventListener('click', e => {
+document.addEventListener('click', e => {
   const b = e.target.closest('button');
   if (!b) return;
-  if (e.detail > 0) b.blur(); // マウス・タップのあとはキー操作を筐体に返す
+  if (e.detail > 0 && !b.closest('dialog')) b.blur(); // マウス・タップのあとはキー操作を筐体に返す
   const d = b.dataset;
-  if (d.back !== undefined) restoreCombo(state.favorites[Number(d.back)].combo);
-  else if (d.r !== undefined) restoreCombo(state.history[Number(d.r)]);
+  if (d.back !== undefined || d.r !== undefined) {
+    restoreCombo(d.back !== undefined ? state.favorites[Number(d.back)].combo : state.history[Number(d.r)]);
+    if (matchMedia('(max-width: 599px)').matches) panels.closeAll(); // スマホではシートを閉じて筐体を見せる
+  }
   else if (d.del !== undefined) { state.favorites.splice(Number(d.del), 1); store.save('favorites'); renderHits(); sync(); }
 });
 $('hits').addEventListener('input', e => {
@@ -404,39 +431,34 @@ $('hits').addEventListener('input', e => {
   store.save('favorites');
 });
 
-// --- チップ・キー操作 ---
-function toggleSetup() {
-  $('setup').hidden = !$('setup').hidden;
-  if ($('setup').hidden) closePick(); else renderSetup();
-}
+// --- SPIN・キー操作 ---
+$('spin').addEventListener('click', e => { if (e.detail > 0) e.currentTarget.blur(); pull(); });
 
-const chipActions = {
-  all() { if (isSpinning(reels)) commitStops(stopAll(reels, performance.now())); },
-  mode() { state.settings.autoStop = !state.settings.autoStop; store.save('settings'); chips(); },
-  cfg() { if (ready) toggleSetup(); },
-  snd() { state.settings.sound = sound.enabled = !state.settings.sound; store.save('settings'); chips(); },
-  menuBtn() { if (!isSpinning(reels)) $('menu').hidden = !$('menu').hidden; },
-  spin: pull,
-};
-$('ctl').addEventListener('click', e => { const b = e.target.closest('button'); if (b && view) { if (e.detail > 0) b.blur(); chipActions[b.id]?.(); } });
-const closeMenu = () => { $('menu').hidden = true; };
-$('menu').addEventListener('click', e => { if (e.target.closest('button')) closeMenu(); });
-document.addEventListener('click', e => { if (!e.target.closest('#menu, #menuBtn')) closeMenu(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
-
+// 入力欄・select・textarea・ダイアログの中では効かない（Esc は開いているダイアログが自分で閉じる）
 document.addEventListener('keydown', e => {
-  if (!view || e.repeat || e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]')) return;
+  if (!view || e.repeat || e.isComposing || e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]')) return;
   const a = document.activeElement;
-  if (a && a !== document.body && a.tagName !== 'CANVAS') return;
+  if (a?.closest('input, select, textarea, dialog, [contenteditable]')) return;
+  if (e.key === 'Escape') { // 開いているものを一番上から1つ閉じる。何も無ければポーズメニュー
+    e.preventDefault(); // 開いたばかりのポーズをブラウザの Esc 処理がすぐ閉じないように
+    if (view.menuOpen() !== null) view.hideMenu();
+    else if (!panels.closeTop()) panels.openPause();
+    return;
+  }
+  if (a?.tagName === 'BUTTON' && (e.code === 'Space' || e.key === 'Enter')) return; // ボタン自身の押下に任せる
+  const k = e.key.toLowerCase();
   if (e.code === 'Space') { e.preventDefault(); pull(); }
   else if (e.key === 'Enter') { e.preventDefault(); idea(); }
-  else if (/^[1-4]$/.test(e.key)) press(Number(e.key) - 1);
+  else if (/^[1-4]$/.test(k)) press(Number(k) - 1);
+  else if (k === 'h') panels.toggleDrawer('hist');
+  else if (k === 'b') panels.toggleDrawer('hits');
 });
 
 // --- 起動 ---
+const validType = k => TYPE_KEYS.includes(k) || state.themes.some(m => MY + m.name === k);
 function initialReels() {
   const saved = state.settings.slots.map(s => {
-    const type = TYPE_KEYS.includes(s?.type) || state.themes.some(m => MY + m.name === s?.type) ? s.type : 'any', theme = typeof s?.theme === 'string' && s.theme ? s.theme : null;
+    const type = normalizeType(typeof s?.type === 'string' ? s.type : 'any', validType), theme = typeof s?.theme === 'string' && s.theme ? s.theme : null;
     if (!theme) return { type, value: null, held: false };
     return themes[theme] ? { type: 'theme:' + theme, base: type, value: null, held: false } : { type, savedTheme: theme, value: null, held: false };
   });
@@ -451,14 +473,20 @@ async function start() {
     reel: press, lever: pull, idea,
     word(i) {
       if (!canEdit(reels) || !reels[i]?.value) return;
-      if (view.menuOpen() === i) view.hideMenu(); else view.showMenu(i, { themed: !!themeOf(reels[i]), themes: THEMES_ON, mine: state.themes.map(t => t.name) });
+      if (view.menuOpen('w') === i) view.hideMenu(); else view.showMenu(i, { themed: !!themeOf(reels[i]), themes: THEMES_ON, mine: state.themes.map(t => t.name) });
     },
     menu: wordMenu,
+    mon(i) {
+      if (!ready || !canEdit(reels) || !reels[i]) return;
+      if (view.menuOpen('t') === i) view.hideMenu(); else showTypes(i);
+    },
+    type: toggleReelType,
+    pickWord: openPick,
+    count: changeCount,
   });
   initThemeScreen({ store, isSpinning: () => isSpinning(reels), changed: themesChanged });
   initScreens({
     store, typeLabels: TYPE_LABELS, typeKeys: TYPE_KEYS, isSpinning: () => isSpinning(reels), rebuildPools,
-    onSettingsChange() { applyWidth(); sync(); },
     async afterImport() {
       ready = false; // テーマを読み込む間は回さない
       try {
@@ -468,7 +496,7 @@ async function start() {
         autoTimers = [];
         rebuildPools();
         sound.enabled = state.settings.sound;
-        chips();
+        pauseLabels();
         closePick();
         setReels(initialReels());
         renderHits();
@@ -478,7 +506,7 @@ async function start() {
     },
   });
   motionQuery.addEventListener?.('change', sync);
-  chips();
+  pauseLabels();
   // 保存したテーマがあれば、筐体を出してからグラフを読む（読めなければテーマなしで続ける）
   reelCount = clamp(state.settings.count);
   cab.setReels(reelCount);
@@ -500,9 +528,9 @@ function fail() {
 
 async function load() {
   try {
-    const [words, verbs, genres, tags] = await Promise.all(
-      ['words', 'verbs', 'genres', 'tags'].map(n => fetch(`data/${n}.json`).then(r => { if (!r.ok) throw new Error(n); return r.json(); })));
-    data = { words, verbs, genres, tags };
+    const [words, verbs, genres, tags, games] = await Promise.all(
+      ['words', 'verbs', 'genres', 'tags', 'games'].map(n => fetch(`data/${n}.json`).then(r => { if (!r.ok) throw new Error(n); return r.json(); })));
+    data = { words, verbs, genres, tags, games };
   } catch {
     fail();
     return;

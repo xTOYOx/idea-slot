@@ -1,3 +1,5 @@
+import { parseType } from './typekey.js';
+
 // 使用済みでない語を1つ選ぶ。まずランダムに最大50回引き直し、だめなら絞り込む
 function pickFrom(pool = [], used, rng) {
   for (let i = 0; i < 50; i++) {
@@ -10,12 +12,13 @@ function pickFrom(pool = [], used, rng) {
 
 const GROUPS = ['noun', 'verb', 'genre', 'tag'];
 
-// 'any' は先に4グループから等確率で選び、空/使用済みなら他のグループへ
-function pickWord(pools, type, used, rng) {
-  if (type !== 'any') return pickFrom(pools[type], used, rng);
-  const start = Math.floor(rng() * GROUPS.length);
-  for (let k = 0; k < GROUPS.length; k++) {
-    const w = pickFrom(pools[GROUPS[(start + k) % GROUPS.length]], used, rng);
+// 'any' は4グループ、'mix:…' は選んだ種類から、先に等確率で1つ選んでその語を引く。空/使用済みなら他の種類へ順に
+export function pickWord(pools, type, used, rng) {
+  const kinds = type === 'any' ? GROUPS : parseType(type);
+  if (kinds.length === 1) return pickFrom(pools[kinds[0]], used, rng);
+  const start = Math.floor(rng() * kinds.length);
+  for (let k = 0; k < kinds.length; k++) {
+    const w = pickFrom(pools[kinds[(start + k) % kinds.length]], used, rng);
     if (w) return w;
   }
   return null;

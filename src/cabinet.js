@@ -1,6 +1,6 @@
 // ピクセルアート筐体の描画（論理 200×190）。見た目の基準は docs/superpowers/specs/mockups/casino-v6.html
 // 描くだけで、入力処理もHTMLの重ね物も持たない（それはアプリ側）。
-import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H } from './layout.js';
+import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H, COUNT_BTN } from './layout.js';
 
 const W = 200, H = 190, DY = 10; // DY: LEDバーより下（元の y ≥ 61）をモニターの分だけ下げる量
 const K = '#0b0610', R0 = '#3a0614', R1 = '#6b0f24', R2 = '#a3182f', R3 = '#e0303e';
@@ -98,6 +98,8 @@ export function createCabinet(canvas) {
     });
     [[186, 168 + DY], [192, 170 + DY]].forEach(([x, y]) => { px(x, y, 6, 6, K); px(x + 1, y + 1, 4, 4, G2); px(x + 2, y + 1, 2, 1, G4); });
     box(180, 100 + DY, 10, 14, C1, C3, C0);
+    // リール数ボタンの台座（＋と－の絵は HTML）
+    [COUNT_BTN.plusY, COUNT_BTN.minusY].forEach((y) => box(COUNT_BTN.x, y, COUNT_BTN.size, COUNT_BTN.size, C1, C3, C0));
   }
 
   // 動的な状態

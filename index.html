@@ -8,26 +8,38 @@
 </head>
 <body>
 <h1 class="sr">アイデアスロット</h1>
+<button id="pbtn" aria-label="ポーズメニュー"><i></i><i></i></button>
 <main id="app">
   <div id="wrap"><canvas id="cv" width="200" height="190"></canvas><div id="ov"></div></div>
-  <div id="ctl">
-    <button class="chip" id="all" style="--c:#c8202f">全部<br>STOP</button>
-    <button class="chip" id="mode" style="--c:#1f4fbf"></button>
-    <button class="chip" id="cfg" style="--c:#6a2fb0">リール<br>設定</button>
-    <button class="chip" id="snd" style="--c:#108a4a"></button>
-    <button class="chip" id="menuBtn" style="--c:#b8650c" aria-haspopup="true">メニュー</button>
-    <button class="chip" id="spin" style="--c:#8a1fa0">SPIN</button>
-  </div>
-  <div id="menu" hidden><button class="sbtn" data-open="custom">自分の語</button><button class="sbtn" data-open="themes">テーマ</button><button class="sbtn" data-open="settings">設定</button></div>
-  <section id="setup" class="felt" hidden></section>
-  <section id="pick" class="felt" hidden>
-    <h3 id="ph">♦ 固定する語をえらぶ ♦</h3>
-    <input id="q" placeholder="さがす / 入力してEnterで固定" aria-label="語をさがす" autocomplete="off">
-    <div id="cards"></div>
-  </section>
-  <section id="hits" class="felt"></section>
-  <details id="history" class="felt"><summary>♥ 履歴 ♥ <span id="hc"></span></summary><ol></ol></details>
+  <button id="spin">SPIN</button>
 </main>
+<aside class="drawer l" id="d-hist" data-d="hist">
+  <button class="dtab" aria-expanded="false" aria-controls="d-hist-body">履歴<b class="bdg"></b></button>
+  <div class="dbody" id="d-hist-body" inert><div class="dhead"><h3>♥ 履歴 ♥</h3><button class="sbtn" data-dclose>閉じる</button></div><ol id="hist"></ol></div>
+</aside>
+<aside class="drawer r" id="d-hits" data-d="hits">
+  <button class="dtab" aria-expanded="false" aria-controls="d-hits-body">当たり帳<b class="bdg"></b></button>
+  <div class="dbody" id="d-hits-body" inert><div class="dhead"><h3>♠ 当たり帳 ♠</h3><button class="sbtn" data-dclose>閉じる</button></div><div id="hits"></div></div>
+</aside>
+<dialog id="pause" aria-label="ポーズメニュー">
+  <h2>ポーズ</h2>
+  <div class="col">
+    <button data-p="resume">再開</button>
+    <button data-p="auto"></button>
+    <button data-p="snd"></button>
+    <button data-p="rm"></button>
+    <button data-edit data-open="themes">テーマ…</button>
+    <button data-edit data-open="custom">自分の語…</button>
+    <button data-edit data-open="settings">書き出し・読み込み…</button>
+    <button data-p="hits">当たり帳<span></span></button>
+    <button data-p="hist">履歴<span></span></button>
+  </div>
+</dialog>
+<dialog id="pick"><button class="close" data-close aria-label="閉じる">閉じる</button>
+  <h3 id="ph">♦ 固定する語をえらぶ ♦</h3>
+  <input id="q" placeholder="さがす / 入力してEnterで固定" aria-label="語をさがす" autocomplete="off">
+  <div id="cards"></div>
+</dialog>
 <dialog id="custom"><button class="close" data-close aria-label="閉じる">閉じる</button><div class="body"></div></dialog>
 <dialog id="themes"><button class="close" data-close aria-label="閉じる">閉じる</button><div class="body"></div></dialog>
 <dialog id="settings"><button class="close" data-close aria-label="閉じる">閉じる</button><div class="body"></div></dialog>
