@@ -16,3 +16,8 @@ test('encodes lemmas, links and drops unknown', () => {
   assert.deepEqual(g.dom, [1, 3]);
   assert.deepEqual([g.part, g.subs, g.inst], [[], [], []]);
 });
+test('inst comes from hasi (class -> instance); raw inst dropped', () => {
+  const ss = [{ id: 'a-n', lemmas: ['河川'] }, { id: 'b-n', lemmas: ['ナイル川'] }];
+  assert.deepEqual(encodeGraph({ synsets: ss, links: [{ from: 'a-n', to: 'b-n', link: 'hasi' }] }, keepLemma).inst, [0, 1]);
+  assert.deepEqual(encodeGraph({ synsets: ss, links: [{ from: 'b-n', to: 'a-n', link: 'inst' }] }, keepLemma).inst, []);
+});

@@ -27,6 +27,9 @@ test('excluded removed; unknown word gives []', () => {
   assert.ok(!themeWords(G, '宇宙', { min: 1, excluded: ['銀河'] }).includes('銀河'));
   assert.deepEqual(themeWords(G, '走る'), []);
 });
+test('domain members are not expanded', () => {
+  assert.ok(!themeWords(G, '宇宙', { min: 100 }).includes('小彗星'));
+});
 test('no duplicates', () => {
   const w = themeWords(G, '宇宙', { min: 100 });
   assert.equal(new Set(w).size, w.length);

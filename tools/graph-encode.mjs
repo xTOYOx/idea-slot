@@ -1,5 +1,5 @@
 // WordNet の名詞 synset とつながりを、アプリ用の軽い graph に詰める（純粋関数）。
-const FIELD = { hypo: 'hypo', mprt: 'part', mmem: 'memb', msub: 'subs', inst: 'inst', dmnc: 'dom' };
+const FIELD = { hypo: 'hypo', mprt: 'part', mmem: 'memb', msub: 'subs', hasi: 'inst', dmnc: 'dom' };
 
 export function encodeGraph({ synsets, links }, keepLemma) {
   const index = new Map(synsets.map((s, i) => [s.id, i]));

@@ -15,7 +15,7 @@ for (const { synset, lemma } of db.prepare(
 const synsets = db.prepare("SELECT synset FROM synset WHERE pos='n' ORDER BY synset").all()
   .map(({ synset }) => ({ id: synset, lemmas: lemmas.get(synset) ?? [] }));
 const links = db.prepare(
-  "SELECT synset1 AS \"from\", synset2 AS \"to\", link FROM synlink WHERE link IN ('hypo','mprt','mmem','msub','inst','dmnc')"
+  "SELECT synset1 AS \"from\", synset2 AS \"to\", link FROM synlink WHERE link IN ('hypo','mprt','mmem','msub','hasi','dmnc')"
 ).all();
 
 const g = encodeGraph({ synsets, links }, keepLemma);
