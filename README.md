@@ -19,7 +19,7 @@ python -m http.server 8123   # http://localhost:8123/ で確認
 npm test                     # テスト
 ```
 
-語データの再生成: [bond-lab/wnja v1.1](https://github.com/bond-lab/wnja) の `wnjpn.db.gz` を `raw/` にダウンロードし、`node --no-warnings tools/build-words.mjs` を実行します。
+語データの再生成: [bond-lab/wnja v1.1](https://github.com/bond-lab/wnja) の `wnjpn.db.gz` を `raw/` にダウンロードし、`node --no-warnings tools/build-words.mjs` を実行します。続けてテーマ用の `data/graph.json` を作るには、リポジトリのルートで `node --no-warnings tools/build-graph.mjs` を実行します。
 
 ## データの出典
 

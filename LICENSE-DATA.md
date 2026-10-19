@@ -1,6 +1,6 @@
 # Data License
 
-data/words.json and data/verbs.json are derived from Japanese WordNet (https://github.com/bond-lab/wnja), which is distributed under the license below. This notice must accompany all copies, including modifications.
+data/words.json, data/verbs.json and data/graph.json are derived from Japanese WordNet (https://github.com/bond-lab/wnja), which is distributed under the license below. This notice must accompany all copies, including modifications.
 
 ```
 Copyright: 2021-2024 Francis Bond, Takayuki Kuribayashi

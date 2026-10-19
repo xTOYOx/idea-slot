@@ -23,7 +23,7 @@ const clamp = n => (Number.isInteger(n) ? Math.min(4, Math.max(2, n)) : 3);
 const reduceMotion = () => state.settings.reduceMotion || motionQuery.matches;
 
 let data = null, pools = null, index = null;
-let themes = {}; // テーマの語 → 集めた語のリスト（除外語を引く前のもの。プールは rebuildPools のたびに除外語を除いて作る）
+let themes = Object.create(null); // テーマの語 → 集めた語のリスト（除外語を引く前のもの。プールは rebuildPools のたびに除外語を除いて作る）
 let ready = false; // 起動の最初の spin が済むまで、回す・IDEA!・リール設定を受け付けない（保存テーマの読み込み待ち）
 let graphP = null; // data/graph.json を読む Promise（最初にテーマを使うときだけ。失敗したら捨てて次回やり直す）
 let reels = [], reelCount = 0, cab = null, view = null;
@@ -39,7 +39,7 @@ function rebuildPools() {
 }
 const say = text => view.say(text);
 const rnd = type => { const p = pools[type] ?? []; return p.length ? p[Math.floor(Math.random() * p.length)] : ''; };
-const loadGraph = () => (graphP ??= fetch('data/graph.json', { signal: AbortSignal.timeout(15000) })
+const loadGraph = () => (graphP ??= fetch('data/graph.json', { signal: AbortSignal.timeout?.(15000) })
   .then(r => { if (!r.ok) throw new Error('graph'); return r.json(); })
   .then(indexGraph) // 15秒で打ち切る（signal は本文の読み込みにも効く）
   .catch(e => { graphP = null; throw e; }));
@@ -64,7 +64,7 @@ function saveSettings() {
 // --- 表示の同期 ---
 function paint(i, fresh = false) {
   const th = themeOf(reels[i]);
-  view.setMonitor(i, th ?? TYPE_LABELS[reels[i].type], !!th);
+  view.setMonitor(i, th ?? TYPE_LABELS[reels[i].type].replace(/^タグ：/, ''), !!th); // 窓の札は短く（設定画面は完全な名前）
   view.setWords(i, rowsOf(reels[i], i, fresh));
   view.setState(i, { running: !!reels[i].running, held: reels[i].held });
 }
@@ -73,6 +73,7 @@ function paint(i, fresh = false) {
 const applyBusy = () => app.querySelectorAll('[data-edit]').forEach(el => { el.disabled = !canEdit(reels); });
 
 function sync() {
+  if (!reels.length) return; // 起動中（リール未作成）はランプを触らない
   cab.update({ spinning: isSpinning(reels), canSave: canSave(reels, state.favorites), ideas: state.stats.spins, hits: state.favorites.length, reduceMotion: reduceMotion() });
   applyBusy();
   document.body.classList.toggle('reduce-motion', reduceMotion());
@@ -218,7 +219,7 @@ async function setTheme(i) {
   let G;
   try { G = await loadGraph(); } catch { say(THEME_FAIL); sound.play('deny'); return; }
   if (!canEdit(reels) || reels[i]?.value !== w) return;
-  const list = themeWords(G, w);
+  const drop = new Set(state.excluded), list = themeWords(G, w).filter(x => !drop.has(x));
   if (!list.length) { say(`「${w}」はテーマにできない語です`); sound.play('deny'); return; }
   themes[w] = list;
   rebuildPools();
@@ -232,7 +233,7 @@ async function setTheme(i) {
 // 保存したテーマの語を集める（初回起動・インポート後）。読めなければ false。保存データのテーマは消さない
 const savedThemes = () => [...new Set(state.settings.slots.map(s => s?.theme).filter(w => typeof w === 'string' && w))];
 async function prepareThemes() {
-  const words = savedThemes(), next = {};
+  const words = savedThemes(), next = Object.create(null);
   if (!words.length) { themes = next; return true; }
   try {
     const G = await loadGraph();
@@ -407,15 +408,21 @@ async function start() {
     store, typeLabels: TYPE_LABELS, typeKeys: TYPE_KEYS, isSpinning: () => isSpinning(reels), rebuildPools,
     onSettingsChange() { sync(); },
     async afterImport() {
-      const ok = await prepareThemes();
-      rebuildPools();
-      sound.enabled = state.settings.sound;
-      chips();
-      closePick();
-      setReels(initialReels());
-      renderHits();
-      renderHistory();
-      if (!ok) say(THEME_FAIL);
+      ready = false; // テーマを読み込む間は回さない
+      try {
+        const ok = await prepareThemes();
+        clearInterval(tickTimer); // 回転中だったときの残りを片づける
+        autoTimers.forEach(clearTimeout);
+        autoTimers = [];
+        rebuildPools();
+        sound.enabled = state.settings.sound;
+        chips();
+        closePick();
+        setReels(initialReels());
+        renderHits();
+        renderHistory();
+        if (!ok) say(THEME_FAIL);
+      } finally { ready = true; }
     },
   });
   motionQuery.addEventListener?.('change', sync);
