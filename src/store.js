@@ -1,6 +1,7 @@
 // localStorage persistence (DOM-free). `storage` has getItem/setItem, or is null for memory-only.
 import { DEFAULT_KEYS, normalizeKeys } from './keys.js';
 import { cleanTemplate } from './templates.js';
+import { cleanRating, cleanTags } from './hits.js';
 
 const KEYS = ['settings', 'history', 'favorites', 'custom', 'excluded', 'stats', 'themes', 'templates'];
 const HISTORY_MAX = 100;
@@ -39,7 +40,7 @@ const normalizeSettings = v => {
 const keep = ok => v => (ok(v) ? v : null);
 const isStrs = v => isArr(v) && v.every(s => typeof s === 'string');
 const fav = f => (isObj(f) && isStrs(f.combo)
-  ? { combo: f.combo, memo: typeof f.memo === 'string' ? f.memo : '', savedAt: typeof f.savedAt === 'number' ? f.savedAt : 0 }
+  ? { combo: f.combo, memo: typeof f.memo === 'string' ? f.memo : '', savedAt: typeof f.savedAt === 'number' ? f.savedAt : 0, rating: cleanRating(f.rating), tags: cleanTags(f.tags) }
   : null);
 // 名前・語は前後の空白を除く（名前が空なら不正、語は空を捨てて重複を除く）
 const theme = t => {

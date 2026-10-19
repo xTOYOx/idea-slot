@@ -41,3 +41,6 @@ export const autoStopDelays = reels => reels.map((r, i) => (r.running ? 600 + 32
 
 export const restore = (reels, combo) =>
   resizeSlots(reels, combo.length).map((r, i) => ({ ...r, value: combo[i], held: false, running: false, target: undefined, stoppedAt: undefined }));
+
+// 「この語だけ回し直す」用: 語のある枠のうち i 番以外をロックする（回すのは startSpin）
+export const lockExcept = (reels, i) => reels.map((r, j) => ({ ...r, held: j !== i && r.value != null }));
