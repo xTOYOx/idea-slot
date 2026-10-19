@@ -20,6 +20,7 @@ export function initPanels({ pauseAction, open }) {
     openDrawer: name => setDrawer(name, true),
     // 一番上の引き出しを閉じる。閉じたら true
     closeTop() { if (!order.length) return false; setDrawer(order.at(-1), false); return true; },
+    closeAll() { [...order].forEach(n => setDrawer(n, false)); },
     toggleDrawer: name => setDrawer(name, !isOpen(name)),
     setCount(name, n) { drawers[name].querySelector('.bdg').textContent = n; },
     flash(name) {
@@ -35,11 +36,15 @@ export function initPanels({ pauseAction, open }) {
     el.querySelector('[data-dclose]').addEventListener('click', e => { if (e.detail > 0) e.currentTarget.blur(); setDrawer(name, false); });
   }
   // 外側をクリックしたら閉じる（引き出しの中とダイアログの中は除く）
-  document.addEventListener('click', e => { if (!e.target.closest('.drawer, dialog')) [...order].forEach(n => setDrawer(n, false)); });
+  document.addEventListener('click', e => { if (!e.target.closest('.drawer, dialog')) panels.closeAll(); });
 
   document.getElementById('pbtn').addEventListener('click', e => { if (e.detail > 0) e.currentTarget.blur(); panels.openPause(); });
   pause.addEventListener('click', e => {
-    if (e.target === pause) { pause.close(); return; } // 外側（バックドロップ）
+    if (e.target === pause) { // パネルの余白かバックドロップか: 座標で外側だけ閉じる
+      const r = pause.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) pause.close();
+      return;
+    }
     const b = e.target.closest('button');
     if (!b) return;
     if (e.detail > 0) b.blur();

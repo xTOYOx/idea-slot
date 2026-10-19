@@ -394,11 +394,13 @@ function renderHits() {
     <div class="row"><button class="sbtn" data-edit data-back="${i}">枠に戻す</button><button class="sbtn" data-del="${i}">削除</button></div></div>`).join('');
   $('hits').innerHTML = list || '<div id="empty">いいね！と思ったら IDEA! ボタン</div>';
   panels.setCount('hits', state.favorites.length);
+  pauseLabels();
   applyBusy();
 }
 
 function renderHistory() {
   panels.setCount('hist', state.history.length);
+  pauseLabels();
   $('hist').innerHTML = state.history.map((c, i) =>
     `<li><button class="card" data-edit data-r="${i}">${esc(c.join(' × '))}</button></li>`).join('');
   applyBusy();
@@ -417,8 +419,10 @@ document.addEventListener('click', e => {
   if (!b) return;
   if (e.detail > 0 && !b.closest('dialog')) b.blur(); // マウス・タップのあとはキー操作を筐体に返す
   const d = b.dataset;
-  if (d.back !== undefined) restoreCombo(state.favorites[Number(d.back)].combo);
-  else if (d.r !== undefined) restoreCombo(state.history[Number(d.r)]);
+  if (d.back !== undefined || d.r !== undefined) {
+    restoreCombo(d.back !== undefined ? state.favorites[Number(d.back)].combo : state.history[Number(d.r)]);
+    if (matchMedia('(max-width: 599px)').matches) panels.closeAll(); // スマホではシートを閉じて筐体を見せる
+  }
   else if (d.del !== undefined) { state.favorites.splice(Number(d.del), 1); store.save('favorites'); renderHits(); sync(); }
 });
 $('hits').addEventListener('input', e => {

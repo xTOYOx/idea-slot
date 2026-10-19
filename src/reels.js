@@ -101,11 +101,9 @@ export function createOverlay(wrap, ov, on) {
     menuEl.className = 'wm' + (kind === 't' ? ' tl' : '');
     menuEl.innerHTML = html;
     ov.appendChild(menuEl);
-    if (kind === 't') {
-      const wr = wrap.getBoundingClientRect(), at = yy => wr.top + wr.height * yy / 190;
-      if (innerHeight - at(y) < 300) y = MONITOR_Y + MONITOR_H; // 下に余裕がなければ、モニターの真下から窓に重ねて出す
-      menuEl.style.maxHeight = Math.max(120, innerHeight - at(y) - 8) + 'px';
-    }
+    const wr = wrap.getBoundingClientRect(), at = yy => wr.top + wr.height * yy / 190;
+    if (kind === 't' && innerHeight - at(y) < 300) y = MONITOR_Y + MONITOR_H; // 下に余裕がなければ、モニターの真下から窓に重ねて出す
+    menuEl.style.maxHeight = Math.max(120, innerHeight - at(y) - 8) + 'px'; // どのメニューも画面の下に収め、長ければ中をスクロール
     menuEl.style.cssText += `;top:${y / 1.9}%;${side};min-width:${r.w / 2}%`;
     menuIndex = i;
     menuKind = kind;
