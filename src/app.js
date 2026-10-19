@@ -3,7 +3,7 @@ import { buildPools } from './pools.js';
 import { spin, rerollOne, setSlotType, resizeSlots, pickWord } from './pick.js';
 import { parseType, toggleType, normalizeType, remapType } from './typekey.js';
 import { initPanels } from './panels.js';
-import { startSpin, stopReel, pressReel, isSpinning, allStopped, canEdit, canSave, autoStopDelays, excludeAt, restore } from './machine.js';
+import { startSpin, stopReel, pressReel, isSpinning, allStopped, canEdit, canSave, autoStopDelays, restore } from './machine.js';
 import { buildIndex, searchWords } from './search.js';
 import { indexGraph, themeWords } from './theme.js';
 import { createStore } from './store.js';
@@ -12,7 +12,6 @@ import { createSound } from './sound.js';
 import { createOverlay } from './reels.js';
 import { initScreens } from './screens.js';
 import { initThemeScreen } from './themescreen.js';
-import { addWords } from './mythemes.js';
 import { cabinetWidth } from './layout.js';
 
 // テーマ機能のスイッチ。false の間は語メニューに出さず、保存済みのテーマも使わない（保存データからは消さない）
@@ -240,44 +239,23 @@ function idea() {
   if (!reduceMotion()) panels.flash('hits');
 }
 
-// --- 窓の語メニュー ---
-function wordMenu(action, i) {
-  if (!canEdit(reels) || !reels[i]?.value) return;
-  const w = reels[i].value;
-  if (action === 'x') {
-    if (!state.excluded.includes(w)) { state.excluded = [...state.excluded, w]; store.save('excluded'); }
-    rebuildPools();
-    reels = excludeAt(reels, i, pools);
-    say(`「${w}」を除外`);
-  } else if (action === 't') {
-    setTheme(i);
-    return;
-  } else if (/^a\d+$/.test(action)) {
-    addToMyTheme(Number(action.slice(1)), w);
-    return;
-  } else if (action === 'u') {
-    reels = reels.map((r, j) => (j === i ? { ...r, type: r.base, base: undefined } : r));
-    saveSettings();
-    say(`${i + 1}番リールのテーマを解除`);
-  } else {
-    reels = rerollOne(reels, i, pools);
-    say(`${i + 1}番リールを振り直し`);
+// --- 窓の語をクリック = クリップボードにコピー（調べもの用） ---
+async function copyWord(i) {
+  const w = reels[i]?.value;
+  if (!w || reels[i].running) return;
+  try { await navigator.clipboard.writeText(w); } catch {
+    const t = document.createElement('textarea'); // クリップボード API が使えない／断られたとき
+    t.value = w;
+    t.style.cssText = 'position:fixed;opacity:0';
+    document.body.append(t);
+    t.select();
+    const ok = document.execCommand('copy');
+    t.remove();
+    if (!ok) { say('コピーできませんでした'); sound.play('deny'); return; }
   }
-  paint(i, true);
-  sync();
-}
-
-// 窓の語を自作テーマに足す（リールの状態は変えない）
-function addToMyTheme(k, w) {
-  const t = state.themes[k];
-  if (!t) return;
-  const r = addWords(t, [w]);
-  if (!r.added) { say(`「${w}」は★${t.name}にすでに入っています`); return; }
-  state.themes = state.themes.map((x, j) => (j === k ? r.theme : x));
-  store.save('themes');
-  store.unexclude([w]);
-  themesChanged(undefined, true);
-  say(`「${w}」を★${t.name}に追加（${r.theme.words.length}語）`);
+  sound.play('lock');
+  say(`「${w}」をコピーしました`);
+  if (!reduceMotion()) view.flash(i);
 }
 
 // 自作テーマが変わった（作成・語の増減・名前変更・削除）。remap = {from, to}（to が null なら削除）で、その種類のリールを付け替える
@@ -300,24 +278,6 @@ function themesChanged(remap, quiet = false) {
   if (!quiet) reels.forEach((r, i) => { if (parseType(r.type).some(k => k.startsWith(MY)) || hit.includes(i)) paint(i, true); }); // 語が減った・名前が変わった・振り直した枠を描き直す
   sync();
   if (editing >= 0) renderCards();
-}
-
-// 語をテーマにする。グラフは初回だけ読む。止まっている間だけ（読み込み中に回し始めたら何もしない）
-async function setTheme(i) {
-  const w = reels[i].value;
-  if (!graphP) say('テーマを準備中…');
-  let G;
-  try { G = await loadGraph(); } catch { say(THEME_FAIL); sound.play('deny'); return; }
-  if (!canEdit(reels) || reels[i]?.value !== w) return;
-  const raw = themeWords(G, w), drop = new Set(state.excluded);
-  if (!raw.some(x => !drop.has(x))) { say(`「${w}」はテーマにできない語です`); sound.play('deny'); return; }
-  themes[w] = raw; // 除外前の語を持つ（除外を戻したとき rebuildPools で復活する）
-  rebuildPools();
-  reels = reels.map((r, j) => (j === i ? { ...r, type: 'theme:' + w, base: r.base ?? r.type, savedTheme: undefined, held: false } : r));
-  saveSettings();
-  say(`★ ${i + 1}番リールのテーマ：${w}（${pools['theme:' + w].length}語）`);
-  paint(i, true);
-  sync();
 }
 
 // 保存したテーマの語を集める（初回起動・インポート後）。読めなければ false。保存データのテーマは消さない
@@ -492,14 +452,10 @@ async function start() {
   cab = createCabinet($('cv'));
   view = createOverlay($('wrap'), $('ov'), {
     reel: press, lever: pull, idea,
-    word(i) {
-      if (!canEdit(reels) || !reels[i]?.value) return;
-      if (view.menuOpen('w') === i) view.hideMenu(); else view.showMenu(i, { themed: !!themeOf(reels[i]), themes: THEMES_ON, mine: state.themes.map(t => t.name) });
-    },
-    menu: wordMenu,
+    word: copyWord,
     mon(i) {
       if (!ready || !canEdit(reels) || !reels[i]) return;
-      if (view.menuOpen('t') === i) view.hideMenu(); else showTypes(i);
+      if (view.menuOpen() === i) view.hideMenu(); else showTypes(i);
     },
     type: toggleReelType,
     pickWord: openPick,
