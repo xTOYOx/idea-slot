@@ -1,7 +1,7 @@
 // ピクセルアート筐体の描画（論理 W×190。W は 200〜340、基準は 200）。見た目の基準は docs/superpowers/specs/mockups/casino-v6.html
 // 描くだけで、入力処理もHTMLの重ね物も持たない（それはアプリ側）。
 import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H, COUNT_BTN, W_MIN, LEVER_REST, LEVER_DOWN } from './layout.js';
-import { COL_W, colsFor, dropCoin, initialPile, fitPile, frameScale, stepCoin } from './coins.js';
+import { COL_W, colsFor, dropCoin, initialPile, fitPile, frameScale, stepCoin, launchCoin, hitCoin, spinCoin, isGone } from './coins.js';
 
 // x 座標は三種類: 左に付く（そのまま）／右に付く（+ D、D = W - 200）／伸びる（幅に + D）／中央（CX 基準、CX = W/2）
 const H = 190, DY = 10; // DY: LEDバーより下（元の y ≥ 61）をモニターの分だけ下げる量
@@ -17,9 +17,10 @@ const DOME = ['...RRRRRR...', '..RWRRRRRR..', '.RWRRRRRRRr.', '.RRRRRRRRRr.', 'R
 const BALL = ['...RRRR...', '..RWWRRR..', '.RWRRRRRr.', 'RWRRRRRRrr', 'RRRRRRRRrr', 'RRRRRRRrrr', 'RRRRRRrrrr', '.RRRrrrrr.', '..rrrrrr..', '...rrrr...'];
 const COIN = [4, 3, 2, 1, 2, 3];
 const PILE_X = 35, PILE_Y = 170, PILE_STEP = 2; // 受け皿の山: 左端 x、いちばん下のコインの y(+DY)、1枚ごとに重なって見える高さ
-const PAYOUT = { y: 155, vy: 1.5, n: 40, span: 800, rm: 12 }; // 払い出し口の y(+DY)、飛び出す勢い、出る枚数と出きるまでの ms、低減モードで山に足す枚数
+const PAYOUT = { y: 155, n: 40, span: 800, rm: 12, max: 80 }; // 払い出し口の y(+DY)、出る枚数と出きるまでの ms、低減モードで山に足す枚数、同時に動く枚数の上限
+const RIM_Y = 176; // 受け皿の縁の高さ(+DY込み)。コインの底がこれより下なら壁に当たり、上なら越えてこぼれる
 
-const CELEBRATE_MS = 3200, LEVER_MS = 220, PRESS_MS = 120;
+const FRAME_MS = 1000 / 60, CELEBRATE_MS = 3200, LEVER_MS = 220, PRESS_MS = 120;
 
 export function createCabinet(canvas) {
   let W = W_MIN, D = 0, CX = 100;
@@ -143,10 +144,12 @@ export function createCabinet(canvas) {
     }
   }
 
-  // 払い出し口から n 枚、時間差で飛び出す（ジャラジャラ）。wait: 出るまでの ms
+  // 払い出し口から n 枚、時間差で飛び出す（ジャラジャラ）。初速は coins.js の launchCoin、wait: 出るまでの ms
   function payout(n) {
-    for (let k = 0; k < n; k++) parts.push({ x: CX - 16 + Math.random() * 32, y: PAYOUT.y + DY, vx: (Math.random() - 0.5) * 1.6, vy: -(Math.random() * PAYOUT.vy), f: k, wait: Math.random() * PAYOUT.span });
+    for (let k = 0; k < n && parts.length < PAYOUT.max; k++) parts.push({ ...launchCoin(Math.random, CX - 18 + Math.random() * 32, PAYOUT.y + DY), wait: Math.random() * PAYOUT.span });
   }
+  // 受け皿の壁・床・筐体の下端（山の幅に合わせる）
+  const tray = () => ({ l: PILE_X - 2, r: PILE_X + pile.length * COL_W + 2, floor: PILE_Y + DY - 2, step: PILE_STEP, rim: RIM_Y, bottom: H });
 
   let lastDraw = 0, wasBusy = false;
   function frame(t) {
@@ -204,12 +207,14 @@ export function createCabinet(canvas) {
         px(x, y, 4, 3, G1); px(x, y, 4, 2, G2); px(x + 1, y, 2, 1, G4);
       }
     });
+    const tr = tray();
     parts = parts.filter((p) => {
-      if ((p.wait -= s * 16.7) > 0) return true; // まだ出ていない
+      if ((p.wait -= s * FRAME_MS) > 0) return true; // まだ出ていない
       stepCoin(p, s);
-      if (p.vy > 0 && p.y >= PILE_Y + DY - PILE_STEP * pile[colOf(p.x)] - 2) { dropCoin(pile, colOf(p.x)); return false; } // 山の上に着いたら積む（上限なら消える）
-      const w = COIN[(p.f++ >> 1) % 6];
-      px(p.x + (4 - w) / 2, p.y, w, 4, G2); px(p.x + (4 - w) / 2, p.y, Math.max(1, w - 1), 1, G4);
+      if (hitCoin(p, pile, tr) === 'settled' || isGone(p, tr)) return false; // 山に積もった／筐体の下へ落ちた
+      spinCoin(p, s);
+      const w = COIN[Math.floor(p.f) % 6];
+      px(Math.round(p.x + (4 - w) / 2), Math.round(p.y), w, 4, G2); px(Math.round(p.x + (4 - w) / 2), Math.round(p.y), Math.max(1, w - 1), 1, G4);
       return true;
     });
   }
