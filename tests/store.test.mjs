@@ -58,7 +58,7 @@ test('v1 settings with animate migrate to reduceMotion', () => {
 });
 test('defaults include stats and new settings', () => {
   const s = createStore(mem());
-  assert.deepEqual(s.state.stats, { spins: 0 });
+  assert.deepEqual(s.state.stats, { spins: 0, coins: 0 });
   assert.equal(s.state.settings.autoStop, false);
   assert.equal(s.state.settings.sound, true);
   assert.equal(s.state.settings.reduceMotion, false);
@@ -66,13 +66,13 @@ test('defaults include stats and new settings', () => {
 test('countSpin persists', () => {
   const st = mem(); const s = createStore(st);
   s.countSpin(); s.countSpin();
-  assert.deepEqual(JSON.parse(st.m['slot.stats']), { spins: 2 });
+  assert.deepEqual(JSON.parse(st.m['slot.stats']), { spins: 2, coins: 0 });
 });
 test('export is version 3 and includes stats', () => {
   const s = createStore(mem()); s.countSpin();
   const d = JSON.parse(s.exportJSON());
   assert.equal(d.version, 3);
-  assert.deepEqual(d.stats, { spins: 1 });
+  assert.deepEqual(d.stats, { spins: 1, coins: 0 });
 });
 test('version 1 export imports (no stats, animate)', () => {
   const v1 = { app: 'idea-slot', version: 1, settings: { count: 3, slots: [{ type: 'any' }, { type: 'any' }, { type: 'any' }], animate: true }, history: [], favorites: [], custom: {}, excluded: ['猫'] };
@@ -80,7 +80,7 @@ test('version 1 export imports (no stats, animate)', () => {
   assert.deepEqual(s.importJSON(JSON.stringify(v1)), { ok: true });
   assert.deepEqual(s.state.excluded, ['猫']);
   assert.equal(s.state.settings.reduceMotion, false);
-  assert.deepEqual(s.state.stats, { spins: 0 });
+  assert.deepEqual(s.state.stats, { spins: 0, coins: 0 });
 });
 test('load drops malformed favorites, keeps valid ones, fills memo/savedAt', () => {
   const favs = [{ combo: ['a', 'b'], memo: 'm', savedAt: 5 }, { memo: 'x' }, { combo: [1] }, null, { combo: ['c'] }];
@@ -260,4 +260,14 @@ test('import with malformed or duplicate templates → error, state unchanged', 
   }
   assert.deepEqual(s.state.templates, [{ name: 'A', slots: two }]);
   assert.deepEqual(s.state.excluded, ['猫']);
+});
+
+test('stats.coins: collected coins add up and persist; old or bad values become 0', () => {
+  const st = mem(); const s = createStore(st);
+  s.addCoins(3); s.addCoins(2);
+  assert.deepEqual(JSON.parse(st.m['slot.stats']), { spins: 0, coins: 5 });
+  assert.equal(createStore(st).state.stats.coins, 5);
+  assert.deepEqual(createStore(mem({ 'slot.stats': JSON.stringify({ spins: 4 }) })).state.stats, { spins: 4, coins: 0 });
+  assert.deepEqual(createStore(mem({ 'slot.stats': JSON.stringify({ spins: 4, coins: -2 }) })).state.stats, { spins: 4, coins: 0 });
+  assert.deepEqual(createStore(mem({ 'slot.stats': JSON.stringify({ spins: 4, coins: 1.5 }) })).state.stats, { spins: 4, coins: 0 });
 });

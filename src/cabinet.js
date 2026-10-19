@@ -18,7 +18,8 @@ const BALL = ['...RRRR...', '..RWWRRR..', '.RWRRRRRr.', 'RWRRRRRRrr', 'RRRRRRRRr
 const COIN = [4, 3, 2, 1, 2, 3];
 const PILE_X = 35, PILE_Y = 170, PILE_STEP = 2; // 受け皿の山: 左端 x、いちばん下のコインの y(+DY)、1枚ごとに重なって見える高さ
 const PAYOUT = { y: 155, n: 40, span: 800, rm: 12, max: 80 }; // 払い出し口の y(+DY)、出る枚数と出きるまでの ms、低減モードで山に足す枚数、同時に動く枚数の上限
-const PICK_MS = 350; // 回収したコインが消えるまで
+const PICK_MS = 450; // 回収したコインがカウンターへ飛んでいく時間
+const COIN_BOX = { x: 180, y: 150, w: 19, h: 16 }; // 回収したコインの枚数（COIN）の電光表示。x は右に付く（+D）、y は +DY
 const RIM_Y = 176; // 受け皿の縁の高さ(+DY込み)。コインの底がこれより下なら壁に当たり、上なら越えてこぼれる
 
 const FRAME_MS = 1000 / 60, CELEBRATE_MS = 3200, LEVER_MS = 220, PRESS_MS = 120;
@@ -117,12 +118,15 @@ export function createCabinet(canvas, { onCollect = () => {} } = {}) {
     });
     [[186 + D, 168 + DY], [192 + D, 170 + DY]].forEach(([x, y]) => { px(x, y, 6, 6, K); px(x + 1, y + 1, 4, 4, G2); px(x + 2, y + 1, 2, 1, G4); });
     box(180 + D, 100 + DY, 10, 14, C1, C3, C0);
+    // 回収したコインの枚数の電光表示（数字は毎フレーム描く）
+    box(COIN_BOX.x + D, COIN_BOX.y + DY, COIN_BOX.w, COIN_BOX.h, K, '#1a1a1a', K); px(COIN_BOX.x + 1 + D, COIN_BOX.y + 7 + DY, COIN_BOX.w - 2, 7, '#1c0404');
+    tiny('COIN', COIN_BOX.x + 2 + D, COIN_BOX.y + 1 + DY, '#ff9a20');
     // リール数ボタンの台座（＋と－の絵は HTML）
     [COUNT_BTN.plusY, COUNT_BTN.minusY].forEach((y) => box(COUNT_BTN.x, y, COUNT_BTN.size, COUNT_BTN.size, C1, C3, C0));
   }
 
   // 動的な状態
-  let v = { spinning: false, canSave: 'empty', ideas: 0, hits: 0, reduceMotion: false };
+  let v = { spinning: false, canSave: 'empty', ideas: 0, hits: 0, coins: 0, reduceMotion: false };
   let t0 = performance.now(), celebrateUntil = 0, leverUntil = 0, pressUntil = 0, leverAmt = 0, prevT = t0;
   let parts = [], picks = []; // picks: 回収して浮かび上がって消えるコイン {x, y, t}
   // 受け皿のコインの山（列ごとの高さ。計算は coins.js）。W が変わったら列の数を取り直す
@@ -181,7 +185,7 @@ export function createCabinet(canvas, { onCollect = () => {} } = {}) {
       const L = fr % 2;
       for (let k = 1; k < 9; k++) { const xx = L ? CX - 8 - k * 3 : CX + 8 + k * 3; px(xx, 6 - (k >> 2), 2, 1, '#ffe066'); px(xx, 9 + (k >> 2), 2, 1, '#ffe06688'); }
     }
-    led(v.ideas, 4, 51, 53); led(v.hits, 4, 155 + D, 53);
+    led(v.ideas, 4, 51, 53); led(v.hits, 4, 155 + D, 53); led(v.coins, 4, COIN_BOX.x + 2 + D, COIN_BOX.y + 8 + DY);
 
     // IDEA! ランプ
     const blink = rm ? 1 : Math.floor(el / 320) % 2, ly = 119 + DY + (t < pressUntil ? 1 : 0);
@@ -209,12 +213,13 @@ export function createCabinet(canvas, { onCollect = () => {} } = {}) {
         px(x, y, 4, 3, G1); px(x, y, 4, 2, G2); px(x + 1, y, 2, 1, G4);
       }
     });
-    // 回収したコイン: 少し浮かんで細くなって消える
+    // 回収したコイン: 弧を描いて COIN の電光表示へ飛んでいき、着いたら消える
     picks = picks.filter((p) => {
       const a = (t - p.t) / PICK_MS;
       if (a >= 1) return false;
-      const w = Math.max(1, Math.round(4 * (1 - a))), y = Math.round(p.y - 14 * a);
-      px(Math.round(p.x + (4 - w) / 2), y, w, 3, G2); px(Math.round(p.x + (4 - w) / 2), y, w, 1, '#ffffff');
+      const tx = COIN_BOX.x + COIN_BOX.w / 2 - 2 + D, ty = COIN_BOX.y + 6 + DY;
+      const x = Math.round(p.x + (tx - p.x) * a), y = Math.round(p.y + (ty - p.y) * a - 22 * Math.sin(Math.PI * a)), w = a > 0.8 ? 2 : 4;
+      px(x + (4 - w) / 2, y, w, 3, G2); px(x + (4 - w) / 2, y, w, 1, '#ffffff');
       return true;
     });
     const tr = tray();

@@ -15,7 +15,7 @@ const defaults = () => ({
   favorites: [],
   custom: {},
   excluded: [],
-  stats: { spins: 0 },
+  stats: { spins: 0, coins: 0 },
   themes: [],
   templates: [],
 });
@@ -77,7 +77,10 @@ const normalize = {
     for (const t of v.map(cleanTemplate)) if (t && !names.has(t.name)) { names.add(t.name); ok.push(t); }
     return strict && ok.length !== v.length ? null : ok;
   },
-  stats: keep(v => isObj(v) && Number.isInteger(v.spins) && v.spins >= 0),
+  // spins: 回した回数、coins: 受け皿から回収したコインの枚数（無い・不正なら 0）
+  stats: v => (isObj(v) && Number.isInteger(v.spins) && v.spins >= 0
+    ? { spins: v.spins, coins: Number.isInteger(v.coins) && v.coins >= 0 ? v.coins : 0 }
+    : null),
 };
 
 export function createStore(storage) {
@@ -110,6 +113,10 @@ export function createStore(storage) {
     },
     countSpin() {
       state.stats.spins++;
+      save('stats');
+    },
+    addCoins(n) {
+      state.stats.coins += n;
       save('stats');
     },
     exportJSON: () => JSON.stringify({ app: 'idea-slot', version: 3, ...state }),
