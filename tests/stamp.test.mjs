@@ -15,6 +15,7 @@ test('stampJs: versions relative imports and data fetches, leaves the rest alone
     "fetch('data/graph.json', { x: 1 })",
     'fetch(`data/${n}.json`)',
     "fetch('data/extra.json')",
+    'fetch(`data/defs/${n}.json`)',
     "const s = 'from ./nothing';",
     "import(el) { el.click(); },",
   ].join('\n');
@@ -24,6 +25,7 @@ test('stampJs: versions relative imports and data fetches, leaves the rest alone
     "fetch('data/graph.json?v=v1', { x: 1 })",
     'fetch(`data/${n}.json?v=v1`)',
     "fetch('data/extra.json?v=v1')",
+    'fetch(`data/defs/${n}.json?v=v1`)',
     "const s = 'from ./nothing';",
     "import(el) { el.click(); },",
   ].join('\n'));

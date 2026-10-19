@@ -20,6 +20,8 @@ import { actionFor, canonCode, keyHelp } from './keys.js';
 import { applySlots } from './templates.js';
 import { initKeyScreen } from './keyscreen.js';
 import { initTemplateScreen } from './tplscreen.js';
+import { createDefs } from './defs.js';
+import { createTip } from './tip.js';
 
 // 保存済みの WordNet テーマ（設定の slots[].theme）を読み込むかのスイッチ。false の間は読み込まない（保存データからは消さない）
 const THEMES_ON = false;
@@ -43,6 +45,7 @@ let graphP = null; // data/graph.json を読む Promise（最初にテーマを�
 let reels = [], reelCount = 0, cab = null, view = null;
 let cabW = 200, widthTimer = 0, widthFrame = 0, liveW = null; // 筐体の論理幅（自動は画面の縦横比、手動は settings.cabW。cabinet.js・reels.js・CSS の --W と揃える）。liveW: ドラッグ中の仮の幅
 let tpl = null; // テンプレの引き出し（tplscreen.js）
+let tip = null; // 語の意味の吹き出し（tip.js）
 let tickTimer = null, beat = 0, autoTimers = [], editing = -1;
 const neigh = []; // 止まっている枠の上下の語（止まったときに決め、LOCKしても変えない）
 
@@ -93,6 +96,7 @@ function paint(i, fresh = false) {
   view.setMonitor(i, m.text, m.gold); // 窓の札は短く（リストは完全な名前）
   view.setWords(i, rowsOf(reels[i], i, fresh));
   view.setState(i, { running: !!reels[i].running, held: reels[i].held });
+  tip?.check(); // 語が変わった・回り始めたら、出ている吹き出しを消す
 }
 
 // 回転中だけ押せない部品（枠の数・種類・語えらび・枠に戻す）をまとめて切り替える
@@ -410,13 +414,14 @@ $('cards').addEventListener('click', e => { const c = e.target.closest('.card');
 
 // --- 当たり帳・履歴 ---
 function renderHits() {
-  const list = state.favorites.map((f, i) => `<div class="hit${i === 0 ? ' new' : ''}"><b>${f.combo.map(esc).join(' <i>×</i> ')}</b>
+  const list = state.favorites.map((f, i) => `<div class="hit${i === 0 ? ' new' : ''}"><b>${f.combo.map(w => `<span class="w">${esc(w)}</span>`).join(' <i>×</i> ')}</b>
     <input data-h="${i}" value="${esc(f.memo)}" placeholder="ひとことメモ（思いついたことを書いておく）" aria-label="メモ">
     <div class="row"><button class="sbtn" data-edit data-back="${i}">枠に戻す</button><button class="sbtn" data-del="${i}">削除</button></div></div>`).join('');
   $('hits').innerHTML = list || '<div id="empty">まだありません</div>';
   panels.setCount('hits', state.favorites.length);
   pauseLabels();
   applyBusy();
+  tip?.check();
 }
 
 function renderHistory() {
@@ -526,6 +531,15 @@ async function start() {
     },
     count: changeCount,
   });
+  // 語の意味: 窓の中央の語と当たり帳の語。PC はマウスを乗せる、スマホは長押し。使う語のファイルだけを読む
+  const defs = createDefs(n => fetch(`data/defs/${n}.json`).then(r => { if (!r.ok) throw new Error(n); return r.json(); }), data.games);
+  tip = createTip(w => defs.lookup(w), el => {
+    if (!el.classList.contains('m')) return el.textContent; // 当たり帳の語
+    const r = reels[+el.dataset.w];
+    return r && !r.running ? r.value : null; // 回転中は出さない
+  });
+  tip.attach($('ov'), '.m');
+  tip.attach($('hits'), '.w');
   initThemeScreen({ store, data, isSpinning: () => isSpinning(reels), changed: themesChanged });
   tpl = initTemplateScreen({
     store, isSpinning: () => isSpinning(reels),

@@ -64,3 +64,14 @@ test('extra data may be missing: no extra words, no crash', () => {
   assert.deepEqual(p.extra, []);
   assert.equal(p.any.length, 6);
 });
+
+test('rule (制約) is its own theme only: not in extra (all) and not in any', () => {
+  const d = { ...data, extra: { ...data.extra, rule: ['ワンボタン操作', 'すし'] } };
+  const p = buildPools(d, { 'extra:rule': ['色は2色だけ'] }, []);
+  assert.deepEqual(baseWords(d, 'extra:rule'), ['ワンボタン操作', 'すし']);
+  assert.deepEqual(p['extra:rule'], ['ワンボタン操作', 'すし', '色は2色だけ']);
+  assert.ok(!p.extra.includes('ワンボタン操作') && !p.extra.includes('色は2色だけ'));
+  assert.ok(!p.any.includes('ワンボタン操作') && !p.any.includes('色は2色だけ'));
+  assert.ok(p.extra.includes('すし') && p.any.includes('すし')); // 同じ語が他のテーマにもあれば、そちらで入る
+  assert.equal(buildPools(d, {}, ['ワンボタン操作'])['extra:rule'].includes('ワンボタン操作'), false);
+});

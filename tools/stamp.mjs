@@ -6,7 +6,7 @@ export const stampHtml = (html, v) => html
   .replace(/(href=")(style\.css)(")/g, `$1$2?v=${v}$3`)
   .replace(/(src=")(src\/app\.js)(")/g, `$1$2?v=${v}$3`);
 
-// src/*.js: 相対パスの import と、data/*.json の読み込み
+// src/*.js: 相対パスの import と、data/*.json・data/defs/*.json の読み込み
 export const stampJs = (js, v) => js
   .replace(/(from\s+['"])(\.\/[\w./-]+\.js)(['"])/g, `$1$2?v=${v}$3`)
-  .replace(/(['"`])(data\/[\w${}.-]+\.json)(['"`])/g, `$1$2?v=${v}$3`);
+  .replace(/(['"`])(data\/[\w${}./-]+\.json)(['"`])/g, `$1$2?v=${v}$3`);
