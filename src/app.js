@@ -219,9 +219,9 @@ async function setTheme(i) {
   let G;
   try { G = await loadGraph(); } catch { say(THEME_FAIL); sound.play('deny'); return; }
   if (!canEdit(reels) || reels[i]?.value !== w) return;
-  const drop = new Set(state.excluded), list = themeWords(G, w).filter(x => !drop.has(x));
-  if (!list.length) { say(`「${w}」はテーマにできない語です`); sound.play('deny'); return; }
-  themes[w] = list;
+  const raw = themeWords(G, w), drop = new Set(state.excluded);
+  if (!raw.some(x => !drop.has(x))) { say(`「${w}」はテーマにできない語です`); sound.play('deny'); return; }
+  themes[w] = raw; // 除外前の語を持つ（除外を戻したとき rebuildPools で復活する）
   rebuildPools();
   reels = reels.map((r, j) => (j === i ? { ...r, type: 'theme:' + w, base: r.base ?? r.type, savedTheme: undefined, held: false } : r));
   saveSettings();
