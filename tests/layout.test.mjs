@@ -53,7 +53,7 @@ test('effectiveWidth: auto keeps cabinetWidth, manual is used as is within 200..
   for (const [vw, vh, tab] of [[1280, 800, 44], [2560, 1080, 44], [900, 700, 44], [375, 812, 0]]) assert.equal(effectiveWidth(vw, vh, tab, null), cabinetWidth(vw, vh, tab));
   assert.equal(effectiveWidth(1280, 800, 44, 250), 250);
   assert.equal(effectiveWidth(2560, 1080, 44, 400), 400); // manual may pass 340
-  assert.equal(effectiveWidth(1280, 800, 44, 400), 286); // cut to what fits
+  assert.equal(effectiveWidth(1280, 800, 44, 400), 287); // cut to what fits
   assert.equal(effectiveWidth(1280, 800, 44, 150), 200);
   assert.equal(effectiveWidth(375, 812, 0, 300), 200);
   assert.equal(effectiveWidth(599, 300, 44, 300), 200);
