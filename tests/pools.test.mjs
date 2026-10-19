@@ -33,3 +33,14 @@ test('union pools are deduplicated', () => {
   const p = buildPools(d, {}, []);
   assert.equal(p.any.filter(w => w === 'ホラー').length, 1);
 });
+
+import { baseWords } from '../src/pools.js';
+test('baseWords gives the original words of one type (before custom / excluded)', () => {
+  assert.deepEqual(baseWords(data, 'noun:animal'), ['犬', '猫']);
+  assert.deepEqual(baseWords(data, 'verb'), ['走る']);
+  assert.deepEqual(baseWords(data, 'genre'), ['ローグライク']);
+  assert.deepEqual(baseWords(data, 'game'), ['テトリス']);
+  assert.deepEqual(baseWords(data, 'tag:look'), ['8bit']);
+  assert.deepEqual(baseWords(data, 'tag:mood'), []);
+  for (const k of ['any', 'noun', 'tag', 'my:海', 'noun:nope']) assert.deepEqual(baseWords(data, k), []);
+});
