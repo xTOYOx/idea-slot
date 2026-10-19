@@ -3,6 +3,7 @@
 import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H } from './layout.js';
 
 const pos = (x, y, w, h) => `left:${x / 2}%;top:${y / 1.9}%;width:${w / 2}%;height:${h / 1.9}%`;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const SLOT = '<div class="e"><span></span></div>';
 
 export function createOverlay(wrap, ov, on) {
@@ -53,14 +54,17 @@ export function createOverlay(wrap, ov, on) {
       ticker.style.animation = '';
     },
     menuOpen: () => menuIndex,
-    showMenu(i, { themed = false, themes = true } = {}) {
+    // mine: 自作テーマの名前の一覧（語を足す先）
+    showMenu(i, { themed = false, themes = true, mine = [] } = {}) {
       view.hideMenu();
       const r = rects[i], side = r.x + r.w / 2 < 100 ? `left:${r.x / 2}%` : `right:${(200 - r.x - r.w) / 2}%`;
       menuEl = document.createElement('div');
       menuEl.className = 'wm';
       menuEl.style.cssText = `top:${127 / 1.9}%;${side}`;
       menuEl.innerHTML = '<button data-m="x">この語を除外</button><button data-m="r">この枠だけ振り直す</button>'
-        + (!themes ? '' : themed ? '<button data-m="u">テーマ解除</button>' : '<button data-m="t">この語をテーマに</button>');
+        + (!themes ? '' : themed ? '<button data-m="u">テーマ解除</button>' : '<button data-m="t">この語をテーマに</button>')
+        + (mine.length === 1 ? `<button data-m="a0">${esc('★' + mine[0] + 'に追加')}</button>` : mine.length ? '<button data-more>テーマに追加…</button>'
+          + `<div class="sub" hidden><button data-up>← 戻る</button>${mine.map((n, k) => `<button data-m="a${k}">${esc('★' + n)}</button>`).join('')}</div>` : '');
       ov.appendChild(menuEl);
       menuIndex = i;
     },
@@ -75,6 +79,12 @@ export function createOverlay(wrap, ov, on) {
     const b = e.target.closest('button');
     if (!b) return;
     if (e.detail > 0) b.blur(); // マウス・タップのあとはキー操作（スペース等）を筐体に返す
+    if (b.dataset.more !== undefined || b.dataset.up !== undefined) { // 「テーマに追加…」: メニューの中をテーマ名の一覧に切り替える（「← 戻る」で元に戻す）
+      const sub = b.dataset.more !== undefined;
+      [...menuEl.children].forEach(c => { c.hidden = c.classList.contains('sub') !== sub; });
+      if (e.detail === 0) (sub ? menuEl.querySelector('.sub button') : menuEl.querySelector('[data-more]')).focus({ preventScroll: true }); // キー操作のときだけ（タップのあとはキーを筐体に返す）
+      return;
+    }
     if (b.dataset.s !== undefined) on.reel(+b.dataset.s);
     else if (b.dataset.w !== undefined) on.word(+b.dataset.w);
     else if (b.dataset.m) { const i = menuIndex; view.hideMenu(); on.menu(b.dataset.m, i); }

@@ -23,3 +23,9 @@ test('index ignores theme keys', () => {
   const ix = buildIndex({ ...pools, 'theme:宇宙': ['銀河'] }, { ...labels, 'theme:宇宙': 'テーマ' });
   assert.equal(ix.some(x => x.w === '銀河'), false);
 });
+test('extra entries come after dictionary words; dictionary wins on duplicates', () => {
+  const ix = buildIndex(pools, labels, [{ w: '銀河', label: '★宇宙' }, { w: 'ネコ', label: '★猫' }, { w: '銀河', label: '★星' }]);
+  assert.deepEqual(ix.slice(-1), [{ w: '銀河', label: '★宇宙' }]);
+  assert.equal(ix.find(x => x.w === 'ネコ').label, '動物');
+  assert.equal(ix.filter(x => x.w === '銀河').length, 1);
+});

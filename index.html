@@ -18,7 +18,7 @@
     <button class="chip" id="menuBtn" style="--c:#b8650c" aria-haspopup="true">メニュー</button>
     <button class="chip" id="spin" style="--c:#8a1fa0">SPIN</button>
   </div>
-  <div id="menu" hidden><button class="sbtn" data-open="custom">自分の語</button><button class="sbtn" data-open="settings">設定</button></div>
+  <div id="menu" hidden><button class="sbtn" data-open="custom">自分の語</button><button class="sbtn" data-open="themes">テーマ</button><button class="sbtn" data-open="settings">設定</button></div>
   <section id="setup" class="felt" hidden></section>
   <section id="pick" class="felt" hidden>
     <h3 id="ph">♦ 固定する語をえらぶ ♦</h3>
@@ -29,6 +29,7 @@
   <details id="history" class="felt"><summary>♥ 履歴 ♥ <span id="hc"></span></summary><ol></ol></details>
 </main>
 <dialog id="custom"><button class="close" data-close aria-label="閉じる">閉じる</button><div class="body"></div></dialog>
+<dialog id="themes"><button class="close" data-close aria-label="閉じる">閉じる</button><div class="body"></div></dialog>
 <dialog id="settings"><button class="close" data-close aria-label="閉じる">閉じる</button><div class="body"></div></dialog>
 <script type="module" src="src/app.js"></script>
 </body>

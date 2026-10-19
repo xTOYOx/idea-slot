@@ -9,6 +9,8 @@ import { createCabinet } from './cabinet.js';
 import { createSound } from './sound.js';
 import { createOverlay } from './reels.js';
 import { initScreens } from './screens.js';
+import { initThemeScreen } from './themescreen.js';
+import { addWords } from './mythemes.js';
 
 // テーマ機能のスイッチ。false の間は語メニューに出さず、保存済みのテーマも使わない（保存データからは消さない）
 const THEMES_ON = false;
@@ -34,10 +36,14 @@ let tickTimer = null, beat = 0, autoTimers = [], editing = -1, memoTimer = null;
 const neigh = []; // 止まっている枠の上下の語（止まったときに決め、LOCKしても変えない）
 
 const themeOf = r => (r.type.startsWith('theme:') ? r.type.slice(6) : null);
+const MY = 'my:'; // 自作テーマの種類キーの頭（my:<名前>）
+const myOf = r => (r.type.startsWith(MY) ? r.type.slice(MY.length) : null);
+const typeLabel = t => (t.startsWith(MY) ? '★' + t.slice(MY.length) : TYPE_LABELS[t]);
 function rebuildPools() {
   pools = buildPools(data, state.custom, state.excluded);
   const drop = new Set(state.excluded);
   for (const [w, list] of Object.entries(themes)) pools['theme:' + w] = list.filter(x => !drop.has(x));
+  for (const t of state.themes) pools[MY + t.name] = t.words.filter(x => !drop.has(x)); // 自作テーマ（custom や any には混ぜない）
   index = null;
 }
 const say = text => view.say(text);
@@ -66,7 +72,7 @@ function saveSettings() {
 
 // --- 表示の同期 ---
 function paint(i, fresh = false) {
-  const th = themeOf(reels[i]);
+  const th = themeOf(reels[i]) ?? myOf(reels[i]);
   view.setMonitor(i, th ?? TYPE_LABELS[reels[i].type].replace(/^タグ：/, ''), !!th); // 窓の札は短く（設定画面は完全な名前）
   view.setWords(i, rowsOf(reels[i], i, fresh));
   view.setState(i, { running: !!reels[i].running, held: reels[i].held });
@@ -203,6 +209,9 @@ function wordMenu(action, i) {
   } else if (action === 't') {
     setTheme(i);
     return;
+  } else if (/^a\d+$/.test(action)) {
+    addToMyTheme(Number(action.slice(1)), w);
+    return;
   } else if (action === 'u') {
     reels = reels.map((r, j) => (j === i ? { ...r, type: r.base, base: undefined } : r));
     saveSettings();
@@ -213,6 +222,41 @@ function wordMenu(action, i) {
   }
   paint(i, true);
   sync();
+}
+
+// 窓の語を自作テーマに足す（リールの状態は変えない）
+function addToMyTheme(k, w) {
+  const t = state.themes[k];
+  if (!t) return;
+  const r = addWords(t, [w]);
+  if (!r.added) { say(`「${w}」は★${t.name}にすでに入っています`); return; }
+  state.themes = state.themes.map((x, j) => (j === k ? r.theme : x));
+  store.save('themes');
+  store.unexclude([w]);
+  themesChanged(undefined, true);
+  say(`「${w}」を★${t.name}に追加（${r.theme.words.length}語）`);
+}
+
+// 自作テーマが変わった（作成・語の増減・名前変更・削除）。remap = {from, to}（to が null なら削除）で、その種類のリールを付け替える
+// quiet: 語メニューからの追加（リールの見た目は触らない）
+function themesChanged(remap, quiet = false) {
+  rebuildPools();
+  const hit = [];
+  if (remap) {
+    const from = MY + remap.from, to = remap.to === null ? 'any' : MY + remap.to;
+    // base も付け替える（WordNet テーマを戻したときに元の種類へ戻るので）
+    reels = reels.map((r, i) => {
+      if (r.type !== from && r.base !== from) return r;
+      if (r.type === from) hit.push(i);
+      return { ...r, ...(r.type === from && { type: to }), ...(r.base === from && { base: to }) };
+    });
+    if (to === 'any') for (const i of hit) if (!reels[i].held) reels = rerollOne(reels, i, pools);
+    saveSettings();
+  }
+  if (!quiet) reels.forEach((r, i) => { if (myOf(r) || hit.includes(i)) paint(i, true); }); // 語が減った・名前が変わった・振り直した枠を描き直す
+  sync();
+  renderSetup();
+  if (editing >= 0) renderCards();
 }
 
 // 語をテーマにする。グラフは初回だけ読む。止まっている間だけ（読み込み中に回し始めたら何もしない）
@@ -250,7 +294,9 @@ async function prepareThemes() {
 function renderSetup() {
   if ($('setup').hidden) return;
   const counts = [2, 3, 4].map(n => `<button class="sbtn${n === reels.length ? ' on' : ''}" data-edit data-n="${n}">${n}</button>`).join('');
-  const opts = t => TYPE_KEYS.map(k => `<option value="${k}"${k === t ? ' selected' : ''}>${esc(TYPE_LABELS[k])}</option>`).join('');
+  const opt = (k, text, t) => `<option value="${esc(k)}"${k === t ? ' selected' : ''}>${esc(text)}</option>`;
+  const opts = t => TYPE_KEYS.map(k => opt(k, TYPE_LABELS[k], t)).join('')
+    + (state.themes.length ? `<optgroup label="自作テーマ">${state.themes.map(m => opt(MY + m.name, `★${m.name}（${m.words.length}語）`, t)).join('')}</optgroup>` : '');
   const rows = reels.map((r, i) => `<div class="srow"><span>${i + 1}番</span>
     <select data-edit data-t="${i}" aria-label="${i + 1}番リールの種類">${opts(r.base ?? r.type)}</select>
     <button class="sbtn" data-edit data-p="${i}">語をえらぶ</button></div>`).join('');
@@ -263,7 +309,7 @@ function closePick() { editing = -1; $('pick').hidden = true; }
 function renderCards() {
   const q = $('q').value.trim(), cur = reels[editing]?.value;
   const card = (w, label, cls = '') => `<button class="card ${cls}" data-w="${esc(w)}">${esc(w)}<small>${esc(label)}</small></button>`;
-  index ??= buildIndex(pools, TYPE_LABELS);
+  index ??= buildIndex(pools, TYPE_LABELS, state.themes.flatMap(t => pools[MY + t.name].map(w => ({ w, label: '★' + t.name }))));
   $('cards').innerHTML = (cur ? card(cur, 'いま出ている語', 'g') : '')
     + searchWords(index, q, 50).map(x => card(x.w, x.label)).join('')
     + (q ? card(q, '自由入力で固定', 'p') : '');
@@ -306,7 +352,7 @@ $('setup').addEventListener('change', e => {
   const i = Number(sel.dataset.t);
   // ロック中の枠は種類だけ変える（語とロックは保つ）
   reels = reels[i].held ? reels.map((r, j) => (j === i ? { ...r, type: sel.value, base: undefined, savedTheme: undefined } : r)) : rerollOne(setSlotType(reels, i, sel.value), i, pools);
-  say(`${i + 1}番リールを「${TYPE_LABELS[sel.value]}」に変更`);
+  say(`${i + 1}番リールを「${typeLabel(sel.value)}」に変更`);
   saveSettings();
   paint(i, true);
   sync();
@@ -388,7 +434,7 @@ document.addEventListener('keydown', e => {
 // --- 起動 ---
 function initialReels() {
   const saved = state.settings.slots.map(s => {
-    const type = TYPE_KEYS.includes(s?.type) ? s.type : 'any', theme = typeof s?.theme === 'string' && s.theme ? s.theme : null;
+    const type = TYPE_KEYS.includes(s?.type) || state.themes.some(m => MY + m.name === s?.type) ? s.type : 'any', theme = typeof s?.theme === 'string' && s.theme ? s.theme : null;
     if (!theme) return { type, value: null, held: false };
     return themes[theme] ? { type: 'theme:' + theme, base: type, value: null, held: false } : { type, savedTheme: theme, value: null, held: false };
   });
@@ -403,10 +449,11 @@ async function start() {
     reel: press, lever: pull, idea,
     word(i) {
       if (!canEdit(reels) || !reels[i]?.value) return;
-      if (view.menuOpen() === i) view.hideMenu(); else view.showMenu(i, { themed: !!themeOf(reels[i]), themes: THEMES_ON });
+      if (view.menuOpen() === i) view.hideMenu(); else view.showMenu(i, { themed: !!themeOf(reels[i]), themes: THEMES_ON, mine: state.themes.map(t => t.name) });
     },
     menu: wordMenu,
   });
+  initThemeScreen({ store, isSpinning: () => isSpinning(reels), changed: themesChanged });
   initScreens({
     store, typeLabels: TYPE_LABELS, typeKeys: TYPE_KEYS, isSpinning: () => isSpinning(reels), rebuildPools,
     onSettingsChange() { sync(); },
