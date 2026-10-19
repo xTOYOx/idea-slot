@@ -51,8 +51,8 @@ const seq = (...v) => { let i = 0; return () => v[Math.min(i++, v.length - 1)]; 
 test("'any' picks a group uniformly, then a word from it", () => {
   assert.equal(spin([S('any')], anyPools, seq(0.0, 0.5))[0].value.startsWith('n'), true);
   assert.equal(spin([S('any')], anyPools, seq(0.3, 0))[0].value, 'v1');
-  assert.equal(spin([S('any')], anyPools, seq(0.6, 0))[0].value, 'g1');
-  assert.equal(spin([S('any')], anyPools, seq(0.9, 0))[0].value, 't1');
+  assert.equal(spin([S('any')], anyPools, seq(0.5, 0))[0].value, 'g1');
+  assert.equal(spin([S('any')], anyPools, seq(0.7, 0))[0].value, 't1');
 });
 test("'any' falls back to other groups when the chosen one is used up", () => {
   const out = spin([S('any'), S('any'), S('any'), S('any')], anyPools, seq(0.3)).map(s => s.value);
@@ -90,4 +90,13 @@ test("pickWord is usable for display words (mix and plain)", () => {
   assert.equal(pickWord(mixPools, 'mix:e|b', new Set(), Math.random), 'b1');
   assert.equal(pickWord(mixPools, 'b', new Set(), Math.random), 'b1');
   assert.equal(pickWord(mixPools, 'missing', new Set(), Math.random), null);
+});
+
+const extraPools = { noun: ['n1'], verb: ['v1'], genre: ['g1'], tag: ['t1'], extra: ['x1'] };
+test("'any' draws from five groups including the theme collection (extra)", () => {
+  assert.equal(spin([S('any')], extraPools, seq(0.9, 0))[0].value, 'x1');
+  assert.equal(spin([S('any')], extraPools, seq(0.7, 0))[0].value, 't1');
+  const seen = new Set();
+  for (let i = 0; i < 300; i++) seen.add(spin([S('any')], extraPools)[0].value);
+  assert.equal(seen.size, 5);
 });

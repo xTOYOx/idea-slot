@@ -44,7 +44,7 @@ const themeOf = r => (r.type.startsWith('theme:') ? r.type.slice(6) : null);
 const typeLabel = t => (t.startsWith(MY) ? '★' + t.slice(MY.length) : TYPE_LABELS[t]);
 const typeText = type => parseType(type).map(typeLabel).join('＋'); // 掲示板用（完全な名前）
 // モニターの札: 1つなら今まで通り（タグ：は省く）、複数なら短くして「＋」でつなぐ。自作テーマを含むと金色
-const shortLabel = k => (k.startsWith(MY) ? '★' + k.slice(MY.length) : TYPE_LABELS[k].replace(/^タグ：/, '').replace(/（全部）$/, '').replace(/^ゲーム(?=.)/, ''));
+const shortLabel = k => (k.startsWith(MY) ? '★' + k.slice(MY.length) : TYPE_LABELS[k].replace(/^タグ：/, '').replace(/（全部）$/, '').replace(/^ゲーム(?=ジャンル)/, ''));
 function monitorOf(r) {
   const th = themeOf(r), keys = parseType(r.type);
   if (th) return { text: '★' + th, gold: true };
@@ -547,7 +547,9 @@ async function load() {
   try {
     const [words, verbs, genres, tags, games] = await Promise.all(
       ['words', 'verbs', 'genres', 'tags', 'games'].map(n => fetch(`data/${n}.json`).then(r => { if (!r.ok) throw new Error(n); return r.json(); })));
-    data = { words, verbs, genres, tags, games };
+    // テーマ集は無くても続行（全部空のテーマ）
+    const extra = await fetch('data/extra.json').then(r => (r.ok ? r.json() : {})).catch(() => ({}));
+    data = { words, verbs, genres, tags, games, extra };
   } catch {
     fail();
     return;

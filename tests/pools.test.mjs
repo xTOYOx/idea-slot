@@ -7,6 +7,7 @@ const data = {
   genres: [{ ja: 'ローグライク', en: 'Roguelike' }],
   games: [{ ja: 'テトリス', en: 'Tetris' }],
   tags: { look: [{ ja: '8bit', en: '8-bit' }], mood: [], mechanic: [] },
+  extra: { ono: ['ふわふわ'], jfood: ['すし', '犬'], net: [] },
 };
 test('unions and labels', () => {
   const p = buildPools(data, {}, []);
@@ -15,7 +16,10 @@ test('unions and labels', () => {
   assert.deepEqual(p.genre, ['ローグライク']);
   assert.deepEqual(p.tag, ['8bit']);
   assert.deepEqual(p.game, ['テトリス']);
-  assert.equal(p.any.length, 6); // game は any に入らない
+  assert.equal(p.any.length, 8); // game は any に入らない。テーマ集（ふわふわ・すし）は入る（犬は動物と重複）
+  assert.deepEqual(p['extra:ono'], ['ふわふわ']);
+  assert.deepEqual(p['extra:net'], []);
+  assert.deepEqual(p.extra.sort(), ['すし', 'ふわふわ', '犬'].sort());
 });
 test('custom is added, excluded is removed everywhere', () => {
   const p = buildPools(data, { 'noun:animal': ['カワウソ'] }, ['犬']);
@@ -43,4 +47,20 @@ test('baseWords gives the original words of one type (before custom / excluded)'
   assert.deepEqual(baseWords(data, 'tag:look'), ['8bit']);
   assert.deepEqual(baseWords(data, 'tag:mood'), []);
   for (const k of ['any', 'noun', 'tag', 'my:海', 'noun:nope']) assert.deepEqual(baseWords(data, k), []);
+});
+test('extra: baseWords per theme, pools.extra is the union, any includes it', () => {
+  assert.deepEqual(baseWords(data, 'extra:jfood'), ['すし', '犬']);
+  assert.deepEqual(baseWords(data, 'extra:nope'), []);
+  assert.deepEqual(baseWords(data, 'extra'), []);
+  const p = buildPools(data, { 'extra:ono': ['ぷるぷる'] }, ['すし']);
+  assert.deepEqual(p['extra:ono'], ['ふわふわ', 'ぷるぷる']);
+  assert.deepEqual(p['extra:jfood'], ['犬']);
+  assert.ok(p.extra.includes('ぷるぷる') && !p.extra.includes('すし'));
+  assert.ok(p.any.includes('ぷるぷる'));
+});
+test('extra data may be missing: no extra words, no crash', () => {
+  const { extra, ...rest } = data;
+  const p = buildPools(rest, {}, []);
+  assert.deepEqual(p.extra, []);
+  assert.equal(p.any.length, 6);
 });

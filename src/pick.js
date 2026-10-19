@@ -10,9 +10,9 @@ function pickFrom(pool = [], used, rng) {
   return rest.length ? rest[Math.floor(rng() * rest.length)] : null;
 }
 
-const GROUPS = ['noun', 'verb', 'genre', 'tag'];
+const GROUPS = ['noun', 'verb', 'genre', 'tag', 'extra'];
 
-// 'any' は4グループ、'mix:…' は選んだ種類から、先に等確率で1つ選んでその語を引く。空/使用済みなら他の種類へ順に
+// 'any' は5グループ、'mix:…' は選んだ種類から、先に等確率で1つ選んでその語を引く。空/使用済みなら他の種類へ順に
 export function pickWord(pools, type, used, rng) {
   const kinds = type === 'any' ? GROUPS : parseType(type);
   if (kinds.length === 1) return pickFrom(pools[kinds[0]], used, rng);

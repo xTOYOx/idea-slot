@@ -7,8 +7,8 @@ import { TYPE_LABELS, typeGroups } from './types.js';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const PAGE = 300; // 一度に描く語の数（「もっと見る」で増やす）
-// 全部ランダム・単語（全部）・タグ（全部）は、ほかの分類をまとめただけなので出さない
-const groups = typeGroups([]).map(g => ({ ...g, items: g.items.filter(x => !['any', 'noun', 'tag'].includes(x.k)) })).filter(g => g.items.length);
+// 全部ランダム・単語（全部）・テーマ集（全部）・タグ（全部）は、ほかの分類をまとめただけなので出さない
+const groups = typeGroups([]).map(g => ({ ...g, items: g.items.filter(x => !['any', 'noun', 'extra', 'tag'].includes(x.k)) })).filter(g => g.items.length);
 
 // changed(remap?): 一覧や語が変わったとき。名前変更は {from, to}、削除は {from, to: null}
 export function initThemeScreen({ store, data, isSpinning, changed }) {
