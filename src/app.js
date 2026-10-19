@@ -42,7 +42,7 @@ const MY = 'my:'; // 自作テーマの種類キーの頭（my:<名前>）
 const typeLabel = t => (t.startsWith(MY) ? '★' + t.slice(MY.length) : TYPE_LABELS[t]);
 const typeText = type => parseType(type).map(typeLabel).join('＋'); // 掲示板用（完全な名前）
 // モニターの札: 1つなら今まで通り（タグ：は省く）、複数なら短くして「＋」でつなぐ。自作テーマを含むと金色
-const shortLabel = k => (k.startsWith(MY) ? '★' + k.slice(MY.length) : TYPE_LABELS[k].replace(/^タグ：/, '').replace(/（全部）$/, '').replace(/^ゲーム/, ''));
+const shortLabel = k => (k.startsWith(MY) ? '★' + k.slice(MY.length) : TYPE_LABELS[k].replace(/^タグ：/, '').replace(/（全部）$/, '').replace(/^ゲーム(?=.)/, ''));
 function monitorOf(r) {
   const th = themeOf(r), keys = parseType(r.type);
   if (th) return { text: '★' + th, gold: true };
@@ -528,9 +528,9 @@ function fail() {
 
 async function load() {
   try {
-    const [words, verbs, genres, tags] = await Promise.all(
-      ['words', 'verbs', 'genres', 'tags'].map(n => fetch(`data/${n}.json`).then(r => { if (!r.ok) throw new Error(n); return r.json(); })));
-    data = { words, verbs, genres, tags };
+    const [words, verbs, genres, tags, games] = await Promise.all(
+      ['words', 'verbs', 'genres', 'tags', 'games'].map(n => fetch(`data/${n}.json`).then(r => { if (!r.ok) throw new Error(n); return r.json(); })));
+    data = { words, verbs, genres, tags, games };
   } catch {
     fail();
     return;

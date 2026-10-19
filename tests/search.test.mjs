@@ -29,3 +29,7 @@ test('extra entries come after dictionary words; dictionary wins on duplicates',
   assert.equal(ix.find(x => x.w === 'ネコ').label, '動物');
   assert.equal(ix.filter(x => x.w === '銀河').length, 1);
 });
+test('game titles are indexed with the game label', () => {
+  const ix = buildIndex({ ...pools, game: ['テトリス'] }, { ...labels, game: 'ゲーム' });
+  assert.deepEqual(ix.find(x => x.w === 'テトリス'), { w: 'テトリス', label: 'ゲーム' });
+});

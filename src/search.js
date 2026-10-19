@@ -1,8 +1,8 @@
 import { TYPE_KEYS } from './types.js';
 
-// 固定順: noun:* → verb → genre → tag:*（和集合キー noun/tag/any は使わない）
+// 固定順: noun:* → verb → genre → game → tag:*（和集合キー noun/tag/any は使わない）
 const keysOf = prefix => TYPE_KEYS.filter(k => k.startsWith(prefix));
-const INDEX_KEYS = [...keysOf('noun:'), 'verb', 'genre', ...keysOf('tag:')];
+const INDEX_KEYS = [...keysOf('noun:'), 'verb', 'genre', 'game', ...keysOf('tag:')];
 
 // extra: 辞書の語のあとに足す [{w, label}]（自作テーマの語など）。重複は先のものを優先
 export function buildIndex(pools, labels, extra = []) {
