@@ -49,21 +49,31 @@ export function createCabinet(canvas) {
     tiny(String(Math.max(0, Math.min(9999, n | 0))).padStart(d, '0'), x, y, '#ff3030');
   };
 
-  // 静的レイヤー（カーペットだけで36k回のfillRectなので、リール数が変わったときだけ描き直す）
+  // 静的レイヤー（リール数・幅が変わったときだけ描き直す）
+  // カーペットの柄（12×12 のタイル）。x・y とも 12 周期
+  const carpet = (() => {
+    const t = document.createElement('canvas');
+    t.width = t.height = 12;
+    const c = t.getContext('2d');
+    for (let y = 0; y < 12; y++) {
+      for (let x = 0; x < 12; x++) {
+        const a = (x + y) % 12, b = (x - y + 12) % 12;
+        let col = '#2a0716';
+        if (a === 0 || b === 0) col = '#4e1424';
+        if (a === 0 && b === 0) col = '#c8902a';
+        if (a === 6 && b === 6) col = '#1f6b6b';
+        if ((a === 5 || a === 7) && b === 6) col = '#164848';
+        c.fillStyle = col;
+        c.fillRect(x, y, 1, 1);
+      }
+    }
+    return S.createPattern(t, 'repeat');
+  })();
+
   function drawStatic(n) {
     X = S;
     const rects = reelRects(n, W);
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const a = (x + y) % 12, b = (x - y + 600) % 12;
-        let c = '#2a0716';
-        if (a === 0 || b === 0) c = '#4e1424';
-        if (a === 0 && b === 0) c = '#c8902a';
-        if (a === 6 && b === 6) c = '#1f6b6b';
-        if ((a === 5 || a === 7) && b === 6) c = '#164848';
-        px(x, y, 1, 1, c);
-      }
-    }
+    px(0, 0, W, H, carpet); // 12px 周期の柄なので、タイル1枚を敷き詰める（1点ずつ塗ると約5万回で重い）
     px(16, 176 + DY, 168 + D, 4, '#12040a');
     box(20, 12, 160 + D, 166 + DY, R1, R2, R0);
     [20, 176 + D].forEach((a) => { px(a, 12, 1, 166 + DY, K); px(a + 1, 12, 1, 166 + DY, C2); px(a + 2, 12, 1, 166 + DY, C3); px(a + 3, 12, 1, 166 + DY, C1); });
