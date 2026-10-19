@@ -7,7 +7,7 @@ test('defaults cover every action with unique codes', () => {
   assert.deepEqual(Object.keys(DEFAULT_KEYS), ACTIONS.map(a => a.id));
   assert.equal(new Set(Object.values(DEFAULT_KEYS)).size, ACTIONS.length);
   assert.deepEqual([DEFAULT_KEYS.lever, DEFAULT_KEYS.idea, DEFAULT_KEYS.reel1, DEFAULT_KEYS.more, DEFAULT_KEYS.less, DEFAULT_KEYS.hist, DEFAULT_KEYS.hits, DEFAULT_KEYS.help],
-    ['Space', 'Enter', 'Digit1', 'Equal', 'Minus', 'KeyH', 'KeyB', 'Slash']);
+    ['Space', 'Enter', 'Digit1', 'ArrowUp', 'ArrowDown', 'KeyH', 'KeyB', 'Slash']);
 });
 
 test('normalizeKeys: anything unusable becomes the defaults; good values are kept', () => {
