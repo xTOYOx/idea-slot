@@ -118,7 +118,7 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 .thead { display: flex; align-items: flex-start; gap: 8px; }
 .thead h3 { flex: 1; min-width: 0; margin: 0; font-size: 1.2em; }
 .thead small { display: block; margin-top: .2em; color: #9fd8b8; font-size: .75em; overflow-wrap: anywhere; }
-#types h4 { margin: .8em 0 .3em; font-size: .85em; font-weight: 400; color: #ffe066; }
+#types h4 { margin: .8em 0 .3em; font-size: 1.05em; font-weight: 400; color: #ffe066; }
 .tg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4em; }
 #types [data-ty] { display: flex; align-items: center; gap: .5em; min-height: 44px; text-align: left; white-space: normal; overflow-wrap: anywhere; }
 #types [aria-checked=true] { background: #ffe066; }
