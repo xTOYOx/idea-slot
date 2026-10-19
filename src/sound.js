@@ -36,12 +36,18 @@ export function createSound() {
       [0, 1, 2, 3, 4, 5].forEach((k) => beep(a, 2100 + k * 160, 0.05, 'square', 0.025, 1.8 + k * 0.08));
     },
     deny: (a) => beep(a, 150, 0.1, 'square', 0.04),
+    coin: (a) => { beep(a, 1568, 0.04, 'square', 0.03); beep(a, 2093, 0.06, 'square', 0.025, 0.035); }, // 受け皿のコインを回収
   };
+  // 連続して鳴りすぎないように（なぞると何度も呼ばれる）
+  const GAP = { coin: 60 }, last = {};
 
   const sound = {
     enabled: true,
     play(name) {
       if (!sound.enabled || !SOUNDS[name]) return;
+      const now = performance.now();
+      if (now - (last[name] ?? -1e9) < (GAP[name] ?? 0)) return;
+      last[name] = now;
       const a = ctx();
       if (!a) return;
       if (a.state === 'suspended') a.resume().catch(() => {});

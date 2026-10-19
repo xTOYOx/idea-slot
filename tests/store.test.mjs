@@ -85,28 +85,31 @@ test('version 1 export imports (no stats, animate)', () => {
 test('load drops malformed favorites, keeps valid ones, fills memo/savedAt', () => {
   const favs = [{ combo: ['a', 'b'], memo: 'm', savedAt: 5 }, { memo: 'x' }, { combo: [1] }, null, { combo: ['c'] }];
   const s = createStore(mem({ 'slot.favorites': JSON.stringify(favs) }));
-  assert.deepEqual(s.state.favorites, [{ combo: ['a', 'b'], memo: 'm', savedAt: 5, rating: 0, tags: [] }, { combo: ['c'], memo: '', savedAt: 0, rating: 0, tags: [] }]);
+  assert.deepEqual(s.state.favorites, [{ combo: ['a', 'b'], memo: 'm', savedAt: 5, rating: 0 }, { combo: ['c'], memo: '', savedAt: 0, rating: 0 }]);
 });
-test('favorites: rating is an integer 0..5 (else 0), tags are trimmed/deduped strings (else [])', () => {
+test('favorites: rating is an integer 0..5 (else 0); old saved tags are dropped without failing the load', () => {
   const favs = [
-    { combo: ['a'], rating: 4, tags: [' x ', 'x', '', 'y'] },
+    { combo: ['a'], rating: 4, tags: [' x ', 'y'] },
     { combo: ['b'], rating: 9, tags: 'z' },
     { combo: ['c'], rating: 2.5 },
   ];
   const s = createStore(mem({ 'slot.favorites': JSON.stringify(favs) }));
-  assert.deepEqual(s.state.favorites.map(f => [f.rating, f.tags]), [[4, ['x', 'y']], [0, []], [0, []]]);
+  assert.deepEqual(s.state.favorites.map(f => [f.rating, 'tags' in f]), [[4, false], [0, false], [0, false]]);
 });
-test('import: favorites keep rating/tags, old files without them get defaults, version stays 3', () => {
+test('import: favorites keep rating (old tags are dropped), old files without them get defaults, version stays 3', () => {
   const a = createStore(mem());
-  a.state.favorites = [{ combo: ['p', 'q'], memo: '', savedAt: 1, rating: 3, tags: ['t'] }];
+  a.state.favorites = [{ combo: ['p', 'q'], memo: '', savedAt: 1, rating: 3 }];
   const json = JSON.parse(a.exportJSON());
   assert.equal(json.version, 3);
   const b = createStore(mem());
   assert.deepEqual(b.importJSON(JSON.stringify(json)), { ok: true });
   assert.deepEqual(b.state.favorites, a.state.favorites);
+  json.favorites = [{ combo: ['p', 'q'], memo: '', savedAt: 1, rating: 3, tags: ['t'] }]; // 旧ファイルの tags は捨てるだけで、読み込みは失敗しない
+  assert.deepEqual(b.importJSON(JSON.stringify(json)), { ok: true });
+  assert.deepEqual(b.state.favorites, a.state.favorites);
   json.favorites = [{ combo: ['p'], memo: 'm', savedAt: 2 }];
   assert.deepEqual(b.importJSON(JSON.stringify(json)), { ok: true });
-  assert.deepEqual(b.state.favorites, [{ combo: ['p'], memo: 'm', savedAt: 2, rating: 0, tags: [] }]);
+  assert.deepEqual(b.state.favorites, [{ combo: ['p'], memo: 'm', savedAt: 2, rating: 0 }]);
 });
 test('import with malformed favorites → error, state unchanged', () => {
   const s = createStore(mem()); s.state.excluded.push('猫');

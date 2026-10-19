@@ -1,7 +1,7 @@
 // ピクセルアート筐体の描画（論理 W×190。W は 200〜340、基準は 200）。見た目の基準は docs/superpowers/specs/mockups/casino-v6.html
 // 描くだけで、入力処理もHTMLの重ね物も持たない（それはアプリ側）。
 import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H, COUNT_BTN, W_MIN, LEVER_REST, LEVER_DOWN } from './layout.js';
-import { COL_W, colsFor, dropCoin, initialPile, fitPile, frameScale, stepCoin, launchCoin, hitCoin, spinCoin, isGone } from './coins.js';
+import { COL_W, MAX_H, colsFor, dropCoin, initialPile, fitPile, frameScale, stepCoin, launchCoin, hitCoin, spinCoin, isGone, takeCoins } from './coins.js';
 
 // x 座標は三種類: 左に付く（そのまま）／右に付く（+ D、D = W - 200）／伸びる（幅に + D）／中央（CX 基準、CX = W/2）
 const H = 190, DY = 10; // DY: LEDバーより下（元の y ≥ 61）をモニターの分だけ下げる量
@@ -18,11 +18,13 @@ const BALL = ['...RRRR...', '..RWWRRR..', '.RWRRRRRr.', 'RWRRRRRRrr', 'RRRRRRRRr
 const COIN = [4, 3, 2, 1, 2, 3];
 const PILE_X = 35, PILE_Y = 170, PILE_STEP = 2; // 受け皿の山: 左端 x、いちばん下のコインの y(+DY)、1枚ごとに重なって見える高さ
 const PAYOUT = { y: 155, n: 40, span: 800, rm: 12, max: 80 }; // 払い出し口の y(+DY)、出る枚数と出きるまでの ms、低減モードで山に足す枚数、同時に動く枚数の上限
+const PICK_MS = 350; // 回収したコインが消えるまで
 const RIM_Y = 176; // 受け皿の縁の高さ(+DY込み)。コインの底がこれより下なら壁に当たり、上なら越えてこぼれる
 
 const FRAME_MS = 1000 / 60, CELEBRATE_MS = 3200, LEVER_MS = 220, PRESS_MS = 120;
 
-export function createCabinet(canvas) {
+// onCollect(n): 受け皿のコインをなぞって n 枚回収したとき（音など）
+export function createCabinet(canvas, { onCollect = () => {} } = {}) {
   let W = W_MIN, D = 0, CX = 100;
   canvas.width = W;
   canvas.height = H;
@@ -122,7 +124,7 @@ export function createCabinet(canvas) {
   // 動的な状態
   let v = { spinning: false, canSave: 'empty', ideas: 0, hits: 0, reduceMotion: false };
   let t0 = performance.now(), celebrateUntil = 0, leverUntil = 0, pressUntil = 0, leverAmt = 0, prevT = t0;
-  let parts = [];
+  let parts = [], picks = []; // picks: 回収して浮かび上がって消えるコイン {x, y, t}
   // 受け皿のコインの山（列ごとの高さ。計算は coins.js）。W が変わったら列の数を取り直す
   let pile = Array(colsFor(128 + D)).fill(0);
   const colOf = x => Math.max(0, Math.min(pile.length - 1, Math.floor((x - PILE_X) / COL_W)));
@@ -155,7 +157,7 @@ export function createCabinet(canvas) {
   function frame(t) {
     requestAnimationFrame(frame);
     // 動くものが無いときは間引く（点滅などは時刻から決めるので見た目は同じ）
-    const busy = v.spinning || t < celebrateUntil || t < leverUntil || t < pressUntil || leverAmt > 0 || parts.length > 0;
+    const busy = v.spinning || t < celebrateUntil || t < leverUntil || t < pressUntil || leverAmt > 0 || parts.length > 0 || picks.length > 0;
     if (!busy && !wasBusy && t - lastDraw < (v.reduceMotion ? 250 : 100)) return;
     wasBusy = busy;
     render(t);
@@ -207,6 +209,14 @@ export function createCabinet(canvas) {
         px(x, y, 4, 3, G1); px(x, y, 4, 2, G2); px(x + 1, y, 2, 1, G4);
       }
     });
+    // 回収したコイン: 少し浮かんで細くなって消える
+    picks = picks.filter((p) => {
+      const a = (t - p.t) / PICK_MS;
+      if (a >= 1) return false;
+      const w = Math.max(1, Math.round(4 * (1 - a))), y = Math.round(p.y - 14 * a);
+      px(Math.round(p.x + (4 - w) / 2), y, w, 3, G2); px(Math.round(p.x + (4 - w) / 2), y, w, 1, '#ffffff');
+      return true;
+    });
     const tr = tray();
     parts = parts.filter((p) => {
       if ((p.wait -= s * FRAME_MS) > 0) return true; // まだ出ていない
@@ -250,6 +260,27 @@ export function createCabinet(canvas) {
     pressIdea() { pressUntil = performance.now() + PRESS_MS; },
     celebrating() { return performance.now() < celebrateUntil; },
   };
+  // 受け皿のコインをなぞって回収する（押したまま・指でなぞる）。縦のスクロールはそのまま使えるよう pan-y
+  canvas.style.touchAction = 'pan-y';
+  // 同じ列にとどまっている間は取らない（新しい列に入ったときだけ）。1回なぞると、各列は両隣のぶんも合わせて3段ほど減る
+  let swiping = false, lastCol = -1;
+  const sweep = e => {
+    const r = canvas.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
+    const tr = tray(), top = PILE_Y + DY - MAX_H * PILE_STEP - 6;
+    if (x < tr.l - 2 || x > tr.r + 2 || y < top || y > H) { lastCol = -1; return; }
+    const col = colOf(x);
+    if (col === lastCol) return;
+    lastCol = col;
+    const got = takeCoins(pile, col);
+    if (!got.length) return;
+    const now = performance.now();
+    for (const g of got) picks.push({ x: PILE_X + g.col * COL_W, y: PILE_Y + DY - g.k * PILE_STEP, t: now });
+    onCollect(got.length);
+  };
+  canvas.addEventListener('pointerdown', e => { if (e.button === 0) { swiping = true; sweep(e); } });
+  canvas.addEventListener('pointermove', e => { if (swiping || e.pointerType === 'mouse' && e.buttons & 1) sweep(e); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) canvas.addEventListener(ev, () => { swiping = false; lastCol = -1; });
+
   cab.setReels(3);
   requestAnimationFrame(frame);
   return cab;
