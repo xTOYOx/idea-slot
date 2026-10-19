@@ -11,6 +11,10 @@ button:disabled { opacity: .45; cursor: default; }
 #wrap { position: relative; --u: 3.1px; user-select: none; }
 #cv { width: 100%; display: block; image-rendering: pixelated; }
 .ov, .rw, .wm { position: absolute; }
+/* リール上のモニター: 種類名は緑、テーマ中は金 */
+.mon { display: flex; align-items: center; justify-content: center; padding: 0 calc(var(--u) * 1); color: #5dff8a; font-size: max(calc(var(--u) * 4.2), 10px); line-height: 1; pointer-events: none; }
+.mon.th { color: #ffe066; }
+.mon span { min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rw { overflow: hidden; }
 .rw.lk { box-shadow: inset 0 0 0 var(--u) #ffe066, inset 0 0 0 calc(var(--u) * 2) #e0303e; }
 .strip { height: 133.34%; transform: translateY(-25%); display: flex; flex-direction: column; }

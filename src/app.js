@@ -3,6 +3,7 @@ import { buildPools } from './pools.js';
 import { spin, rerollOne, setSlotType, resizeSlots } from './pick.js';
 import { startSpin, stopReel, stopAll, pressReel, isSpinning, allStopped, canEdit, canSave, autoStopDelays, excludeAt, restore } from './machine.js';
 import { buildIndex, searchWords } from './search.js';
+import { indexGraph, themeWords } from './theme.js';
 import { createStore } from './store.js';
 import { createCabinet } from './cabinet.js';
 import { createSound } from './sound.js';
@@ -22,13 +23,26 @@ const clamp = n => (Number.isInteger(n) ? Math.min(4, Math.max(2, n)) : 3);
 const reduceMotion = () => state.settings.reduceMotion || motionQuery.matches;
 
 let data = null, pools = null, index = null;
+let themes = {}; // テーマの語 → 集めた語のリスト（除外前の分も含め、プールは rebuildPools で作る）
+let graphP = null; // data/graph.json を読む Promise（最初にテーマを使うときだけ。失敗したら捨てて次回やり直す）
 let reels = [], reelCount = 0, cab = null, view = null;
 let tickTimer = null, beat = 0, autoTimers = [], editing = -1, memoTimer = null;
 const neigh = []; // 止まっている枠の上下の語（止まったときに決め、LOCKしても変えない）
 
-const rebuildPools = () => { pools = buildPools(data, state.custom, state.excluded); index = null; };
+const themeOf = r => (r.type.startsWith('theme:') ? r.type.slice(6) : null);
+function rebuildPools() {
+  pools = buildPools(data, state.custom, state.excluded);
+  const drop = new Set(state.excluded);
+  for (const [w, list] of Object.entries(themes)) pools['theme:' + w] = list.filter(x => !drop.has(x));
+  index = null;
+}
 const say = text => view.say(text);
-const rnd = type => { const p = pools[type]; return p.length ? p[Math.floor(Math.random() * p.length)] : ''; };
+const rnd = type => { const p = pools[type] ?? []; return p.length ? p[Math.floor(Math.random() * p.length)] : ''; };
+const loadGraph = () => (graphP ??= fetch('data/graph.json')
+  .then(r => { if (!r.ok) throw new Error('graph'); return r.json(); })
+  .then(indexGraph)
+  .catch(e => { graphP = null; throw e; }));
+const THEME_FAIL = 'テーマのデータを読み込めませんでした';
 const rowsOf = (r, i, fresh) => {
   if (r.running) return [0, 1, 2, 3].map(() => rnd(r.type));
   if (fresh || !neigh[i]) neigh[i] = [rnd(r.type), rnd(r.type), rnd(r.type)];
@@ -38,12 +52,18 @@ const comboText = values => values.map(v => v ?? '—').join(' × ');
 
 function saveSettings() {
   state.settings.count = reels.length;
-  state.settings.slots = reels.map(({ type }) => ({ type }));
+  // 保存する種類は元の種類（テーマ中は base）。テーマはグラフが読めず外している間も消さない（savedTheme）
+  state.settings.slots = reels.map(r => {
+    const theme = themeOf(r) ?? r.savedTheme;
+    return theme ? { type: r.base ?? r.type, theme } : { type: r.base ?? r.type };
+  });
   store.save('settings');
 }
 
 // --- 表示の同期 ---
 function paint(i, fresh = false) {
+  const th = themeOf(reels[i]);
+  view.setMonitor(i, th ?? TYPE_LABELS[reels[i].type], !!th);
   view.setWords(i, rowsOf(reels[i], i, fresh));
   view.setState(i, { running: !!reels[i].running, held: reels[i].held });
 }
@@ -173,6 +193,13 @@ function wordMenu(action, i) {
     rebuildPools();
     reels = excludeAt(reels, i, pools);
     say(`「${w}」を除外`);
+  } else if (action === 't') {
+    setTheme(i);
+    return;
+  } else if (action === 'u') {
+    reels = reels.map((r, j) => (j === i ? { ...r, type: r.base, base: undefined } : r));
+    saveSettings();
+    say(`${i + 1}番リールのテーマを解除`);
   } else {
     reels = rerollOne(reels, i, pools);
     say(`${i + 1}番リールを振り直し`);
@@ -181,13 +208,43 @@ function wordMenu(action, i) {
   sync();
 }
 
+// 語をテーマにする。グラフは初回だけ読む。止まっている間だけ（読み込み中に回し始めたら何もしない）
+async function setTheme(i) {
+  const w = reels[i].value;
+  if (!graphP) say('テーマを準備中…');
+  let G;
+  try { G = await loadGraph(); } catch { say(THEME_FAIL); sound.play('deny'); return; }
+  if (!canEdit(reels) || reels[i]?.value !== w) return;
+  const list = themeWords(G, w, { excluded: state.excluded });
+  if (!list.length) { say(`「${w}」はテーマにできない語です`); sound.play('deny'); return; }
+  themes[w] = list;
+  rebuildPools();
+  reels = reels.map((r, j) => (j === i ? { ...r, type: 'theme:' + w, base: r.base ?? r.type, savedTheme: undefined, held: false } : r));
+  saveSettings();
+  say(`★ ${i + 1}番リールのテーマ：${w}（${pools['theme:' + w].length}語）`);
+  paint(i, true);
+  sync();
+}
+
+// 保存したテーマの語を集める（初回起動・インポート後）。読めなければ false。保存データのテーマは消さない
+async function prepareThemes() {
+  themes = {};
+  const words = [...new Set(state.settings.slots.map(s => s?.theme).filter(w => typeof w === 'string' && w))];
+  if (!words.length) return true;
+  try {
+    const G = await loadGraph();
+    for (const w of words) { const list = themeWords(G, w, { excluded: state.excluded }); if (list.length) themes[w] = list; }
+    return true;
+  } catch { return false; }
+}
+
 // --- リール設定・語えらび ---
 function renderSetup() {
   if ($('setup').hidden) return;
   const counts = [2, 3, 4].map(n => `<button class="sbtn${n === reels.length ? ' on' : ''}" data-edit data-n="${n}">${n}</button>`).join('');
   const opts = t => TYPE_KEYS.map(k => `<option value="${k}"${k === t ? ' selected' : ''}>${esc(TYPE_LABELS[k])}</option>`).join('');
   const rows = reels.map((r, i) => `<div class="srow"><span>${i + 1}番</span>
-    <select data-edit data-t="${i}" aria-label="${i + 1}番リールの種類">${opts(r.type)}</select>
+    <select data-edit data-t="${i}" aria-label="${i + 1}番リールの種類">${opts(r.base ?? r.type)}</select>
     <button class="sbtn" data-edit data-p="${i}">語をえらぶ</button></div>`).join('');
   $('setup').innerHTML = `<h3>♣ リール設定 ♣</h3><div class="srow"><span>枠の数</span>${counts}</div>${rows}`;
   applyBusy();
@@ -240,7 +297,7 @@ $('setup').addEventListener('change', e => {
   if (!sel || !canEdit(reels)) return;
   const i = Number(sel.dataset.t);
   // ロック中の枠は種類だけ変える（語とロックは保つ）
-  reels = reels[i].held ? reels.map((r, j) => (j === i ? { ...r, type: sel.value } : r)) : rerollOne(setSlotType(reels, i, sel.value), i, pools);
+  reels = reels[i].held ? reels.map((r, j) => (j === i ? { ...r, type: sel.value, base: undefined, savedTheme: undefined } : r)) : rerollOne(setSlotType(reels, i, sel.value), i, pools);
   say(`${i + 1}番リールを「${TYPE_LABELS[sel.value]}」に変更`);
   saveSettings();
   paint(i, true);
@@ -322,11 +379,16 @@ document.addEventListener('keydown', e => {
 
 // --- 起動 ---
 function initialReels() {
-  const saved = state.settings.slots.map(s => ({ type: TYPE_KEYS.includes(s?.type) ? s.type : 'any', value: null, held: false }));
+  const saved = state.settings.slots.map(s => {
+    const type = TYPE_KEYS.includes(s?.type) ? s.type : 'any', theme = typeof s?.theme === 'string' && s.theme ? s.theme : null;
+    if (!theme) return { type, value: null, held: false };
+    return themes[theme] ? { type: 'theme:' + theme, base: type, value: null, held: false } : { type, savedTheme: theme, value: null, held: false };
+  });
   return spin(resizeSlots(saved, clamp(state.settings.count)), pools); // 最初の1回（履歴には入れない）
 }
 
-function start() {
+async function start() {
+  const themesOk = await prepareThemes();
   rebuildPools();
   sound.enabled = state.settings.sound;
   cab = createCabinet($('cv'));
@@ -334,14 +396,15 @@ function start() {
     reel: press, lever: pull, idea,
     word(i) {
       if (!canEdit(reels) || !reels[i]?.value) return;
-      if (view.menuOpen() === i) view.hideMenu(); else view.showMenu(i);
+      if (view.menuOpen() === i) view.hideMenu(); else view.showMenu(i, { themed: !!themeOf(reels[i]) });
     },
     menu: wordMenu,
   });
   initScreens({
     store, typeLabels: TYPE_LABELS, typeKeys: TYPE_KEYS, isSpinning: () => isSpinning(reels), rebuildPools,
     onSettingsChange() { sync(); },
-    afterImport() {
+    async afterImport() {
+      const ok = await prepareThemes();
       rebuildPools();
       sound.enabled = state.settings.sound;
       chips();
@@ -349,6 +412,7 @@ function start() {
       setReels(initialReels());
       renderHits();
       renderHistory();
+      if (!ok) say(THEME_FAIL);
     },
   });
   motionQuery.addEventListener?.('change', sync);
@@ -356,7 +420,7 @@ function start() {
   setReels(initialReels());
   renderHits();
   renderHistory();
-  say('★ WELCOME TO IDEA CASINO ★ レバーで回す ★ 気に入った語はLOCK ★ いいね！と思ったら IDEA! ★');
+  say(themesOk ? '★ WELCOME TO IDEA CASINO ★ レバーで回す ★ 気に入った語はLOCK ★ いいね！と思ったら IDEA! ★' : `${THEME_FAIL} ... テーマなしで開始`);
 }
 
 async function load() {

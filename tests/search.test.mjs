@@ -19,3 +19,7 @@ test('exact, prefix, then contains; limit; empty', () => {
   assert.deepEqual(searchWords(ix, '  '), []);
   assert.deepEqual(searchWords(ix, '.*'), []);
 });
+test('index ignores theme keys', () => {
+  const ix = buildIndex({ ...pools, 'theme:宇宙': ['銀河'] }, { ...labels, 'theme:宇宙': 'テーマ' });
+  assert.equal(ix.some(x => x.w === '銀河'), false);
+});
