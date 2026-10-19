@@ -10,6 +10,9 @@ import { createSound } from './sound.js';
 import { createOverlay } from './reels.js';
 import { initScreens } from './screens.js';
 
+// テーマ機能のスイッチ。false の間は語メニューに出さず、保存済みのテーマも使わない（保存データからは消さない）
+const THEMES_ON = false;
+
 let ls = null;
 try { ls = localStorage; } catch { /* memory only */ }
 const store = createStore(ls);
@@ -231,7 +234,7 @@ async function setTheme(i) {
 }
 
 // 保存したテーマの語を集める（初回起動・インポート後）。読めなければ false。保存データのテーマは消さない
-const savedThemes = () => [...new Set(state.settings.slots.map(s => s?.theme).filter(w => typeof w === 'string' && w))];
+const savedThemes = () => !THEMES_ON ? [] : [...new Set(state.settings.slots.map(s => s?.theme).filter(w => typeof w === 'string' && w))];
 async function prepareThemes() {
   const words = savedThemes(), next = Object.create(null);
   if (!words.length) { themes = next; return true; }
@@ -400,7 +403,7 @@ async function start() {
     reel: press, lever: pull, idea,
     word(i) {
       if (!canEdit(reels) || !reels[i]?.value) return;
-      if (view.menuOpen() === i) view.hideMenu(); else view.showMenu(i, { themed: !!themeOf(reels[i]) });
+      if (view.menuOpen() === i) view.hideMenu(); else view.showMenu(i, { themed: !!themeOf(reels[i]), themes: THEMES_ON });
     },
     menu: wordMenu,
   });

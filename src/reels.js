@@ -53,14 +53,14 @@ export function createOverlay(wrap, ov, on) {
       ticker.style.animation = '';
     },
     menuOpen: () => menuIndex,
-    showMenu(i, { themed = false } = {}) {
+    showMenu(i, { themed = false, themes = true } = {}) {
       view.hideMenu();
       const r = rects[i], side = r.x + r.w / 2 < 100 ? `left:${r.x / 2}%` : `right:${(200 - r.x - r.w) / 2}%`;
       menuEl = document.createElement('div');
       menuEl.className = 'wm';
       menuEl.style.cssText = `top:${127 / 1.9}%;${side}`;
       menuEl.innerHTML = '<button data-m="x">この語を除外</button><button data-m="r">この枠だけ振り直す</button>'
-        + (themed ? '<button data-m="u">テーマ解除</button>' : '<button data-m="t">この語をテーマに</button>');
+        + (!themes ? '' : themed ? '<button data-m="u">テーマ解除</button>' : '<button data-m="t">この語をテーマに</button>');
       ov.appendChild(menuEl);
       menuIndex = i;
     },
