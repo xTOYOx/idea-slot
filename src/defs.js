@@ -27,9 +27,11 @@ export function createDefs(load, games = []) {
   return {
     async lookup(word) {
       if (!word) return null;
-      if (en.has(word)) return `英題: ${en.get(word)}`;
       const o = await shard(shardOf(word));
-      return Object.hasOwn(o, word) ? o[word] : null;
+      const def = Object.hasOwn(o, word) ? o[word] : null;
+      if (!en.has(word)) return def;
+      const title = `英題: ${en.get(word)}`; // 作品名でもある語（チェス・将棋など）は、意味のあとに英題
+      return def ? `${def}\n${title}` : title;
     },
   };
 }

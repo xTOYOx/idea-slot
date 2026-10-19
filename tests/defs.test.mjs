@@ -49,10 +49,9 @@ test('createDefs: a word without a meaning is null (also names that only look li
   assert.equal(await defs.lookup('constructor'), null);
   assert.equal(await defs.lookup('__proto__'), null);
 });
-test('createDefs: a game title gives its English title, without loading a file', async () => {
-  const { calls, defs } = make({});
-  assert.equal(await defs.lookup('テトリス'), '英題: Tetris');
-  assert.deepEqual(calls, []);
+test('createDefs: a game title gives its English title (after the meaning when the word also has one)', async () => {
+  assert.equal(await make({}).defs.lookup('テトリス'), '英題: Tetris');
+  assert.equal(await make({ [shardOf('テトリス')]: { テトリス: '落ち物パズル' } }).defs.lookup('テトリス'), '落ち物パズル\n英題: Tetris');
 });
 test('createDefs: a failed load gives null and is retried next time', async () => {
   const files = {};

@@ -81,7 +81,7 @@ button:disabled { opacity: .45; cursor: default; }
 .hit input { background: #fff; color: #1a1020; border: 2px solid #1a1020; font-size: 13px; padding: 4px 6px; min-height: 40px; }
 .hit.new { background: #ffe066; }
 /* 語の意味の吹き出し（tip.js）。画面からはみ出さない位置は JS が決める。文字は PC では基準の --fs */
-#tip { position: fixed; z-index: 50; pointer-events: none; width: max-content; max-width: min(90vw, 30em); padding: .5em .7em; font-size: var(--fs, 15px); line-height: 1.5; overflow-wrap: anywhere; color: #fff; background: #0f5a3a; border: 3px solid #e8b020; outline: 2px solid #000; }
+#tip { position: fixed; z-index: 50; pointer-events: none; width: max-content; max-width: min(90vw, 30em); padding: .5em .7em; font-size: var(--fs, 15px); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; color: #fff; background: #0f5a3a; border: 3px solid #e8b020; outline: 2px solid #000; }
 #tip b { display: block; font-weight: 400; color: #ffe066; }
 #wrap, .hit .w { -webkit-touch-callout: none; } /* 長押しの吹き出しと、OS の選択メニューが重ならないように */
 @media (pointer: coarse) { .hit .w { user-select: none; -webkit-user-select: none; } }
