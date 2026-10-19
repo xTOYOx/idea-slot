@@ -19,6 +19,21 @@ export function dropCoin(h, col, rnd = Math.random, max = MAX_H) {
   return c;
 }
 
+// なぞって回収: 列 col と両隣（reach）のいちばん上のコインを取る。取ったコインの {col, k}（k は段。0 が一番下）を返す。
+// 取ったあとは、隣より2枚以上高い列から低い方へ崩して、なだらかな形に戻す
+export function takeCoins(h, col, reach = 1) {
+  const got = [];
+  for (let c = col - reach; c <= col + reach; c++) if (h[c] > 0) got.push({ col: c, k: --h[c] });
+  for (let moved = true; moved;) {
+    moved = false;
+    for (let i = 0; i + 1 < h.length; i++) {
+      if (h[i] - h[i + 1] >= 2) { h[i]--; h[i + 1]++; moved = true; }
+      else if (h[i + 1] - h[i] >= 2) { h[i + 1]--; h[i]++; moved = true; }
+    }
+  }
+  return got;
+}
+
 // 当たり帳の件数 hits から、起動時の山を作る。中央あたりを中心に落とす
 export function initialPile(cols, hits, rnd = Math.random, max = MAX_H) {
   const h = Array(cols).fill(0);
@@ -51,8 +66,9 @@ const COIN_W = 4, SETTLE_V = 0.4, FRICTION = 0.7, SPILL_VX = 2.5, SPILL_VY = -3;
 
 // 払い出し口 (x, y) から飛び出すコインを作る。初速はばらつき、主に下向き。4枚に1枚くらいは勢いよく横へ振る
 export function launchCoin(rnd, x, y) {
+  // 噴水のように上へバっと噴き出す。高さはリールの窓（HTML）の下まで（最大で約 30px）。3割は横へ大きく散る
   const wide = rnd() < 0.3, side = rnd() < 0.5 ? -1 : 1;
-  const vx = wide ? side * (3 + rnd() * 3.5) : (rnd() * 2 - 1) * 2.5, vy = wide ? -2.5 + rnd() * 2.5 : -0.8 + rnd() * 3.6; // 放り投げる粒は高く遠くへ
+  const vx = wide ? side * (2.2 + rnd() * 2.6) : (rnd() * 2 - 1) * 2, vy = -(1.8 + rnd() * 1.5);
   return { x, y, vx, vy, e: 0.3 + rnd() * 0.2, f: rnd() * 6, out: false };
 }
 

@@ -88,11 +88,11 @@ const fly = (p, pile, tray = TRAY, s = 1, rnd = seeded(2), max = 4000) => {
   throw new Error('never ended');
 };
 
-test('launchCoin: random launch speed, mostly downward, left and right both', () => {
+test('launchCoin: bursts upward like a fountain, left and right both, peaks below the reel windows', () => {
   const rnd = seeded(11), vs = Array.from({ length: 400 }, () => launchCoin(rnd, 100, 165));
   assert.ok(vs.every(p => p.x === 100 && p.y === 165 && !p.out));
-  assert.ok(vs.filter(p => p.vy > 0).length > 400 * 0.5, 'mostly downward');
-  assert.ok(vs.some(p => p.vy < 0), 'some go up');
+  assert.ok(vs.filter(p => p.vy < -1.5).length > 400 * 0.8, 'mostly upward');
+  assert.ok(vs.every(p => (p.vy * p.vy) / (2 * 0.18) <= 34), 'the highest coin stays below the reel windows (about 34px up)');
   assert.ok(vs.some(p => p.vx < -2) && vs.some(p => p.vx > 2), 'scatter left and right');
   assert.ok(new Set(vs.map(p => p.vx)).size > 300, 'varied');
   assert.deepEqual(launchCoin(seeded(5), 1, 2), launchCoin(seeded(5), 1, 2), 'same rnd, same coin');
@@ -186,4 +186,20 @@ test('spinCoin: faster coins spin faster, the same at any dt, still while idle',
   assert.ok(fast.f > slow.f * 2 && slow.f > 0);
   spinCoin(f2, 0.5); spinCoin(f2, 0.5);
   assert.ok(Math.abs(f2.f - fast.f) < 1e-9);
+});
+
+test('takeCoins: takes the top coin of the swiped column and its neighbours, the pile stays smooth', async () => {
+  const { takeCoins } = await import('../src/coins.js');
+  const h = [0, 1, 2, 3, 2, 1, 0];
+  const got = takeCoins(h, 3);
+  assert.deepEqual(got.map(g => g.col), [2, 3, 4]);
+  assert.deepEqual(got.map(g => g.k), [1, 2, 1], 'level of each taken coin (0 = bottom)');
+  assert.equal(h.reduce((a, b) => a + b), 9 - 3);
+  for (let i = 1; i < h.length; i++) assert.ok(Math.abs(h[i] - h[i - 1]) <= 1, `smooth at ${i}: ${h}`);
+  assert.deepEqual(takeCoins([0, 0, 0], 1), [], 'nothing to take');
+  assert.deepEqual(takeCoins([2], 5), [], 'outside the pile');
+  const tall = [0, 0, 4, 4, 4, 0, 0];
+  takeCoins(tall, 3, 0);
+  for (let i = 1; i < tall.length; i++) assert.ok(Math.abs(tall[i] - tall[i - 1]) <= 1, `slides down after a pit: ${tall}`);
+  assert.equal(tall.reduce((a, b) => a + b), 11);
 });
