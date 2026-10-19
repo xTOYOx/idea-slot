@@ -18,21 +18,26 @@ export const DEFAULT_KEYS = Object.fromEntries(ACTIONS.map(a => [a.id, a.key]));
 const BLOCKED = new Set(['Escape', 'Tab', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight', 'OSLeft', 'OSRight']);
 export const isAssignable = code => typeof code === 'string' && code !== '' && !BLOCKED.has(code);
 
-// 保存データを整える: 知らない操作名・文字列でない値・割り当て不可のキーは捨てて既定で補う。キーが重なっていたら全部既定
+// 保存データを整える: 知らない操作名・文字列でない値・割り当て不可のキーは捨てて既定で補う。同じキーが複数の操作にあってもそのまま（どれも動く）
 export function normalizeKeys(v) {
   const src = v !== null && typeof v === 'object' && !Array.isArray(v) ? v : {};
-  const keys = Object.fromEntries(ACTIONS.map(a => [a.id, isAssignable(src[a.id]) ? src[a.id] : a.key]));
-  return new Set(Object.values(keys)).size === ACTIONS.length ? keys : { ...DEFAULT_KEYS };
+  return Object.fromEntries(ACTIONS.map(a => [a.id, isAssignable(src[a.id]) ? src[a.id] : a.key]));
 }
 
-// 操作 action に code を割り当てる。ほかの操作が使っていたら入れ替える（相手に元のキーを渡す）。割り当て不可なら null
+// 操作 action に code を割り当てる（ほかの操作と同じキーでもよい）。割り当て不可なら null
 export function assignKey(keys, action, code) {
-  if (!isAssignable(code) || !(action in keys)) return null;
-  const other = Object.keys(keys).find(id => id !== action && keys[id] === code) ?? null;
-  return { keys: { ...keys, [action]: code, ...(other && { [other]: keys[action] }) }, swapped: other };
+  return isAssignable(code) && action in keys ? { ...keys, [action]: code } : null;
 }
 
-export const actionFor = (keys, code) => Object.keys(keys).find(id => keys[id] === code) ?? null;
+// code に割り当てられた操作を全部（押したら全部動かす）
+export const actionsFor = (keys, code) => Object.keys(keys).filter(id => keys[id] === code);
+
+// 2つ以上の操作に割り当てられているキーの集まり（キー設定で赤くする）
+export function dupCodes(keys) {
+  const seen = new Set(), dup = new Set();
+  for (const code of Object.values(keys)) (seen.has(code) ? dup : seen).add(code);
+  return dup;
+}
 
 // テンキーの数字と Enter は、段の数字と Enter として扱う（今までと同じ）
 export const canonCode = code => code.replace(/^Numpad(\d)$/, 'Digit$1').replace(/^NumpadEnter$/, 'Enter');

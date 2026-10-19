@@ -4,11 +4,11 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { stampHtml, stampJs } from './stamp.mjs';
+import { stampHtml, stampJs, stampCss, stampSw } from './stamp.mjs';
 
 const ACCOUNT = 'toyogame';
 const REPO = `${ACCOUNT}/idea-slot`;
-const FILES = ['index.html', 'style.css', 'src', 'data', 'fonts', 'LICENSE-DATA.md', '.nojekyll'];
+const FILES = ['index.html', 'style.css', 'manifest.webmanifest', 'sw.js', 'icons', 'src', 'data', 'fonts', 'LICENSE-DATA.md', '.nojekyll'];
 const GH = existsSync('C:/Program Files/GitHub CLI/gh.exe') ? 'C:/Program Files/GitHub CLI/gh.exe' : 'gh';
 
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: 'utf8', ...opts }).trim();
@@ -28,6 +28,8 @@ try {
   // 参照に版番号を付けて、公開のたびにブラウザが新しいファイルを読むようにする
   const stamp = (f, fn) => writeFileSync(f, fn(readFileSync(f, 'utf8'), source));
   stamp(join(dir, 'index.html'), stampHtml);
+  stamp(join(dir, 'style.css'), stampCss);
+  stamp(join(dir, 'sw.js'), stampSw);
   for (const f of readdirSync(join(dir, 'src'))) if (f.endsWith('.js')) stamp(join(dir, 'src', f), stampJs);
   writeFileSync(join(dir, 'README.md'),
     `# アイデアスロット\n\nゲーム企画のアイデア出しに使うスロットです。\n\nhttps://${ACCOUNT}.github.io/idea-slot/\n\n語データの出典は LICENSE-DATA.md、フォントは fonts/OFL.txt を参照してください。\n`);

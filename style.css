@@ -1,4 +1,4 @@
-@font-face { font-family: 'DotGothic16'; src: url('fonts/DotGothic16-Regular.ttf'); font-display: swap; }
+@font-face { font-family: 'DotGothic16'; src: url('fonts/DotGothic16-Regular.woff2') format('woff2'), url('fonts/DotGothic16-Regular.ttf') format('truetype'); font-display: swap; }
 * { box-sizing: border-box; }
 html { height: 100%; }
 :root { --th: 140px; } /* 端のタブの高さ */
@@ -205,12 +205,23 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 .krows li { display: flex; align-items: center; gap: .6em; padding: 4px 10px; }
 .krows span { flex: 1; }
 .krows button { flex: 0 1 12em; white-space: normal; }
+.krows button.dup { background: #e0303e; color: #fff; } /* 同じキーが複数の操作にある */
 .krows button[aria-pressed=true] { background: #ffe066; }
 /* 使い方 */
 #help { font-size: 15px; line-height: 1.7; }
 #help .thead { margin-bottom: 4px; }
 #help h4 { margin: 12px 0 2px; font-size: 1em; font-weight: 400; color: #ffe066; }
 #help ul { margin: 0; padding-left: 1.4em; }
+/* 初めての案内（tour.js）: 画面全体の dialog。暗くした画面から、指している部品だけ穴を抜く */
+#tour { position: fixed; inset: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; outline: 0; background: none; overflow: hidden; }
+#tour::backdrop { background: none; }
+#tour .tdim { position: absolute; inset: 0; background: rgba(0, 0, 0, .72); pointer-events: none; }
+#tour .tbox { position: absolute; border: 3px solid #ffe066; outline: 2px solid #000; box-shadow: 0 0 12px #ffe066; pointer-events: none; }
+#tour .tbal { position: absolute; width: max-content; max-width: min(90vw, 24em); padding: .6em .8em; font-size: var(--fs, 15px); line-height: 1.5; color: #fff; background: #0f5a3a; border: 3px solid #e8b020; outline: 2px solid #000; }
+#tour .tbal p { margin: 0; }
+#tour .tn { color: #ffe066; font-size: .85em; }
+#tour .tbal .row { justify-content: flex-end; margin-bottom: 0; }
+#tour button:focus-visible { outline: 3px solid #3ef0ff; outline-offset: 2px; }
 /* 引き出しの中: 見出しなどは固定し、一覧（.dscroll）だけをスクロールする */
 .dbody > * { flex: none; }
 .dbody > .dscroll, #tpl { flex: 1 1 auto; min-height: 0; }

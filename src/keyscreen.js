@@ -1,6 +1,6 @@
 // 「キー設定」画面（PC のみ）。操作ごとのキーのボタンを押して、次に押したキーを割り当てる。
-// 並べ替え・検証は keys.js の純粋関数。変えたら changed() で app.js に知らせる（使い方の「キー操作」を作り直す）。
-import { ACTIONS, DEFAULT_KEYS, assignKey, keyName, canonCode } from './keys.js';
+// 検証・重複の判定は keys.js の純粋関数。同じキーを複数の操作に割り当ててよい（重複したキーのボタンは赤く、下に一行出す）。変えたら changed() で app.js に知らせる（使い方の「キー操作」を作り直す）。
+import { ACTIONS, DEFAULT_KEYS, assignKey, dupCodes, keyName, canonCode } from './keys.js';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const label = id => ACTIONS.find(a => a.id === id).label;
@@ -11,12 +11,14 @@ export function initKeyScreen({ store, changed }) {
 
   const keys = () => store.state.settings.keys;
   function render(focus) {
+    const dup = dupCodes(keys());
     body.innerHTML = `<h2>キー設定</h2>
       <ul class="list krows">${ACTIONS.map(a => {
-        const on = capturing === a.id;
-        return `<li><span>${esc(a.label)}</span><button data-act="key" data-a="${a.id}" aria-pressed="${on}" aria-label="${esc(a.label)}のキー：${esc(keyName(keys()[a.id]))}">${on ? 'キーを押してください（Esc でやめる）' : esc(keyName(keys()[a.id]))}</button></li>`;
+        const on = capturing === a.id, d = dup.has(keys()[a.id]);
+        return `<li><span>${esc(a.label)}</span><button data-act="key"${d ? ' class="dup"' : ''} data-a="${a.id}" aria-pressed="${on}" aria-label="${esc(a.label)}のキー：${esc(keyName(keys()[a.id]))}${d ? '（ほかの操作と同じキー）' : ''}">${on ? 'キーを押してください（Esc でやめる）' : esc(keyName(keys()[a.id]))}</button></li>`;
       }).join('')}</ul>
       <p class="hint">ポーズ：Esc（固定）</p>
+      ${dup.size ? '<p class="err">同じキーが複数の操作にあります（どれも動きます）</p>' : ''}
       <p class="${err ? 'err' : 'note'}" role="status">${esc(note)}</p>
       <div class="row"><button data-act="reset">初期設定に戻す</button></div>`;
     if (focus) body.querySelector(`[data-a="${focus}"]`)?.focus({ preventScroll: true });
@@ -47,14 +49,14 @@ export function initKeyScreen({ store, changed }) {
     if (e.repeat) return;
     const action = capturing;
     if (e.code === 'Escape') { capturing = null; say('', false, action); return; }
-    const code = canonCode(e.code), r = assignKey(keys(), action, code);
-    if (!r) { say(`「${keyName(code)}」は割り当てられません`, true, action); return; }
-    store.state.settings.keys = r.keys;
+    const code = canonCode(e.code), next = assignKey(keys(), action, code);
+    if (!next) { say(`「${keyName(code)}」は割り当てられません`, true, action); return; }
+    store.state.settings.keys = next;
     store.save('settings');
     changed();
     capturing = null;
     upCode = e.code;
-    say(r.swapped ? `「${keyName(code)}」を使っていた「${label(r.swapped)}」と入れ替えました` : `「${label(action)}」を「${keyName(code)}」にしました`, false, action);
+    say(`「${label(action)}」を「${keyName(code)}」にしました`, false, action);
   }, true);
   // 割り当てたキー（スペースなど）を離したとき、フォーカスの戻ったボタンが押されたことにならないように
   document.addEventListener('keyup', e => { if (upCode === e.code) { upCode = null; if (dlg.open) e.preventDefault(); } }, true);

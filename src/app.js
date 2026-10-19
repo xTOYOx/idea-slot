@@ -17,12 +17,14 @@ import { effectiveWidth, fitWidth, widthAt, W_MIN } from './layout.js';
 import { initGrips } from './grips.js';
 import { initTypePanel } from './typepanel.js';
 import { initHelp } from './help.js';
-import { actionFor, canonCode, keyHelp } from './keys.js';
+import { actionsFor, canonCode, keyHelp } from './keys.js';
 import { applySlots } from './templates.js';
 import { initKeyScreen } from './keyscreen.js';
 import { initTemplateScreen } from './tplscreen.js';
 import { createDefs } from './defs.js';
 import { createTip } from './tip.js';
+import { createTour } from './tour.js';
+import { registerSw } from './pwa.js';
 
 // 保存済みの WordNet テーマ（設定の slots[].theme）を読み込むかのスイッチ。false の間は読み込まない（保存データからは消さない）
 const THEMES_ON = false;
@@ -587,6 +589,9 @@ $('hcopy').addEventListener('click', async () => {
 });
 
 const help = initHelp();
+// 初めての案内（settings.tourSeen）。使い方の「案内をもう一度見る」でも開く
+const tour = createTour(() => { if (!state.settings.tourSeen) { state.settings.tourSeen = true; store.save('settings'); } });
+$('tour-again').addEventListener('click', () => { $('help').close(); tour.start(); });
 const renderKeyHelp = () => help.setKeys(keyHelp(state.settings.keys)); // 使い方の「キー操作」はキー設定から作る
 renderKeyHelp();
 
@@ -614,10 +619,10 @@ document.addEventListener('keydown', e => {
     return;
   }
   if (a?.tagName === 'BUTTON' && (e.code === 'Space' || e.key === 'Enter')) return; // ボタン自身の押下に任せる
-  const act = actionFor(state.settings.keys, canonCode(e.code || ''));
-  if (!act) return;
+  const acts = actionsFor(state.settings.keys, canonCode(e.code || ''));
+  if (!acts.length) return;
   e.preventDefault();
-  keyActions[act]();
+  acts.forEach(act => keyActions[act]()); // 同じキーを複数の操作に割り当てていたら、全部動かす
 });
 // キー設定（settings.keys）の操作 → 動作。Esc（ポーズ）は割り当てず、上の keydown が固定で受ける
 const keyActions = {
@@ -712,6 +717,8 @@ async function start() {
   renderHits();
   renderHistory();
   tpl.render();
+  if (!state.settings.tourSeen) tour.start();
+  registerSw();
   say(themesOk ? '★ WELCOME TO IDEA CASINO ★ レバーで回す ★ 気に入った語はLOCK ★ いいね！と思ったら IDEA! ★' : `${THEME_FAIL} ... テーマなしで開始`);
 }
 

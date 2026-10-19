@@ -10,7 +10,7 @@ const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isArr = Array.isArray;
 
 const defaults = () => ({
-  settings: { count: 3, slots: [{ type: 'any' }, { type: 'any' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: false, width: 620, cabW: null, keys: { ...DEFAULT_KEYS } },
+  settings: { count: 3, slots: [{ type: 'any' }, { type: 'any' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: false, width: 620, cabW: null, keys: { ...DEFAULT_KEYS }, tourSeen: false },
   history: [],
   favorites: [],
   custom: {},
@@ -33,6 +33,7 @@ const normalizeSettings = v => {
     width: Number.isFinite(v.width) ? Math.min(1400, Math.max(460, Math.round(v.width))) : 620, // PC での横幅(px)
     cabW: Number.isFinite(v.cabW) ? Math.max(200, Math.round(v.cabW)) : null, // 筐体の論理幅（null = 画面に合わせて自動）
     keys: normalizeKeys(v.keys), // キー設定（操作 → KeyboardEvent.code）
+    tourSeen: bool(v.tourSeen, false), // 初めての人向けの案内を見たか
   };
 };
 

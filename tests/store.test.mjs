@@ -54,7 +54,7 @@ test('wrong-typed settings → default; saved settings load', () => {
 });
 test('v1 settings with animate migrate to reduceMotion', () => {
   const s = createStore(mem({ 'slot.settings': JSON.stringify({ count: 2, slots: [{ type: 'verb' }, { type: 'any' }], animate: false }) }));
-  assert.deepEqual(s.state.settings, { count: 2, slots: [{ type: 'verb' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: true, width: 620, cabW: null, keys: DEFAULT_KEYS });
+  assert.deepEqual(s.state.settings, { count: 2, slots: [{ type: 'verb' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: true, width: 620, cabW: null, keys: DEFAULT_KEYS, tourSeen: false });
 });
 test('defaults include stats and new settings', () => {
   const s = createStore(mem());
@@ -196,6 +196,18 @@ test('settings.cabW is null (auto) or an integer >= 200; old data is null', () =
   assert.equal(load(150), 200);
   assert.equal(load('wide'), null);
   assert.equal(load(Infinity), null);
+});
+test('settings.tourSeen is a boolean (false unless saved as true) and survives export / import', () => {
+  const load = t => createStore(mem({ 'slot.settings': JSON.stringify({ count: 3, slots: [], ...(t === undefined ? {} : { tourSeen: t }) }) })).state.settings.tourSeen;
+  assert.equal(createStore(mem()).state.settings.tourSeen, false);
+  assert.equal(load(undefined), false);
+  assert.equal(load('yes'), false);
+  assert.equal(load(true), true);
+  const a = createStore(mem());
+  a.state.settings.tourSeen = true;
+  const b = createStore(mem());
+  assert.equal(b.importJSON(a.exportJSON()).ok, true);
+  assert.equal(b.state.settings.tourSeen, true);
 });
 test('cabW travels through export / import', () => {
   const s = createStore(mem());
