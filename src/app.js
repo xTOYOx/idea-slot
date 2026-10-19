@@ -232,22 +232,31 @@ function addToMyTheme(k, w) {
   if (!r.added) { say(`「${w}」は★${t.name}にすでに入っています`); return; }
   state.themes = state.themes.map((x, j) => (j === k ? r.theme : x));
   store.save('themes');
-  themesChanged();
+  store.unexclude([w]);
+  themesChanged(undefined, true);
   say(`「${w}」を★${t.name}に追加（${r.theme.words.length}語）`);
 }
 
 // 自作テーマが変わった（作成・語の増減・名前変更・削除）。remap = {from, to}（to が null なら削除）で、その種類のリールを付け替える
-function themesChanged(remap) {
+// quiet: 語メニューからの追加（リールの見た目は触らない）
+function themesChanged(remap, quiet = false) {
   rebuildPools();
+  const hit = [];
   if (remap) {
-    const from = MY + remap.from, to = remap.to === null ? 'any' : MY + remap.to, hit = [];
-    reels = reels.map((r, i) => { if (r.type !== from) return r; hit.push(i); return { ...r, type: to }; });
+    const from = MY + remap.from, to = remap.to === null ? 'any' : MY + remap.to;
+    // base も付け替える（WordNet テーマを戻したときに元の種類へ戻るので）
+    reels = reels.map((r, i) => {
+      if (r.type !== from && r.base !== from) return r;
+      if (r.type === from) hit.push(i);
+      return { ...r, ...(r.type === from && { type: to }), ...(r.base === from && { base: to }) };
+    });
     if (to === 'any') for (const i of hit) if (!reels[i].held) reels = rerollOne(reels, i, pools);
     saveSettings();
-    hit.forEach(i => paint(i, true));
-    sync();
   }
+  if (!quiet) reels.forEach((r, i) => { if (myOf(r) || hit.includes(i)) paint(i, true); }); // 語が減った・名前が変わった・振り直した枠を描き直す
+  sync();
   renderSetup();
+  if (editing >= 0) renderCards();
 }
 
 // 語をテーマにする。グラフは初回だけ読む。止まっている間だけ（読み込み中に回し始めたら何もしない）

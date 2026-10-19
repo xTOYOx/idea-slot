@@ -64,7 +64,7 @@ export function createOverlay(wrap, ov, on) {
       menuEl.innerHTML = '<button data-m="x">この語を除外</button><button data-m="r">この枠だけ振り直す</button>'
         + (!themes ? '' : themed ? '<button data-m="u">テーマ解除</button>' : '<button data-m="t">この語をテーマに</button>')
         + (mine.length === 1 ? `<button data-m="a0">${esc('★' + mine[0] + 'に追加')}</button>` : mine.length ? '<button data-more>テーマに追加…</button>'
-          + `<div class="sub" hidden>${mine.map((n, k) => `<button data-m="a${k}">${esc('★' + n)}</button>`).join('')}</div>` : '');
+          + `<div class="sub" hidden><button data-up>← 戻る</button>${mine.map((n, k) => `<button data-m="a${k}">${esc('★' + n)}</button>`).join('')}</div>` : '');
       ov.appendChild(menuEl);
       menuIndex = i;
     },
@@ -79,7 +79,12 @@ export function createOverlay(wrap, ov, on) {
     const b = e.target.closest('button');
     if (!b) return;
     if (e.detail > 0) b.blur(); // マウス・タップのあとはキー操作（スペース等）を筐体に返す
-    if (b.dataset.more !== undefined) { [...menuEl.children].forEach(c => { c.hidden = !c.classList.contains('sub'); }); return; } // 「テーマに追加…」: メニューの中をテーマ名の一覧に切り替える
+    if (b.dataset.more !== undefined || b.dataset.up !== undefined) { // 「テーマに追加…」: メニューの中をテーマ名の一覧に切り替える（「← 戻る」で元に戻す）
+      const sub = b.dataset.more !== undefined;
+      [...menuEl.children].forEach(c => { c.hidden = c.classList.contains('sub') !== sub; });
+      (sub ? menuEl.querySelector('.sub button') : menuEl.querySelector('[data-more]')).focus({ preventScroll: true });
+      return;
+    }
     if (b.dataset.s !== undefined) on.reel(+b.dataset.s);
     else if (b.dataset.w !== undefined) on.word(+b.dataset.w);
     else if (b.dataset.m) { const i = menuIndex; view.hideMenu(); on.menu(b.dataset.m, i); }

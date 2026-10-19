@@ -34,7 +34,11 @@ const isStrs = v => isArr(v) && v.every(s => typeof s === 'string');
 const fav = f => (isObj(f) && isStrs(f.combo)
   ? { combo: f.combo, memo: typeof f.memo === 'string' ? f.memo : '', savedAt: typeof f.savedAt === 'number' ? f.savedAt : 0 }
   : null);
-const theme = t => (isObj(t) && typeof t.name === 'string' && t.name !== '' && isStrs(t.words) ? { name: t.name, words: t.words } : null);
+// 名前・語は前後の空白を除く（名前が空なら不正、語は空を捨てて重複を除く）
+const theme = t => {
+  if (!isObj(t) || typeof t.name !== 'string' || !isStrs(t.words) || !t.name.trim()) return null;
+  return { name: t.name.trim(), words: [...new Set(t.words.map(w => w.trim()).filter(Boolean))] };
+};
 // `strict` (import): one bad entry rejects the whole value. Otherwise (load) bad entries are dropped.
 const normalize = {
   settings: normalizeSettings,
@@ -80,6 +84,13 @@ export function createStore(storage) {
     pushHistory(combo) {
       state.history = [combo, ...state.history].slice(0, HISTORY_MAX);
       save('history');
+    },
+    // 語を「除外」から外す（自作テーマに足した語を出るようにする）
+    unexclude(words) {
+      const next = state.excluded.filter(w => !words.includes(w));
+      if (next.length === state.excluded.length) return;
+      state.excluded = next;
+      save('excluded');
     },
     countSpin() {
       state.stats.spins++;

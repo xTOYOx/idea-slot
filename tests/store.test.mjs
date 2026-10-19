@@ -142,3 +142,15 @@ test('import with malformed or duplicate themes → error, state unchanged', () 
   assert.deepEqual(s.state.themes, [{ name: '海', words: ['魚'] }]);
   assert.deepEqual(s.state.excluded, ['猫']);
 });
+test('theme names are trimmed: blank is invalid, "A" and "A " are duplicates; words are trimmed and deduped', () => {
+  const raw = [{ name: '  ', words: [] }, { name: ' A ', words: [' x ', 'x', '', '  ', 'y'] }, { name: 'A ', words: ['z'] }, { name: 'B', words: [] }];
+  assert.deepEqual(createStore(mem({ 'slot.themes': JSON.stringify(raw) })).state.themes, [{ name: 'A', words: ['x', 'y'] }, { name: 'B', words: [] }]);
+  const s = createStore(mem());
+  for (const bad of [[{ name: '  ', words: [] }], [{ name: 'A', words: [] }, { name: 'A ', words: [] }]]) {
+    const d = JSON.parse(s.exportJSON()); d.themes = bad;
+    assert.equal(s.importJSON(JSON.stringify(d)).ok, false);
+  }
+  const d = JSON.parse(s.exportJSON()); d.themes = [{ name: ' A ', words: [' x ', 'x'] }];
+  assert.deepEqual(s.importJSON(JSON.stringify(d)), { ok: true });
+  assert.deepEqual(s.state.themes, [{ name: 'A', words: ['x'] }]);
+});
