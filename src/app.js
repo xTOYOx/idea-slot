@@ -15,6 +15,7 @@ import { initThemeScreen } from './themescreen.js';
 import { effectiveWidth, fitWidth, widthAt, W_MIN } from './layout.js';
 import { initGrips } from './grips.js';
 import { initTypePanel } from './typepanel.js';
+import { initHelp } from './help.js';
 
 // 保存済みの WordNet テーマ（設定の slots[].theme）を読み込むかのスイッチ。false の間は読み込まない（保存データからは消さない）
 const THEMES_ON = false;
@@ -100,19 +101,13 @@ function sync() {
   document.body.classList.toggle('reduce-motion', reduceMotion());
 }
 
-// ポーズメニューの入／切の表示
+// ポーズメニューのスイッチ（ON/OFF）と件数・説明の表示
 function pauseLabels() {
-  const st = state.settings, p = $('pause');
-  [['auto', '自動STOP', st.autoStop], ['snd', '音', st.sound], ['rm', '演出を減らす', st.reduceMotion]].forEach(([k, t, on]) => {
-    const b = p.querySelector(`[data-p="${k}"]`);
-    b.textContent = `${t}：${on ? '入' : '切'}`;
-    b.setAttribute('aria-pressed', String(on));
-  });
-  const manual = st.cabW !== null, cw = p.querySelector('[data-p="cabw"]');
-  cw.innerHTML = manual ? `筐体の横幅：手動（${st.cabW}）→ 自動に戻す` : '筐体の横幅：自動<small>左右の端をドラッグで調整</small>';
-  cw.setAttribute('aria-disabled', String(!manual));
-  p.querySelector('[data-p="hits"] span').textContent = `（${state.favorites.length}）`;
-  p.querySelector('[data-p="hist"] span').textContent = `（${state.history.length}）`;
+  const st = state.settings, p = $('pause'), manual = st.cabW !== null;
+  [['auto', st.autoStop], ['snd', st.sound], ['rm', st.reduceMotion], ['cabw', !manual]].forEach(([k, on]) => p.querySelector(`[data-p="${k}"]`).setAttribute('aria-checked', String(on)));
+  $('cabw-d').textContent = manual ? `横幅 ${st.cabW}（左右の端をドラッグで調整）` : '画面に合わせます';
+  p.querySelector('[data-p="hits"] em').textContent = `（${state.favorites.length}）`;
+  p.querySelector('[data-p="hist"] em').textContent = `（${state.history.length}）`;
 }
 
 function pauseAction(k) {
@@ -120,7 +115,7 @@ function pauseAction(k) {
   if (k === 'auto') st.autoStop = !st.autoStop;
   else if (k === 'snd') st.sound = sound.enabled = !st.sound;
   else if (k === 'rm') st.reduceMotion = !st.reduceMotion;
-  else if (k === 'cabw') { resetWidth(); return; }
+  else if (k === 'cabw') { if (st.cabW === null) setManualWidth(cabW); else resetWidth(); return; } // OFF: 今の幅で固定、ON: 自動に戻す
   store.save('settings');
   pauseLabels();
   sync();
@@ -420,6 +415,7 @@ function renderHits() {
 
 function renderHistory() {
   panels.setCount('hist', state.history.length);
+  $('hclear').disabled = !state.history.length;
   pauseLabels();
   $('hist').innerHTML = state.history.map((c, i) =>
     `<li><button class="card" data-edit data-r="${i}">${esc(c.join(' × '))}</button></li>`).join('');
@@ -445,11 +441,19 @@ document.addEventListener('click', e => {
   }
   else if (d.del !== undefined) { state.favorites.splice(Number(d.del), 1); store.save('favorites'); renderHits(); sync(); }
 });
+$('hclear').addEventListener('click', () => {
+  if (!state.history.length || !confirm('履歴を全部消します（当たり帳は消えません）')) return;
+  state.history = [];
+  store.save('history');
+  renderHistory();
+});
 $('hits').addEventListener('input', e => {
   if (e.target.dataset.h === undefined) return;
   state.favorites[Number(e.target.dataset.h)].memo = e.target.value;
   store.save('favorites');
 });
+
+initHelp();
 
 // --- SPIN・キー操作 ---
 $('spin').addEventListener('click', e => { if (e.detail > 0) e.currentTarget.blur(); pull(); });
