@@ -252,11 +252,18 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   .hit b { font-size: var(--fs); }
   .hit input { width: 100%; font-size: var(--fs); min-height: max(40px, 2.4em); padding: .2em .4em; }
   #empty { font-size: .9em; }
-  .drawer { width: min(560px, 42vw); }
-  #d-tpl { width: min(calc(var(--fs) * 24), 34vw); } /* 筐体のリールがなるべく見えるように、テンプレは細く */
+  :root { --hw: min(560px, 42vw); --tw: min(calc(var(--fs) * 24), 34vw); } /* 引き出しの幅（--tw はテンプレ。筐体のリールがなるべく見えるように細く） */
+  .drawer { width: var(--hw); }
+  #d-tpl { width: var(--tw); }
+  /* 左の2つのタブ（履歴の下にテンプレ）は離れないように、開いている引き出しの端へ一緒に動かす。両方開いたら広い方の端にそろえる */
+  .l .dtab { transition: transform .25s steps(6); }
+  body:has(#d-hist.open) #d-tpl:not(.open) .dtab { transform: translateX(var(--hw)); }
+  body:has(#d-tpl.open) #d-hist:not(.open) .dtab { transform: translateX(var(--tw)); }
+  body:has(#d-hist.open) #d-tpl.open .dtab { transform: translateX(max(0px, var(--hw) - var(--tw))); }
+  body:has(#d-tpl.open) #d-hist.open .dtab { transform: translateX(max(0px, var(--tw) - var(--hw))); }
+  .reduce-motion .l .dtab { transition: none; }
   .dbody { font-size: var(--fs); padding: .7em .8em; }
   .dhead h3 { font-size: 1.2em; }
-  .l .dbody { padding-left: calc(var(--tab) + .5em); } /* 閉じている側の左のタブが重なる分 */
   .l .dhead { margin-left: calc(var(--tab) * 2 + 24px); } /* ⏸ と ？ の下に隠れないように */
   .dtab { width: var(--tab); font-size: var(--fs); gap: .5em; }
   .bdg { font-size: .8em; min-width: 1.5em; }
