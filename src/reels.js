@@ -82,7 +82,7 @@ export function createOverlay(wrap, ov, on) {
     if (b.dataset.more !== undefined || b.dataset.up !== undefined) { // 「テーマに追加…」: メニューの中をテーマ名の一覧に切り替える（「← 戻る」で元に戻す）
       const sub = b.dataset.more !== undefined;
       [...menuEl.children].forEach(c => { c.hidden = c.classList.contains('sub') !== sub; });
-      (sub ? menuEl.querySelector('.sub button') : menuEl.querySelector('[data-more]')).focus({ preventScroll: true });
+      if (e.detail === 0) (sub ? menuEl.querySelector('.sub button') : menuEl.querySelector('[data-more]')).focus({ preventScroll: true }); // キー操作のときだけ（タップのあとはキーを筐体に返す）
       return;
     }
     if (b.dataset.s !== undefined) on.reel(+b.dataset.s);
