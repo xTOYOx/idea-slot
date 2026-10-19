@@ -1,8 +1,8 @@
-// ピクセルアート筐体の描画（論理 200×180）。見た目の基準は docs/superpowers/specs/mockups/casino-v6.html
+// ピクセルアート筐体の描画（論理 200×190）。見た目の基準は docs/superpowers/specs/mockups/casino-v6.html
 // 描くだけで、入力処理もHTMLの重ね物も持たない（それはアプリ側）。
-import { reelRects, stopRect } from './layout.js';
+import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H } from './layout.js';
 
-const W = 200, H = 180;
+const W = 200, H = 190, DY = 10; // DY: LEDバーより下（元の y ≥ 61）をモニターの分だけ下げる量
 const K = '#0b0610', R0 = '#3a0614', R1 = '#6b0f24', R2 = '#a3182f', R3 = '#e0303e';
 const G0 = '#5c3a06', G1 = '#a8700c', G2 = '#e8b020', G3 = '#ffe066', G4 = '#fff7c2';
 const C0 = '#2a2f3a', C1 = '#5d6577', C2 = '#9aa3b5', C3 = '#d8deea';
@@ -62,40 +62,42 @@ export function createCabinet(canvas) {
         px(x, y, 1, 1, c);
       }
     }
-    px(16, 176, 168, 4, '#12040a');
-    box(20, 12, 160, 166, R1, R2, R0);
-    [20, 176].forEach((a) => { px(a, 12, 1, 166, K); px(a + 1, 12, 1, 166, C2); px(a + 2, 12, 1, 166, C3); px(a + 3, 12, 1, 166, C1); });
+    px(16, 176 + DY, 168, 4, '#12040a');
+    box(20, 12, 160, 166 + DY, R1, R2, R0);
+    [20, 176].forEach((a) => { px(a, 12, 1, 166 + DY, K); px(a + 1, 12, 1, 166 + DY, C2); px(a + 2, 12, 1, 166 + DY, C3); px(a + 3, 12, 1, 166 + DY, C1); });
     px(24, 12, 152, 36, G2); px(24, 12, 152, 1, G4); px(24, 47, 152, 1, G0); px(28, 16, 144, 28, K); px(29, 17, 142, 26, '#160818');
     box(24, 50, 152, 10, K, '#1a1a1a', K); px(26, 51, 42, 8, '#1c0404'); px(132, 51, 42, 8, '#1c0404'); px(70, 51, 60, 8, '#140800');
     tiny('IDEAS', 28, 53, '#ff9a20'); tiny('HITS', 138, 53, '#ff9a20');
-    box(26, 61, 148, 67, C1, C3, C0); px(30, 68, 140, 50, K);
+    // モニター枠（文字はHTML）。暗い緑の液晶の地に黒い縁
+    rects.forEach(({ x, w }) => { px(x, MONITOR_Y, w, MONITOR_H, K); px(x + 1, MONITOR_Y + 1, w - 2, MONITOR_H - 2, '#0b2a18'); px(x + 1, MONITOR_Y + 1, w - 2, 1, '#10381f'); });
+    box(26, 61 + DY, 148, 67, C1, C3, C0); px(30, 68 + DY, 140, 50, K);
     // 番号札: 窓の中央。左右の飾り線は札と窓の端の間に収まる分だけ
     rects.forEach(({ x, w }, i) => {
       const bx = x + Math.round((w - 10) / 2);
-      box(bx, 62, 10, 6, '#1a1018', '#2a2030', '#0a0610');
-      tiny(String(i + 1), bx + 4, 62, G3);
+      box(bx, 62 + DY, 10, 6, '#1a1018', '#2a2030', '#0a0610');
+      tiny(String(i + 1), bx + 4, 62 + DY, G3);
       const lw = bx - 3 - (x + 2), rx = bx + 13, rw = x + w - 2 - rx;
-      if (lw > 0) { px(x + 2, 64, lw, 1, C0); px(x + 2, 65, lw, 1, C3); }
-      if (rw > 0) { px(rx, 64, rw, 1, C0); px(rx, 65, rw, 1, C3); }
+      if (lw > 0) { px(x + 2, 64 + DY, lw, 1, C0); px(x + 2, 65 + DY, lw, 1, C3); }
+      if (rw > 0) { px(rx, 64 + DY, rw, 1, C0); px(rx, 65 + DY, rw, 1, C3); }
     });
     rects.forEach(({ x, w }) => {
-      for (let r = 0; r < 48; r++) {
-        const e = Math.min(r, 47 - r);
-        px(x, 69 + r, w, 1, e < 2 ? '#5a4626' : e < 5 ? '#a8884c' : e < 9 ? '#e0cc98' : (r >= 16 && r < 32) ? '#fffbea' : '#fff2d0');
+      for (let r = 0; r < REEL_H; r++) {
+        const e = Math.min(r, REEL_H - 1 - r);
+        px(x, REEL_Y + r, w, 1, e < 2 ? '#5a4626' : e < 5 ? '#a8884c' : e < 9 ? '#e0cc98' : (r >= 16 && r < 32) ? '#fffbea' : '#fff2d0');
       }
     });
-    [[27, 1], [172, -1]].forEach(([x0, dir]) => [1, 2, 3, 3, 3, 2, 1].forEach((w, j) => px(dir > 0 ? x0 : x0 - w + 1, 90 + j, w, 1, R3)));
-    for (let i = 0; i + 1 < n; i++) px(rects[i].x + rects[i].w, 93, rects[i + 1].x - rects[i].x - rects[i].w, 1, '#ff3030');
-    px(80, 118, 40, 10, C0);
-    box(22, 129, 156, 24, '#3a0a18', '#7a1a30', '#1a0408'); px(22, 129, 156, 1, G3);
-    rects.forEach((r) => { const s = stopRect(r); box(s.x, 132, s.w, 17, C1, C3, C0); });
-    box(30, 154, 140, 22, C1, C3, C0); px(33, 159, 134, 14, '#14141c'); px(33, 159, 134, 2, '#06060a');
+    [[27, 1], [172, -1]].forEach(([x0, dir]) => [1, 2, 3, 3, 3, 2, 1].forEach((w, j) => px(dir > 0 ? x0 : x0 - w + 1, 90 + DY + j, w, 1, R3)));
+    for (let i = 0; i + 1 < n; i++) px(rects[i].x + rects[i].w, 93 + DY, rects[i + 1].x - rects[i].x - rects[i].w, 1, '#ff3030');
+    px(80, 118 + DY, 40, 10, C0);
+    box(22, 129 + DY, 156, 24, '#3a0a18', '#7a1a30', '#1a0408'); px(22, 129 + DY, 156, 1, G3);
+    rects.forEach((r) => { const s = stopRect(r); box(s.x, 132 + DY, s.w, 17, C1, C3, C0); });
+    box(30, 154 + DY, 140, 22, C1, C3, C0); px(33, 159 + DY, 134, 14, '#14141c'); px(33, 159 + DY, 134, 2, '#06060a');
     ['#c8202f', '#1f4fbf', '#108a4a', '#222222', '#c8202f', '#e8b020'].forEach((c, k) => {
-      const y = 171 - k * 4;
+      const y = 171 + DY - k * 4;
       px(3, y, 14, 4, K); px(4, y, 12, 3, c); [6, 10, 14].forEach((xx) => px(xx - 1, y, 1, 3, '#ffffff')); px(4, y, 12, 1, '#ffffff55');
     });
-    [[186, 168], [192, 170]].forEach(([x, y]) => { px(x, y, 6, 6, K); px(x + 1, y + 1, 4, 4, G2); px(x + 2, y + 1, 2, 1, G4); });
-    box(180, 100, 10, 14, C1, C3, C0);
+    [[186, 168 + DY], [192, 170 + DY]].forEach(([x, y]) => { px(x, y, 6, 6, K); px(x + 1, y + 1, 4, 4, G2); px(x + 2, y + 1, 2, 1, G4); });
+    box(180, 100 + DY, 10, 14, C1, C3, C0);
   }
 
   // 動的な状態
@@ -103,7 +105,7 @@ export function createCabinet(canvas) {
   let t0 = performance.now(), celebrateUntil = 0, leverUntil = 0, pressUntil = 0;
   let parts = [];
   const pile = [];
-  for (let i = 0; i < 18; i++) pile.push([35 + (Math.random() * 128 | 0), 161 + (Math.random() * 9 | 0)]);
+  for (let i = 0; i < 18; i++) pile.push([35 + (Math.random() * 128 | 0), 161 + DY + (Math.random() * 9 | 0)]);
 
   function bulbs(fr, rain) {
     const pos = [];
@@ -116,7 +118,7 @@ export function createCabinet(canvas) {
       px(x, y, 3, 3, rain ? RAINBOW[(i + fr) % 5] : on ? G4 : '#7a4a10');
       if (on || rain) px(x, y, 1, 1, '#ffffff');
     });
-    for (let y = 52; y < 174; y += 8) {
+    for (let y = 52; y < 174 + DY; y += 8) {
       const k = y / 8 | 0, on = ((k - fr) % 3 + 3) % 3 === 0;
       [21, 177].forEach((x) => px(x, y, 2, 2, rain ? RAINBOW[(k + fr) % 5] : on ? G4 : '#6a4010'));
     }
@@ -152,7 +154,7 @@ export function createCabinet(canvas) {
     led(v.ideas, 4, 51, 53); led(v.hits, 4, 155, 53);
 
     // IDEA! ランプ
-    const blink = rm ? 1 : Math.floor(el / 320) % 2, ly = 119 + (t < pressUntil ? 1 : 0);
+    const blink = rm ? 1 : Math.floor(el / 320) % 2, ly = 119 + DY + (t < pressUntil ? 1 : 0);
     if (celebrating) {
       box(82, ly, 36, 9, rm ? '#ffe066' : ['#ff3ea5', '#3ef0ff', '#ffe066', '#3eff7a'][fr % 4], '#ffffff', '#a01060'); tiny('IDEA!', 90, ly + 2, '#ffffff');
     } else if (v.canSave === 'ok') {
@@ -166,15 +168,16 @@ export function createCabinet(canvas) {
 
     // レバー
     const top = t < leverUntil ? 78 : 46;
-    px(184, top + 8, 3, 100 - top - 8, C3); px(184, top + 8, 1, 100 - top - 8, '#ffffff'); px(186, top + 8, 1, 100 - top - 8, C1);
+    const stalk = 100 + DY - top - 8; // 棒の根元は台座（+DY）まで伸ばす。玉の上端は動かさない
+    px(184, top + 8, 3, stalk, C3); px(184, top + 8, 1, stalk, '#ffffff'); px(186, top + 8, 1, stalk, C1);
     spr(BALL, 180, top, { R: '#ff3030', r: '#a01010', W: '#ffffff' });
 
     // 受け皿のコインと落ちてくる粒
     pile.forEach(([x, y]) => { px(x, y, 4, 3, G1); px(x, y, 4, 2, G2); px(x + 1, y, 2, 1, G4); });
     parts = parts.filter((p) => {
       p.vy += 0.18; p.x += p.vx; p.y += p.vy;
-      if (p.y >= 168 && p.vy > 0 && p.x > 34 && p.x < 162) { if (pile.length < 90) pile.push([p.x | 0, 161 + (Math.random() * 9 | 0)]); return false; }
-      if (p.y > 182) return false;
+      if (p.y >= 168 + DY && p.vy > 0 && p.x > 34 && p.x < 162) { if (pile.length < 90) pile.push([p.x | 0, 161 + DY + (Math.random() * 9 | 0)]); return false; }
+      if (p.y > 182 + DY) return false;
       const w = COIN[(p.f++ >> 1) % 6];
       px(p.x + (4 - w) / 2, p.y, w, 4, G2); px(p.x + (4 - w) / 2, p.y, Math.max(1, w - 1), 1, G4);
       return true;
@@ -189,7 +192,7 @@ export function createCabinet(canvas) {
       celebrateUntil = performance.now() + CELEBRATE_MS;
       if (!v.reduceMotion) burst(48, 40, 160, 52, 3);
     },
-    dribble() { if (!v.reduceMotion) burst(5, 80, 120, 158, 2.2); },
+    dribble() { if (!v.reduceMotion) burst(5, 80, 120, 158 + DY, 2.2); },
     pressIdea() { pressUntil = performance.now() + PRESS_MS; },
     celebrating() { return performance.now() < celebrateUntil; },
   };

@@ -1,6 +1,9 @@
 // リール窓の横配置（論理座標）。領域 x=33〜167、間隔7、全体を中央寄せ
 const LEFT = 33, WIDTH = 134, GAP = 7;
 
+// 縦の配置（論理座標）。モニターは窓の上、窓は筐体の絵と重ね物で共通
+export const MONITOR_Y = 62, MONITOR_H = 8, REEL_Y = 79, REEL_H = 48;
+
 export function reelRects(n) {
   const w = Math.floor((WIDTH - GAP * (n - 1)) / n);
   const x0 = LEFT + Math.floor((WIDTH - (w * n + GAP * (n - 1))) / 2);

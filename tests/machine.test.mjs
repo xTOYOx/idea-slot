@@ -73,6 +73,11 @@ test('restore grows with any-type slots', () => {
   const out = M.restore([R('x')], ['p', 'q', 'r']);
   assert.deepEqual(out.map(r => [r.type, r.value]), [['a', 'p'], ['any', 'q'], ['any', 'r']]);
 });
+test('restore keeps theme fields on the reel', () => {
+  const out = M.restore([{ type: 'theme:宇宙', base: 'noun', value: 'x', held: false, target: 'y', stoppedAt: 5 }], ['p']);
+  assert.deepEqual([out[0].type, out[0].base, out[0].value], ['theme:宇宙', 'noun', 'p']);
+  assert.deepEqual([out[0].target, out[0].stoppedAt], [undefined, undefined]);
+});
 test('pure: inputs not mutated', () => {
   const inp = [R('x'), R('y')]; const copy = structuredClone(inp);
   M.startSpin(inp, pools); M.pressReel(inp, 0, 0); M.restore(inp, ['a']);

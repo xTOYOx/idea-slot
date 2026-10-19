@@ -101,3 +101,11 @@ test('custom: load drops non-string-array keys; import rejects them', () => {
   assert.equal(s.importJSON(JSON.stringify(bad)).ok, false);
   assert.deepEqual(s.state.custom, {});
 });
+test('slot theme survives load and export/import', () => {
+  const st = mem({ 'slot.settings': JSON.stringify({ count: 1, slots: [{ type: 'any', theme: '宇宙' }], autoStop: false, sound: true, reduceMotion: false }) });
+  const s = createStore(st);
+  assert.deepEqual(s.state.settings.slots, [{ type: 'any', theme: '宇宙' }]);
+  const b = createStore(mem());
+  assert.deepEqual(b.importJSON(s.exportJSON()), { ok: true });
+  assert.deepEqual(b.state.settings.slots, [{ type: 'any', theme: '宇宙' }]);
+});
