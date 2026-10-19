@@ -8,10 +8,10 @@ test('wordCount: base + custom (deduplicated) minus excluded', () => {
   assert.equal(wordCount(['犬'], undefined, undefined), 1);
 });
 
-test('wordRows: added first, then base, then excluded; kinds marked', () => {
+test('wordRows: added first, then base; excluded words stay in place as "off"', () => {
   const r = wordRows({ base: ['犬', '猫', '鳥'], custom: ['カワウソ'], excluded: ['猫'] });
   assert.deepEqual(r.rows, [
-    { w: 'カワウソ', kind: 'added' }, { w: '犬', kind: 'base' }, { w: '鳥', kind: 'base' }, { w: '猫', kind: 'off' },
+    { w: 'カワウソ', kind: 'added' }, { w: '犬', kind: 'base' }, { w: '猫', kind: 'off' }, { w: '鳥', kind: 'base' },
   ]);
   assert.equal(r.total, 4);
   assert.equal(r.more, 0);
@@ -19,7 +19,7 @@ test('wordRows: added first, then base, then excluded; kinds marked', () => {
 
 test('wordRows: a custom word already in base is just a base word; excluded custom words are "off"', () => {
   const r = wordRows({ base: ['犬'], custom: ['犬', 'カワウソ', 'ビーバー'], excluded: ['ビーバー'] });
-  assert.deepEqual(r.rows, [{ w: 'カワウソ', kind: 'added' }, { w: '犬', kind: 'base' }, { w: 'ビーバー', kind: 'off' }]);
+  assert.deepEqual(r.rows, [{ w: 'カワウソ', kind: 'added' }, { w: 'ビーバー', kind: 'off' }, { w: '犬', kind: 'base' }]);
 });
 
 test('wordRows: excluded words that are not in this type are not listed; duplicates collapse', () => {
@@ -43,7 +43,7 @@ test('wordRows: q applies to every group', () => {
 test('wordRows: limit cuts the rows (in group order) and more counts the rest', () => {
   const base = Array.from({ length: 10 }, (_, i) => `w${i}`);
   const r = wordRows({ base, custom: ['x'], excluded: ['w0'], limit: 4 });
-  assert.deepEqual(r.rows.map(x => x.w), ['x', 'w1', 'w2', 'w3']);
+  assert.deepEqual(r.rows.map(x => x.w), ['x', 'w0', 'w1', 'w2']);
   assert.equal(r.total, 11);
   assert.equal(r.more, 7);
   assert.equal(wordRows({ base, limit: 100 }).more, 0);

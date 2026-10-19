@@ -42,7 +42,7 @@ export function initThemeScreen({ store, data, isSpinning, changed }) {
   }
   function row({ w, kind }) {
     const W = esc(w), b = (act, text, aria) => `<button data-act="${act}" data-w="${W}" aria-label="「${W}」${aria}">${text}</button>`;
-    if (kind === 'off') return `<li class="off"><span>${W}</span>${b('unex', '戻す', 'を戻す')}</li>`;
+    if (kind === 'off') return `<li class="off"><span>${W}</span>${b('unex', '追加', 'を戻す（除外を外す）')}</li>`;
     if (view.v === 'my') return `<li><span>${W}</span>${b('rmw', '×', 'を外す')}</li>`;
     if (kind === 'added') return `<li><i class="mk">追加</i><span>${W}</span>${b('rmc', '×', 'を消す')}</li>`;
     return `<li><span>${W}</span>${b('ex', '除外', 'を除外')}</li>`;
