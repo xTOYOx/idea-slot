@@ -33,3 +33,11 @@ test('game titles are indexed with the game label', () => {
   const ix = buildIndex({ ...pools, game: ['テトリス'] }, { ...labels, game: 'ゲーム' });
   assert.deepEqual(ix.find(x => x.w === 'テトリス'), { w: 'テトリス', label: 'ゲーム' });
 });
+test('theme-collection words are indexed with their theme label, after games and before tags', () => {
+  const ix = buildIndex({ ...pools, game: ['テトリス'], 'extra:ono': ['ぷるぷる'], 'extra:net': ['ネコ', 'エモい'] }, { ...labels, game: 'ゲーム', 'extra:ono': 'オノマトペ', 'extra:net': 'ネット・現代語' });
+  assert.deepEqual(ix.find(x => x.w === 'ぷるぷる'), { w: 'ぷるぷる', label: 'オノマトペ' });
+  assert.equal(ix.find(x => x.w === 'ネコ').label, '動物'); // 辞書の語が先
+  assert.ok(ix.findIndex(x => x.w === 'ぷるぷる') > ix.findIndex(x => x.w === 'テトリス'));
+  assert.ok(ix.findIndex(x => x.w === 'ぷるぷる') < ix.findIndex(x => x.w === '8ビット'));
+  assert.equal(ix.some(x => x.label === 'テーマ集（全部）'), false);
+});
