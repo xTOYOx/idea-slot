@@ -120,10 +120,11 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 #themes .more { display: block; width: 100%; margin: 6px 0; }
 
 /* ⏸ ポーズボタン（画面の左上の角） */
-#pbtn { position: fixed; left: 6px; top: 6px; z-index: 6; width: 44px; height: 44px; padding: 0; display: flex; gap: 6px; align-items: center; justify-content: center; background: #6a2fb0; border: 3px solid #000; box-shadow: inset 0 0 0 2px #fff, 3px 3px 0 #000; cursor: pointer; }
+#pbtn, #hbtn { position: fixed; left: 6px; top: 6px; z-index: 6; width: 44px; height: 44px; padding: 0; display: flex; gap: 6px; align-items: center; justify-content: center; background: #6a2fb0; border: 3px solid #000; box-shadow: inset 0 0 0 2px #fff, 3px 3px 0 #000; cursor: pointer; }
 #pbtn i { width: 6px; height: 18px; background: #fff; }
-#pbtn:active { transform: translate(2px, 2px); box-shadow: inset 0 0 0 2px #fff, 1px 1px 0 #000; }
-#pbtn:focus-visible, .dtab:focus-visible, #spin:focus-visible { outline: 2px solid #3ef0ff; outline-offset: 2px; }
+#hbtn { left: 56px; font-size: 24px; line-height: 1; color: #fff; }
+#pbtn:active, #hbtn:active { transform: translate(2px, 2px); box-shadow: inset 0 0 0 2px #fff, 1px 1px 0 #000; }
+#pbtn:focus-visible, #hbtn:focus-visible, .dtab:focus-visible, #spin:focus-visible { outline: 2px solid #3ef0ff; outline-offset: 2px; }
 
 /* 種類（テーマ）えらびのパネル。チェック式のボタンをグループごとに並べる */
 #types { max-width: 94vw; max-height: 94dvh; }
@@ -141,13 +142,44 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 #types button:focus-visible { outline: 2px solid #3ef0ff; outline-offset: 2px; }
 .tpick { display: block; width: 100%; margin-top: .8em; }
 
-/* ポーズメニュー・語えらび */
+/* ポーズメニュー: 再開、設定（スイッチ）、画面（›）。PC は設定と画面を2列にする */
 #pause { max-width: min(92vw, 340px); }
 #pause h2 { text-align: center; margin-top: 0; }
-#pause .col { display: flex; flex-direction: column; gap: 10px; }
 #pause button { width: 100%; white-space: normal; }
-#pause button[data-p=resume] { background: #ffe066; }
-#pause button[aria-pressed=true] { background: #b8f0c8; }
+#pause .resume { background: #ffe066; font-size: 1.3em; min-height: 2.4em; letter-spacing: .1em; margin-bottom: 4px; }
+#pause h3 { margin: 12px 0 6px; padding-bottom: 4px; border-bottom: 2px dotted #e8b020; }
+.plist { display: flex; flex-direction: column; gap: 10px; }
+.prow { display: flex; align-items: center; justify-content: space-between; gap: .6em; text-align: left; min-height: 48px; }
+.prow .nm { flex: 1; min-width: 0; }
+.prow em { font-style: normal; color: #c8202f; }
+.chev { flex: none; font-weight: 400; font-size: 1.4em; line-height: 1; }
+.pd { margin: 6px 2px 0; font-size: 13px; color: #9fd8b8; }
+/* ドット調のスイッチ: OFF は灰色（つまみが左）、ON は緑（つまみが右） */
+.sw { flex: none; display: flex; align-items: center; gap: .3em; width: 4.6em; height: 2.1em; padding: .2em; border: 2px solid #000; background: #8a8a92; color: #fff; font-size: .8em; }
+.sw::before { content: ''; flex: none; width: 1.5em; height: 100%; background: #fff8ec; border: 2px solid #000; }
+.sw i { flex: 1; font-style: normal; text-align: center; line-height: 1; }
+.sw i::after { content: 'OFF'; }
+[aria-checked=true] > .sw { flex-direction: row-reverse; background: #108a4a; }
+[aria-checked=true] > .sw i::after { content: 'ON'; }
+#pause .prow[data-edit]:disabled { box-shadow: none; transform: none; background: #d8d0bc; }
+#pause .prow:focus-visible, #pause .resume:focus-visible { outline: 2px solid #3ef0ff; outline-offset: 2px; }
+/* テンプレート・キー設定の画面 */
+#templates, #keys { max-width: min(92vw, 560px); }
+#templates .body > :not(h2), #keys .body > :not(h2) { clear: right; } /* 「← もどる」（右上に浮く）の横に回り込まない */
+.cur { margin: 4px 0 8px; color: #9fd8b8; overflow-wrap: anywhere; }
+.tpl li, .krows li { padding: 8px 10px; background: #083a26; border: 2px solid #1d7a52; }
+.tpl b { display: block; font-weight: 400; color: #ffe066; overflow-wrap: anywhere; }
+.tpl span { display: block; flex: none; margin: 2px 0 4px; }
+.tpl .row { margin: 4px 0 0; }
+.krows li { display: flex; align-items: center; gap: .6em; padding: 4px 10px; }
+.krows span { flex: 1; }
+.krows button { flex: 0 1 12em; white-space: normal; }
+.krows button[aria-pressed=true] { background: #ffe066; }
+/* 使い方 */
+#help { font-size: 15px; line-height: 1.7; }
+#help .thead { margin-bottom: 4px; }
+#help h4 { margin: 12px 0 2px; font-size: 1em; font-weight: 400; color: #ffe066; }
+#help ul { margin: 0; padding-left: 1.4em; }
 #pick h3 { text-align: center; margin: 0 0 8px; }
 #pick input { width: 100%; }
 
@@ -158,9 +190,9 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 .drawer.open { transform: none; }
 .reduce-motion .drawer { transition: none; }
 .dbody { height: 100%; overflow-y: auto; background: #0f5a3a; border: 4px solid #e8b020; box-shadow: 0 0 0 4px #000; padding: 10px 12px; }
-.l .dhead { margin-left: 44px; } /* ⏸ の下に隠れないように */
-.dhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.dhead h3 { margin: 0; font-size: 15px; color: #ffe066; font-weight: 400; }
+.l .dhead { margin-left: 100px; } /* ⏸ と ？ の下に隠れないように */
+.dhead { flex-wrap: wrap; display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 8px; }
+.dhead h3 { flex: 1 1 auto; margin: 0; font-size: 15px; color: #ffe066; font-weight: 400; }
 .dtab { position: absolute; top: 50%; margin-top: -70px; width: 44px; height: 140px; padding: 0; writing-mode: vertical-rl; letter-spacing: .15em; font-size: 15px; color: #fff; background: #0f5a3a; border: 3px solid #000; box-shadow: inset 0 0 0 2px #e8b020; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .l .dtab { left: 100%; border-left: 0; }
 .r .dtab { right: 100%; border-right: 0; }
@@ -187,8 +219,6 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 .grip.l b { left: calc(100% + 6px); }
 .grip.r b { right: calc(100% + 6px); }
 .grip.on b, .grip:focus-visible b { display: block; }
-#pause button small { display: block; font-size: .7em; }
-#pause button[aria-disabled=true] { cursor: default; box-shadow: none; transform: none; background: #d8d0bc; }
 
 /* PC: ページはスクロールさせず、筐体は画面に収まる最大の大きさで中央に置く */
 @media (min-width: 600px) {
@@ -204,10 +234,13 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   dialog h2 { font-size: 1.2em; }
   dialog h3 { font-size: 1em; }
   dialog input[type=text], dialog input:not([type]), dialog select, dialog textarea { font-size: var(--fs); min-height: max(40px, 2.4em); padding: .3em .4em; }
-  #pause { max-width: min(640px, 90vw); max-height: 94dvh; }
+  #pause { max-width: min(calc(var(--fs) * 32), 92vw); max-height: 94dvh; }
   #pause h2 { font-size: 1.4em; margin-bottom: .5em; }
-  #pause .col { gap: .6em; }
-  #pause button { min-height: 2.6em; }
+  #pause .prow { min-height: 2.6em; }
+  .plist { gap: .6em; }
+  .pd { font-size: .8em; }
+  .pcols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.2em; align-items: start; }
+  #help { font-size: var(--fs); max-width: min(calc(var(--fs) * 36), 92vw); }
   .card { font-size: var(--fs); min-height: max(40px, 2.4em); min-width: 4em; padding: .3em .6em; }
   .card small { font-size: .78em; }
   .hit b { font-size: var(--fs); }
@@ -216,16 +249,21 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   .drawer { width: min(560px, 42vw); }
   .dbody { font-size: var(--fs); padding: .7em .8em; }
   .dhead h3 { font-size: 1.2em; }
-  .l .dhead { margin-left: calc(var(--tab) + 8px); } /* ⏸ の下に隠れないように */
+  .l .dhead { margin-left: calc(var(--tab) * 2 + 24px); } /* ⏸ と ？ の下に隠れないように */
   .dtab { width: var(--tab); height: calc(var(--fs) * 9.4); margin-top: calc(var(--fs) * -4.7); font-size: var(--fs); gap: .5em; }
   .bdg { font-size: .8em; min-width: 1.5em; }
-  #pbtn { width: var(--tab); height: var(--tab); left: 8px; top: 8px; gap: calc(var(--fs) * .4); }
+  #pbtn, #hbtn { width: var(--tab); height: var(--tab); left: 8px; top: 8px; gap: calc(var(--fs) * .4); }
+  #hbtn { left: calc(var(--tab) + 16px); font-size: calc(var(--fs) * 1.5); }
   #pbtn i { width: calc(var(--fs) * .4); height: calc(var(--fs) * 1.2); }
   /* 種類えらびのパネル: 文字は基準サイズ、列は幅に合わせて増える */
   #types { max-width: min(calc(var(--fs) * 58), 94vw); }
   #types button { font-size: var(--fs); }
   .tg { grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); }
   #themes { max-width: min(calc(var(--fs) * 58), 94vw); max-height: 94dvh; }
+  #templates { max-width: min(calc(var(--fs) * 34), 94vw); max-height: 94dvh; }
+  #keys { max-width: min(calc(var(--fs) * 42), 94vw); max-height: 94dvh; }
+  .krows { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; }
+  .krows button { flex-basis: 7.5em; }
   .wg { grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); }
   .wg button { min-height: max(36px, 2em); }
 }
@@ -236,5 +274,6 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   .drawer.l, .drawer.r { left: 0; right: 0; transform: translateY(100%); }
   .drawer.open { transform: none; }
   .dbody { border-width: 0; box-shadow: none; }
-  .r .dhead { margin-left: 44px; }
+  .r .dhead { margin-left: 100px; }
+  [data-wide] { display: none !important; } /* 横幅の自動調整・キー設定（PC のみ） */
 }

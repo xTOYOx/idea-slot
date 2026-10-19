@@ -9,13 +9,14 @@
 <body>
 <h1 class="sr">アイデアスロット</h1>
 <button id="pbtn" aria-label="ポーズメニュー"><i></i><i></i></button>
+<button id="hbtn" aria-label="使い方">？</button>
 <main id="app">
   <div id="wrap"><canvas id="cv" width="200" height="190"></canvas><div id="ov"></div><div class="grip l" role="slider" tabindex="0" aria-label="筐体の横幅" aria-orientation="horizontal" aria-valuemin="200" aria-valuemax="340" aria-valuenow="200"><b></b></div><div class="grip r" role="slider" tabindex="0" aria-label="筐体の横幅" aria-orientation="horizontal" aria-valuemin="200" aria-valuemax="340" aria-valuenow="200"><b></b></div></div>
   <button id="spin">SPIN</button>
 </main>
 <aside class="drawer l" id="d-hist" data-d="hist">
   <button class="dtab" aria-expanded="false" aria-controls="d-hist-body">履歴<b class="bdg"></b></button>
-  <div class="dbody" id="d-hist-body" inert><div class="dhead"><h3>♥ 履歴 ♥</h3><button class="sbtn" data-dclose>閉じる</button></div><ol id="hist"></ol></div>
+  <div class="dbody" id="d-hist-body" inert><div class="dhead"><h3>♥ 履歴 ♥</h3><button class="sbtn" id="hclear" disabled>全部消す</button><button class="sbtn" data-dclose>閉じる</button></div><ol id="hist"></ol></div>
 </aside>
 <aside class="drawer r" id="d-hits" data-d="hits">
   <button class="dtab" aria-expanded="false" aria-controls="d-hits-body">当たり帳<b class="bdg"></b></button>
@@ -23,17 +24,47 @@
 </aside>
 <dialog id="pause" aria-label="ポーズメニュー">
   <h2>ポーズ</h2>
-  <div class="col">
-    <button data-p="resume">再開</button>
-    <button data-p="auto"></button>
-    <button data-p="snd"></button>
-    <button data-p="rm"></button>
-    <button data-p="cabw"></button>
-    <button data-edit data-open="themes">テーマ…</button>
-    <button data-edit data-open="settings">書き出し・読み込み…</button>
-    <button data-p="hits">当たり帳<span></span></button>
-    <button data-p="hist">履歴<span></span></button>
+  <button class="resume" data-p="resume">▶ 再開</button>
+  <div class="pcols">
+    <section>
+      <h3>設定</h3>
+      <div class="plist">
+        <button class="prow" role="switch" aria-checked="false" data-p="auto"><span class="nm">自動STOP</span><span class="sw" aria-hidden="true"><i></i></span></button>
+        <button class="prow" role="switch" aria-checked="false" data-p="snd"><span class="nm">音</span><span class="sw" aria-hidden="true"><i></i></span></button>
+        <button class="prow" role="switch" aria-checked="false" data-p="rm"><span class="nm">演出を減らす</span><span class="sw" aria-hidden="true"><i></i></span></button>
+        <div class="pw" data-wide>
+          <button class="prow" role="switch" aria-checked="true" aria-describedby="cabw-d" data-p="cabw"><span class="nm">横幅の自動調整</span><span class="sw" aria-hidden="true"><i></i></span></button>
+          <p class="pd" id="cabw-d"></p>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h3>画面</h3>
+      <div class="plist">
+        <button class="prow" data-p="hits"><span class="nm">当たり帳<em></em></span><b class="chev" aria-hidden="true">›</b></button>
+        <button class="prow" data-p="hist"><span class="nm">履歴<em></em></span><b class="chev" aria-hidden="true">›</b></button>
+        <button class="prow" data-edit data-open="themes"><span class="nm">テーマ</span><b class="chev" aria-hidden="true">›</b></button>
+        <button class="prow" data-edit data-open="templates"><span class="nm">テンプレート</span><b class="chev" aria-hidden="true">›</b></button>
+        <button class="prow" data-wide data-open="keys"><span class="nm">キー設定</span><b class="chev" aria-hidden="true">›</b></button>
+        <button class="prow" data-edit data-open="settings"><span class="nm">書き出し・読み込み</span><b class="chev" aria-hidden="true">›</b></button>
+      </div>
+    </section>
   </div>
+</dialog>
+<dialog id="help" aria-labelledby="help-t">
+  <div class="thead"><h3 id="help-t">使い方</h3><button data-close>閉じる</button></div>
+  <h4>あそび方</h4>
+  <ul><li>レバー（またはスペース）で回す</li><li>STOP で止める</li><li>止まった語は LOCK できる</li><li>いいアイデアなら IDEA! で当たり帳へ</li></ul>
+  <h4>リール</h4>
+  <ul><li>＋－で 2〜4本</li><li>上の緑のモニターを押すとテーマを選べる（複数選択）</li><li>窓の語を押すとコピー</li></ul>
+  <h4>テーマ</h4>
+  <ul><li>ポーズ→テーマで中身を見る・追加・除外</li></ul>
+  <h4>横幅</h4>
+  <ul><li>左右の端のつまみをドラッグ（PC）</li></ul>
+  <h4>当たり帳・履歴</h4>
+  <ul><li>左右の端のタブ</li></ul>
+  <h4>キー操作（PC）</h4>
+  <ul id="help-keys"></ul>
 </dialog>
 <dialog id="types"><div class="thead"><h3>1番リールのテーマ<small></small></h3><button data-close>閉じる</button></div>
   <div class="tbody"></div>
@@ -45,6 +76,8 @@
   <div id="cards"></div>
 </dialog>
 <dialog id="themes"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
+<dialog id="templates"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
+<dialog id="keys"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
 <dialog id="settings"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
 <script type="module" src="src/app.js"></script>
 </body>

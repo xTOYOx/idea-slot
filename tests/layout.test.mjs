@@ -42,8 +42,8 @@ test('cabinetWidth: ratio of usable area x 190, clamped 200..340, phones fixed a
   assert.equal(cabinetWidth(800, 1000, 44), 200);
   assert.equal(cabinetWidth(1280, 800, 60), 279); // wider tabs leave less room
 });
-test('fitWidth: biggest W that fits the usable area (floored, at least 200)', () => {
-  assert.equal(fitWidth(1280, 800, 44), 286); // 1160 / 768 x 190 = 286.97
+test('fitWidth: biggest W that fits the usable area (rounded like cabinetWidth, so auto never exceeds it; at least 200)', () => {
+  assert.equal(fitWidth(1280, 800, 44), 287); // 1160 / 768 x 190 = 286.97
   assert.equal(fitWidth(1920, 1080, 44), 326);
   assert.equal(fitWidth(2560, 1080, 44), 442); // may exceed 340
   assert.equal(fitWidth(800, 1000, 44), 200);
@@ -53,7 +53,7 @@ test('effectiveWidth: auto keeps cabinetWidth, manual is used as is within 200..
   for (const [vw, vh, tab] of [[1280, 800, 44], [2560, 1080, 44], [900, 700, 44], [375, 812, 0]]) assert.equal(effectiveWidth(vw, vh, tab, null), cabinetWidth(vw, vh, tab));
   assert.equal(effectiveWidth(1280, 800, 44, 250), 250);
   assert.equal(effectiveWidth(2560, 1080, 44, 400), 400); // manual may pass 340
-  assert.equal(effectiveWidth(1280, 800, 44, 400), 286); // cut to what fits
+  assert.equal(effectiveWidth(1280, 800, 44, 400), 287); // cut to what fits
   assert.equal(effectiveWidth(1280, 800, 44, 150), 200);
   assert.equal(effectiveWidth(375, 812, 0, 300), 200);
   assert.equal(effectiveWidth(599, 300, 44, 300), 200);

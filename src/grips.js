@@ -40,6 +40,7 @@ export function initGrips(wrap, { size, range, toW, live, commit, reset }) {
       else if (e.key === 'Home') reset();
       else return;
       e.preventDefault();
+      e.stopPropagation(); // ↑↓ はリールの増減のキーでもあるので、つまみの操作だけにする
     });
   }
 
