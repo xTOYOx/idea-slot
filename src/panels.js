@@ -51,7 +51,13 @@ export function initPanels({ pauseAction, open }) {
   }
   // 外側をクリックしたら閉じる（引き出しの中とダイアログの中は除く）
   // composedPath: 中のボタンが描き直しで外れたあとでも、元の親をたどれる
-  document.addEventListener('click', e => { if (!e.composedPath().some(n => n.matches?.('.drawer, dialog'))) panels.closeAll(); });
+  // テンプレの引き出しは、筐体（#wrap）を操作しても閉じない（リールやテーマを変えながら構成を保存できるように）
+  document.addEventListener('click', e => {
+    const path = e.composedPath();
+    if (path.some(n => n.matches?.('.drawer, dialog'))) return;
+    const keepTpl = path.some(n => n.id === 'wrap');
+    [...order].forEach(n => { if (!(keepTpl && n === 'tpl')) setDrawer(n, false); });
+  });
 
   document.getElementById('pbtn').addEventListener('click', e => { if (e.detail > 0) e.currentTarget.blur(); panels.openPause(); });
   pause.addEventListener('click', e => {
