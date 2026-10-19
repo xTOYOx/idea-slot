@@ -67,10 +67,10 @@ test('countSpin persists', () => {
   s.countSpin(); s.countSpin();
   assert.deepEqual(JSON.parse(st.m['slot.stats']), { spins: 2 });
 });
-test('export is version 2 and includes stats', () => {
+test('export is version 3 and includes stats', () => {
   const s = createStore(mem()); s.countSpin();
   const d = JSON.parse(s.exportJSON());
-  assert.equal(d.version, 2);
+  assert.equal(d.version, 3);
   assert.deepEqual(d.stats, { spins: 1 });
 });
 test('version 1 export imports (no stats, animate)', () => {
@@ -108,4 +108,37 @@ test('slot theme survives load and export/import', () => {
   const b = createStore(mem());
   assert.deepEqual(b.importJSON(s.exportJSON()), { ok: true });
   assert.deepEqual(b.state.settings.slots, [{ type: 'any', theme: '宇宙' }]);
+});
+test('themes default to []; load drops bad and duplicate entries', () => {
+  assert.deepEqual(createStore(mem()).state.themes, []);
+  const raw = [{ name: '海', words: ['魚', 1] }, { name: '', words: [] }, { name: '山', words: ['木'] }, { name: '山', words: ['岩'] }, null, { name: '空' }];
+  assert.deepEqual(createStore(mem({ 'slot.themes': JSON.stringify(raw) })).state.themes, [{ name: '山', words: ['木'] }]);
+  assert.deepEqual(createStore(mem({ 'slot.themes': '{"name":"x"}' })).state.themes, []);
+});
+test('themes export → import roundtrip keeps order', () => {
+  const a = createStore(mem());
+  a.state.themes = [{ name: '海', words: ['魚', '波'] }, { name: '山', words: [] }]; a.save('themes');
+  const b = createStore(mem());
+  assert.deepEqual(b.importJSON(a.exportJSON()), { ok: true });
+  assert.deepEqual(b.state.themes, [{ name: '海', words: ['魚', '波'] }, { name: '山', words: [] }]);
+  assert.deepEqual(JSON.parse(a.exportJSON()).themes, b.state.themes);
+});
+test('old files without themes (version 1/2) import as []', () => {
+  const s = createStore(mem()); s.state.themes = [{ name: '海', words: ['魚'] }];
+  const v2 = JSON.parse(createStore(mem()).exportJSON()); delete v2.themes; v2.version = 2;
+  assert.deepEqual(s.importJSON(JSON.stringify(v2)), { ok: true });
+  assert.deepEqual(s.state.themes, []);
+});
+test('import with malformed or duplicate themes → error, state unchanged', () => {
+  const s = createStore(mem()); s.state.themes = [{ name: '海', words: ['魚'] }]; s.state.excluded = ['猫'];
+  for (const bad of [{ name: '', words: [] }, { name: 'a', words: [1] }, { name: 'a' }, 'x']) {
+    const d = JSON.parse(s.exportJSON()); d.themes = [bad]; d.excluded = ['犬'];
+    assert.equal(s.importJSON(JSON.stringify(d)).ok, false);
+  }
+  const dup = JSON.parse(s.exportJSON()); dup.themes = [{ name: 'a', words: [] }, { name: 'a', words: [] }]; dup.excluded = ['犬'];
+  assert.equal(s.importJSON(JSON.stringify(dup)).ok, false);
+  const nonArr = JSON.parse(s.exportJSON()); nonArr.themes = {}; nonArr.excluded = ['犬'];
+  assert.equal(s.importJSON(JSON.stringify(nonArr)).ok, false);
+  assert.deepEqual(s.state.themes, [{ name: '海', words: ['魚'] }]);
+  assert.deepEqual(s.state.excluded, ['猫']);
 });

@@ -4,7 +4,8 @@ import { TYPE_KEYS } from './types.js';
 const keysOf = prefix => TYPE_KEYS.filter(k => k.startsWith(prefix));
 const INDEX_KEYS = [...keysOf('noun:'), 'verb', 'genre', ...keysOf('tag:')];
 
-export function buildIndex(pools, labels) {
+// extra: 辞書の語のあとに足す [{w, label}]（自作テーマの語など）。重複は先のものを優先
+export function buildIndex(pools, labels, extra = []) {
   const seen = new Set();
   const out = [];
   for (const key of INDEX_KEYS) {
@@ -13,6 +14,11 @@ export function buildIndex(pools, labels) {
       seen.add(w);
       out.push({ w, label: labels[key] });
     }
+  }
+  for (const x of extra) {
+    if (seen.has(x.w)) continue;
+    seen.add(x.w);
+    out.push(x);
   }
   return out;
 }

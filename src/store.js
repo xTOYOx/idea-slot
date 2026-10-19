@@ -1,5 +1,5 @@
 // localStorage persistence (DOM-free). `storage` has getItem/setItem, or is null for memory-only.
-const KEYS = ['settings', 'history', 'favorites', 'custom', 'excluded', 'stats'];
+const KEYS = ['settings', 'history', 'favorites', 'custom', 'excluded', 'stats', 'themes'];
 const HISTORY_MAX = 100;
 
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -12,6 +12,7 @@ const defaults = () => ({
   custom: {},
   excluded: [],
   stats: { spins: 0 },
+  themes: [],
 });
 
 // Settings: current shape passes through; v1 (`animate` only) migrates to `reduceMotion = !animate`.
@@ -33,6 +34,7 @@ const isStrs = v => isArr(v) && v.every(s => typeof s === 'string');
 const fav = f => (isObj(f) && isStrs(f.combo)
   ? { combo: f.combo, memo: typeof f.memo === 'string' ? f.memo : '', savedAt: typeof f.savedAt === 'number' ? f.savedAt : 0 }
   : null);
+const theme = t => (isObj(t) && typeof t.name === 'string' && t.name !== '' && isStrs(t.words) ? { name: t.name, words: t.words } : null);
 // `strict` (import): one bad entry rejects the whole value. Otherwise (load) bad entries are dropped.
 const normalize = {
   settings: normalizeSettings,
@@ -48,6 +50,13 @@ const normalize = {
     return strict && !entries.every(([, w]) => isStrs(w)) ? null : Object.fromEntries(entries.filter(([, w]) => isStrs(w)));
   },
   excluded: keep(isArr),
+  // 自作テーマ。名前は一覧の中で重複しない。読み込みでは不正・重複を落とし、インポートでは拒否する
+  themes: (v, strict) => {
+    if (!isArr(v)) return null;
+    const list = v.map(theme), names = new Set(), ok = [];
+    for (const t of list) if (t && !names.has(t.name)) { names.add(t.name); ok.push(t); }
+    return strict && ok.length !== v.length ? null : ok;
+  },
   stats: keep(v => isObj(v) && Number.isInteger(v.spins) && v.spins >= 0),
 };
 
@@ -76,15 +85,15 @@ export function createStore(storage) {
       state.stats.spins++;
       save('stats');
     },
-    exportJSON: () => JSON.stringify({ app: 'idea-slot', version: 2, ...state }),
+    exportJSON: () => JSON.stringify({ app: 'idea-slot', version: 3, ...state }),
     importJSON(text) {
       let data;
       try { data = JSON.parse(text); } catch { return { ok: false, error: 'JSONとして読めません' }; }
       if (!isObj(data) || data.app !== 'idea-slot') return { ok: false, error: 'アイデアスロットのファイルではありません' };
       const next = {};
       for (const key of KEYS) {
-        // v1 files have no stats: fall back to the initial value.
-        next[key] = key === 'stats' && data.stats === undefined ? defaults().stats : normalize[key](data[key], true);
+        // Older files lack stats (v1) or themes (v1/v2): fall back to the initial value.
+        next[key] = (key === 'stats' || key === 'themes') && data[key] === undefined ? defaults()[key] : normalize[key](data[key], true);
         if (next[key] === null) return { ok: false, error: `${key} の形が正しくありません` };
       }
       for (const key of KEYS) { state[key] = next[key]; save(key); }
