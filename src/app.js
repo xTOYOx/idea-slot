@@ -1,4 +1,4 @@
-import { TYPE_LABELS, TYPE_KEYS } from './types.js';
+import { TYPE_LABELS, TYPE_KEYS, MY, typeGroups } from './types.js';
 import { buildPools } from './pools.js';
 import { spin, rerollOne, setSlotType, resizeSlots, pickWord } from './pick.js';
 import { parseType, toggleType, normalizeType, remapType } from './typekey.js';
@@ -14,6 +14,7 @@ import { initScreens } from './screens.js';
 import { initThemeScreen } from './themescreen.js';
 import { effectiveWidth, fitWidth, widthAt, W_MIN } from './layout.js';
 import { initGrips } from './grips.js';
+import { initTypePanel } from './typepanel.js';
 
 // 保存済みの WordNet テーマ（設定の slots[].theme）を読み込むかのスイッチ。false の間は読み込まない（保存データからは消さない）
 const THEMES_ON = false;
@@ -40,7 +41,6 @@ let tickTimer = null, beat = 0, autoTimers = [], editing = -1;
 const neigh = []; // 止まっている枠の上下の語（止まったときに決め、LOCKしても変えない）
 
 const themeOf = r => (r.type.startsWith('theme:') ? r.type.slice(6) : null);
-const MY = 'my:'; // 自作テーマの種類キーの頭（my:<名前>）
 const typeLabel = t => (t.startsWith(MY) ? '★' + t.slice(MY.length) : TYPE_LABELS[t]);
 const typeText = type => parseType(type).map(typeLabel).join('＋'); // 掲示板用（完全な名前）
 // モニターの札: 1つなら今まで通り（タグ：は省く）、複数なら短くして「＋」でつなぐ。自作テーマを含むと金色
@@ -126,7 +126,7 @@ function pauseAction(k) {
   sync();
 }
 
-const panels = initPanels({ pauseAction, open: pauseLabels });
+const panels = initPanels({ pauseAction, open() { typePanel.close(); pauseLabels(); } });
 
 function setReels(next) {
   reels = next;
@@ -219,7 +219,6 @@ function pull() {
     if (r.reason === 'allLocked') { say('全部LOCK中 ... どれかのLOCKをはずしてね'); sound.play('deny'); }
     return;
   }
-  view.hideMenu();
   reels = r.reels;
   cab.pullLever();
   sound.play('lever');
@@ -342,12 +341,16 @@ function closePick() { if ($('pick').open) $('pick').close(); editing = -1; }
 $('pick').addEventListener('close', () => { editing = -1; });
 $('pick').querySelector('[data-close]').onclick = closePick;
 
-// モニターのリスト: ふつうの種類（TYPE_KEYS の順）→ 区切り → 自作テーマ。いまの種類にチェック
-function showTypes(i) {
-  const cur = parseType(reels[i].base ?? reels[i].type);
-  const item = (k, text) => ({ k, text, on: cur.includes(k) });
-  view.showTypes(i, [...TYPE_KEYS.map(k => item(k, TYPE_LABELS[k])),
-    ...(state.themes.length ? [{ sep: true }, ...state.themes.map(m => item(MY + m.name, `★${m.name}（${m.words.length}語）`))] : [])]);
+// モニターから開く種類えらびのパネル。いまの種類にチェック
+const curKeys = i => parseType(reels[i].base ?? reels[i].type);
+const markTypes = i => typePanel.mark(curKeys(i), typeText(reels[i].base ?? reels[i].type));
+const typePanel = initTypePanel({
+  toggle(k) { toggleReelType(k, typePanel.index()); },
+  pickWord: openPick,
+  restore: i => view.focusMon(i),
+});
+function openTypes(i) {
+  typePanel.open(i, typeGroups(state.themes), curKeys(i), typeText(reels[i].base ?? reels[i].type));
 }
 
 // 種類を変える。ロック中の枠は種類だけ変える（語とロックは保つ）、ロックなしなら振り直す
@@ -363,12 +366,13 @@ function toggleReelType(k, i) {
   if (!ready || !canEdit(reels) || !reels[i]) return;
   const cur = reels[i].base ?? reels[i].type, next = toggleType(cur, k);
   if (next !== cur) changeType(i, next); else sound.play('deny'); // 最後の1つは外せない
-  showTypes(i);
+  markTypes(i);
 }
 
 function changeCount(d) {
   const from = reels.length, n = from + d;
   if (!ready || !canEdit(reels) || n < 2 || n > 4) return;
+  typePanel.close();
   let next = resizeSlots(reels, n);
   for (let i = from; i < n; i++) next = rerollOne(next, i, pools);
   setReels(next);
@@ -456,8 +460,7 @@ document.addEventListener('keydown', e => {
   if (a?.closest('input, select, textarea, dialog, [contenteditable]')) return;
   if (e.key === 'Escape') { // 開いているものを一番上から1つ閉じる。何も無ければポーズメニュー
     e.preventDefault(); // 開いたばかりのポーズをブラウザの Esc 処理がすぐ閉じないように
-    if (view.menuOpen() !== null) view.hideMenu();
-    else if (!panels.closeTop()) panels.openPause();
+    if (!panels.closeTop()) panels.openPause();
     return;
   }
   if (a?.tagName === 'BUTTON' && (e.code === 'Space' || e.key === 'Enter')) return; // ボタン自身の押下に任せる
@@ -489,10 +492,8 @@ async function start() {
     word: copyWord,
     mon(i) {
       if (!ready || !canEdit(reels) || !reels[i]) return;
-      if (view.menuOpen() === i) view.hideMenu(); else showTypes(i);
+      openTypes(i);
     },
-    type: toggleReelType,
-    pickWord: openPick,
     count: changeCount,
   });
   initThemeScreen({ store, isSpinning: () => isSpinning(reels), changed: themesChanged });
@@ -510,6 +511,7 @@ async function start() {
         fitCabinet(); // 読み込んだ設定の筐体の幅に合わせる
         pauseLabels();
         closePick();
+        typePanel.close();
         setReels(initialReels());
         renderHits();
         renderHistory();
