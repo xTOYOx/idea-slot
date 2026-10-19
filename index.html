@@ -10,7 +10,7 @@
 <h1 class="sr">アイデアスロット</h1>
 <button id="pbtn" aria-label="ポーズメニュー"><i></i><i></i></button>
 <main id="app">
-  <div id="wrap"><canvas id="cv" width="200" height="190"></canvas><div id="ov"></div></div>
+  <div id="wrap"><canvas id="cv" width="200" height="190"></canvas><div id="ov"></div><div class="grip l" role="slider" tabindex="0" aria-label="筐体の横幅" aria-orientation="horizontal" aria-valuemin="200" aria-valuemax="340" aria-valuenow="200"><b></b></div><div class="grip r" role="slider" tabindex="0" aria-label="筐体の横幅" aria-orientation="horizontal" aria-valuemin="200" aria-valuemax="340" aria-valuenow="200"><b></b></div></div>
   <button id="spin">SPIN</button>
 </main>
 <aside class="drawer l" id="d-hist" data-d="hist">
@@ -28,12 +28,17 @@
     <button data-p="auto"></button>
     <button data-p="snd"></button>
     <button data-p="rm"></button>
+    <button data-p="cabw"></button>
     <button data-edit data-open="themes">テーマ…</button>
     <button data-edit data-open="custom">自分の語…</button>
     <button data-edit data-open="settings">書き出し・読み込み…</button>
     <button data-p="hits">当たり帳<span></span></button>
     <button data-p="hist">履歴<span></span></button>
   </div>
+</dialog>
+<dialog id="types"><div class="thead"><h3>1番リールのテーマ<small></small></h3><button data-close>閉じる</button></div>
+  <div class="tbody"></div>
+  <button class="tpick" data-pw>語を検索してえらぶ…</button>
 </dialog>
 <dialog id="pick"><button class="close" data-close aria-label="閉じる">閉じる</button>
   <h3 id="ph">♦ 固定する語をえらぶ ♦</h3>

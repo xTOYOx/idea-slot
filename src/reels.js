@@ -1,12 +1,11 @@
-// 筐体の上に重ねるHTML（モニター・リール窓・STOP/LOCKボタン・IDEA!・掲示板・レバー・種類リスト）。
+// 筐体の上に重ねるHTML（モニター・リール窓・STOP/LOCKボタン・IDEA!・掲示板・レバー）。
 // 座標は論理 W×190（W は 200〜340）から%で配置する。x は左に付く／右に付く（+ W-200）／伸びる／中央（W/2）のどれか（cabinet.js と同じ）。状態は持たず、app.js から言われたとおりに表示を変えるだけ。
 import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H, COUNT_BTN } from './layout.js';
 
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const SLOT = '<div class="e"><span></span></div>';
 
 export function createOverlay(wrap, ov, on) {
-  let W = 200, rects = [], wins = [], btns = [], mons = [], menuEl = null, menuIndex = null, ticker = null, said = '', plus = null, minus = null;
+  let W = 200, rects = [], wins = [], btns = [], mons = [], ticker = null, said = '', plus = null, minus = null;
   const pos = (x, y, w, h) => `left:${x / W * 100}%;top:${y / 1.9}%;width:${w / W * 100}%;height:${h / 1.9}%`;
   const fit = () => wrap.style.setProperty('--u', wrap.clientWidth / W + 'px');
   fit(); // 最初の描画から合わせる（ResizeObserver の通知を待たない）
@@ -36,8 +35,6 @@ export function createOverlay(wrap, ov, on) {
       ticker.textContent = said; // 作り直しても掲示板の文は残す
       plus = ov.querySelector('#rp');
       minus = ov.querySelector('#rn');
-      menuEl = null;
-      menuIndex = null;
     },
     setWords(i, words) {
       wins[i].querySelectorAll('.strip span').forEach((el, k) => { el.textContent = words[k]; });
@@ -77,39 +74,8 @@ export function createOverlay(wrap, ov, on) {
       void ticker.offsetWidth;
       ticker.style.animation = '';
     },
-    // 開いている種類リストのリール番号（無ければ null）
-    menuOpen: () => menuIndex,
-    // 種類のチェック式リスト。items: {k, text, on} か {sep: true}。同じリールで開き直すとスクロールとフォーカスを保つ
-    showTypes(i, items) {
-      const prev = menuIndex === i ? menuEl : null;
-      const scroll = prev?.scrollTop ?? 0, focused = prev?.contains(document.activeElement) ? document.activeElement.dataset.ty : null;
-      openMenu(i, '<button data-pw>語をえらぶ…</button>' + items.map(x => (x.sep ? '<div class="sep"></div>'
-        : `<button role="menuitemcheckbox" aria-checked="${x.on}" data-ty="${esc(x.k)}"><span class="cb${x.on ? ' on' : ''}"></span>${esc(x.text)}</button>`)).join(''));
-      menuEl.scrollTop = scroll;
-      if (focused !== null) [...menuEl.querySelectorAll('[data-ty]')].find(b => b.dataset.ty === focused)?.focus({ preventScroll: true });
-    },
-    hideMenu() {
-      menuEl?.remove();
-      menuEl = null;
-      menuIndex = null;
-    },
+    focusMon: i => ov.querySelector(`[data-mon="${i}"]`)?.focus(),
   };
-
-  // リールの真下に種類のリストを出す（右半分のリールは右に揃える）。画面の下に収まるよう高さを抑える
-  function openMenu(i, html) {
-    view.hideMenu();
-    const r = rects[i], side = r.x + r.w / 2 < W / 2 ? `left:${r.x / W * 100}%` : `right:${(W - r.x - r.w) / W * 100}%`;
-    let y = REEL_Y + REEL_H;
-    menuEl = document.createElement('div');
-    menuEl.className = 'wm';
-    menuEl.innerHTML = html;
-    ov.appendChild(menuEl);
-    const wr = wrap.getBoundingClientRect(), at = yy => wr.top + wr.height * yy / 190;
-    if (innerHeight - at(y) < 300) y = MONITOR_Y + MONITOR_H; // 下に余裕がなければ、モニターの真下から窓に重ねて出す
-    menuEl.style.maxHeight = Math.max(120, innerHeight - at(y) - 8) + 'px'; // どのメニューも画面の下に収め、長ければ中をスクロール
-    menuEl.style.cssText += `;top:${y / 1.9}%;${side};min-width:${r.w / W * 100}%`;
-    menuIndex = i;
-  }
 
   ov.addEventListener('click', (e) => {
     const b = e.target.closest('button');
@@ -119,11 +85,8 @@ export function createOverlay(wrap, ov, on) {
     else if (b.dataset.w !== undefined) on.word(+b.dataset.w);
     else if (b.dataset.mon !== undefined) on.mon(+b.dataset.mon);
     else if (b.dataset.c !== undefined) on.count(+b.dataset.c);
-    else if (b.dataset.ty !== undefined) on.type(b.dataset.ty, menuIndex);
-    else if (b.dataset.pw !== undefined) { const i = menuIndex; view.hideMenu(); on.pickWord(i); }
     else if (b.id === 'idea') on.idea();
     else if (b.id === 'lev') on.lever();
   });
-  document.addEventListener('click', (e) => { if (menuEl && !e.target.closest('.wm, .mb')) view.hideMenu(); });
   return view;
 }

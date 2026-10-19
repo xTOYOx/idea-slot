@@ -15,3 +15,18 @@ export const TYPE_LABELS = {
   ...Object.fromEntries(Object.entries(TAG).map(([k, v]) => [`tag:${k}`, v])),
 };
 export const TYPE_KEYS = Object.keys(TYPE_LABELS);
+
+export const MY = 'my:'; // 自作テーマの種類キーの頭（my:<名前>）
+
+// 種類えらびパネルのグループ。items: {k: 種類キー, text: ボタンの文字}。自作テーマが無ければそのグループは無い
+export function typeGroups(themes) {
+  const text = k => TYPE_LABELS[k].replace(/^タグ：/, '');
+  const of = pick => TYPE_KEYS.filter(pick).map(k => ({ k, text: text(k) }));
+  return [
+    { title: null, items: of(k => k === 'any') },
+    { title: '単語', items: of(k => k.startsWith('noun')) },
+    { title: 'その他の種類', items: of(k => ['verb', 'genre', 'game'].includes(k)) },
+    { title: 'タグ', items: of(k => k.startsWith('tag')) },
+    ...(themes.length ? [{ title: '自分のテーマ', items: themes.map(t => ({ k: MY + t.name, text: `★${t.name}（${t.words.length}語）` })) }] : []),
+  ];
+}

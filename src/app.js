@@ -1,4 +1,4 @@
-import { TYPE_LABELS, TYPE_KEYS } from './types.js';
+import { TYPE_LABELS, TYPE_KEYS, MY, typeGroups } from './types.js';
 import { buildPools } from './pools.js';
 import { spin, rerollOne, setSlotType, resizeSlots, pickWord } from './pick.js';
 import { parseType, toggleType, normalizeType, remapType } from './typekey.js';
@@ -12,7 +12,9 @@ import { createSound } from './sound.js';
 import { createOverlay } from './reels.js';
 import { initScreens } from './screens.js';
 import { initThemeScreen } from './themescreen.js';
-import { cabinetWidth } from './layout.js';
+import { effectiveWidth, fitWidth, widthAt, W_MIN } from './layout.js';
+import { initGrips } from './grips.js';
+import { initTypePanel } from './typepanel.js';
 
 // 保存済みの WordNet テーマ（設定の slots[].theme）を読み込むかのスイッチ。false の間は読み込まない（保存データからは消さない）
 const THEMES_ON = false;
@@ -34,12 +36,11 @@ let themes = Object.create(null); // テーマの語 → 集めた語のリス�
 let ready = false; // 起動の最初の spin が済むまで、回す・IDEA!・リール設定を受け付けない（保存テーマの読み込み待ち）
 let graphP = null; // data/graph.json を読む Promise（最初にテーマを使うときだけ。失敗したら捨てて次回やり直す）
 let reels = [], reelCount = 0, cab = null, view = null;
-let cabW = 200, widthTimer = 0; // 筐体の論理幅（画面の縦横比で決まる。cabinet.js・reels.js・CSS の --W と揃える）
+let cabW = 200, widthTimer = 0, widthFrame = 0, liveW = null; // 筐体の論理幅（自動は画面の縦横比、手動は settings.cabW。cabinet.js・reels.js・CSS の --W と揃える）。liveW: ドラッグ中の仮の幅
 let tickTimer = null, beat = 0, autoTimers = [], editing = -1;
 const neigh = []; // 止まっている枠の上下の語（止まったときに決め、LOCKしても変えない）
 
 const themeOf = r => (r.type.startsWith('theme:') ? r.type.slice(6) : null);
-const MY = 'my:'; // 自作テーマの種類キーの頭（my:<名前>）
 const typeLabel = t => (t.startsWith(MY) ? '★' + t.slice(MY.length) : TYPE_LABELS[t]);
 const typeText = type => parseType(type).map(typeLabel).join('＋'); // 掲示板用（完全な名前）
 // モニターの札: 1つなら今まで通り（タグ：は省く）、複数なら短くして「＋」でつなぐ。自作テーマを含むと金色
@@ -107,6 +108,9 @@ function pauseLabels() {
     b.textContent = `${t}：${on ? '入' : '切'}`;
     b.setAttribute('aria-pressed', String(on));
   });
+  const manual = st.cabW !== null, cw = p.querySelector('[data-p="cabw"]');
+  cw.innerHTML = manual ? `筐体の横幅：手動（${st.cabW}）→ 自動に戻す` : '筐体の横幅：自動<small>左右の端をドラッグで調整</small>';
+  cw.setAttribute('aria-disabled', String(!manual));
   p.querySelector('[data-p="hits"] span').textContent = `（${state.favorites.length}）`;
   p.querySelector('[data-p="hist"] span').textContent = `（${state.history.length}）`;
 }
@@ -116,12 +120,13 @@ function pauseAction(k) {
   if (k === 'auto') st.autoStop = !st.autoStop;
   else if (k === 'snd') st.sound = sound.enabled = !st.sound;
   else if (k === 'rm') st.reduceMotion = !st.reduceMotion;
+  else if (k === 'cabw') { resetWidth(); return; }
   store.save('settings');
   pauseLabels();
   sync();
 }
 
-const panels = initPanels({ pauseAction, open: pauseLabels });
+const panels = initPanels({ pauseAction, open() { typePanel.close(); pauseLabels(); } });
 
 function setReels(next) {
   reels = next;
@@ -136,24 +141,52 @@ function setReels(next) {
   sync();
 }
 
-// --- 筐体の幅（画面に合わせる） ---
-const wantedWidth = () => cabinetWidth(innerWidth, innerHeight, document.querySelector('.dtab').offsetWidth);
+// --- 筐体の幅（自動は画面に合わせる。手動は左右のつまみで決めた値を、画面に収まる範囲で使う） ---
+const tabWidth = () => document.querySelector('.dtab').offsetWidth;
+const wantedWidth = (user = liveW ?? state.settings.cabW) => effectiveWidth(innerWidth, innerHeight, tabWidth(), user);
 function setCabW(w) {
   cabW = w;
   $('wrap').style.setProperty('--W', w); // CSS の筐体の幅（縦横比）と canvas の幅を同じ値にする
 }
-// 画面が変わって幅 W が変わったら、静的レイヤーと重ね物を作り直す。連続リサイズ（回転中など）では止まるまで待つ
+// 幅 W が変わったら、静的レイヤーと重ね物を作り直す。連続リサイズ（回転中など）では止まるまで待つ
 function fitCabinet() {
   widthTimer = 0;
   const w = wantedWidth();
-  if (!view || w === cabW) return;
-  setCabW(w);
-  cab.setReels(reelCount, w);
-  view.build(reelCount, w);
-  reels.forEach((_, i) => paint(i));
-  sync();
+  if (view && w !== cabW) {
+    setCabW(w);
+    cab.setReels(reelCount, w);
+    view.build(reelCount, w);
+    reels.forEach((_, i) => paint(i));
+    sync();
+  }
+  refreshGrips(liveW !== null || state.settings.cabW !== null);
 }
 addEventListener('resize', () => { clearTimeout(widthTimer); widthTimer = setTimeout(fitCabinet, 200); });
+
+// つまみ。ドラッグ中の作り直しは1フレームに1度まで
+const refreshGrips = initGrips($('wrap'), {
+  size: () => cabW,
+  range: () => [W_MIN, fitWidth(innerWidth, innerHeight, tabWidth())],
+  toW: px => widthAt(px, innerHeight),
+  live(w) {
+    liveW = w;
+    widthFrame ||= requestAnimationFrame(() => { widthFrame = 0; fitCabinet(); });
+  },
+  commit(w) { setManualWidth(w); },
+  reset: resetWidth,
+});
+function setManualWidth(w) {
+  liveW = null;
+  state.settings.cabW = w;
+  store.save('settings');
+  fitCabinet();
+  pauseLabels();
+}
+function resetWidth() {
+  if (state.settings.cabW === null) return;
+  setManualWidth(null);
+  say('横幅を自動に戻しました');
+}
 
 // --- 回す・止める・ロック ---
 function finish() {
@@ -186,7 +219,6 @@ function pull() {
     if (r.reason === 'allLocked') { say('全部LOCK中 ... どれかのLOCKをはずしてね'); sound.play('deny'); }
     return;
   }
-  view.hideMenu();
   reels = r.reels;
   cab.pullLever();
   sound.play('lever');
@@ -309,12 +341,16 @@ function closePick() { if ($('pick').open) $('pick').close(); editing = -1; }
 $('pick').addEventListener('close', () => { editing = -1; });
 $('pick').querySelector('[data-close]').onclick = closePick;
 
-// モニターのリスト: ふつうの種類（TYPE_KEYS の順）→ 区切り → 自作テーマ。いまの種類にチェック
-function showTypes(i) {
-  const cur = parseType(reels[i].base ?? reels[i].type);
-  const item = (k, text) => ({ k, text, on: cur.includes(k) });
-  view.showTypes(i, [...TYPE_KEYS.map(k => item(k, TYPE_LABELS[k])),
-    ...(state.themes.length ? [{ sep: true }, ...state.themes.map(m => item(MY + m.name, `★${m.name}（${m.words.length}語）`))] : [])]);
+// モニターから開く種類えらびのパネル。いまの種類にチェック
+const curKeys = i => parseType(reels[i].base ?? reels[i].type);
+const markTypes = i => typePanel.mark(curKeys(i), typeText(reels[i].base ?? reels[i].type));
+const typePanel = initTypePanel({
+  toggle(k) { toggleReelType(k, typePanel.index()); },
+  pickWord: openPick,
+  restore: i => view.focusMon(i),
+});
+function openTypes(i) {
+  typePanel.open(i, typeGroups(state.themes), curKeys(i), typeText(reels[i].base ?? reels[i].type));
 }
 
 // 種類を変える。ロック中の枠は種類だけ変える（語とロックは保つ）、ロックなしなら振り直す
@@ -330,12 +366,13 @@ function toggleReelType(k, i) {
   if (!ready || !canEdit(reels) || !reels[i]) return;
   const cur = reels[i].base ?? reels[i].type, next = toggleType(cur, k);
   if (next !== cur) changeType(i, next); else sound.play('deny'); // 最後の1つは外せない
-  showTypes(i);
+  markTypes(i);
 }
 
 function changeCount(d) {
   const from = reels.length, n = from + d;
   if (!ready || !canEdit(reels) || n < 2 || n > 4) return;
+  typePanel.close();
   let next = resizeSlots(reels, n);
   for (let i = from; i < n; i++) next = rerollOne(next, i, pools);
   setReels(next);
@@ -423,8 +460,7 @@ document.addEventListener('keydown', e => {
   if (a?.closest('input, select, textarea, dialog, [contenteditable]')) return;
   if (e.key === 'Escape') { // 開いているものを一番上から1つ閉じる。何も無ければポーズメニュー
     e.preventDefault(); // 開いたばかりのポーズをブラウザの Esc 処理がすぐ閉じないように
-    if (view.menuOpen() !== null) view.hideMenu();
-    else if (!panels.closeTop()) panels.openPause();
+    if (!panels.closeTop()) panels.openPause();
     return;
   }
   if (a?.tagName === 'BUTTON' && (e.code === 'Space' || e.key === 'Enter')) return; // ボタン自身の押下に任せる
@@ -456,10 +492,8 @@ async function start() {
     word: copyWord,
     mon(i) {
       if (!ready || !canEdit(reels) || !reels[i]) return;
-      if (view.menuOpen() === i) view.hideMenu(); else showTypes(i);
+      openTypes(i);
     },
-    type: toggleReelType,
-    pickWord: openPick,
     count: changeCount,
   });
   initThemeScreen({ store, isSpinning: () => isSpinning(reels), changed: themesChanged });
@@ -474,8 +508,10 @@ async function start() {
         autoTimers = [];
         rebuildPools();
         sound.enabled = state.settings.sound;
+        fitCabinet(); // 読み込んだ設定の筐体の幅に合わせる
         pauseLabels();
         closePick();
+        typePanel.close();
         setReels(initialReels());
         renderHits();
         renderHistory();
@@ -490,6 +526,7 @@ async function start() {
   setCabW(wantedWidth());
   cab.setReels(reelCount, cabW);
   view.build(reelCount, cabW); // 空の筐体を先に出す（掲示板もここで使えるようになる）
+  refreshGrips(state.settings.cabW !== null);
   if (savedThemes().length) say('テーマを準備中…');
   const themesOk = await prepareThemes();
   rebuildPools();

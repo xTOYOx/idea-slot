@@ -29,3 +29,20 @@ export function cabinetWidth(vw, vh, tab) {
   if (!(aw > 0 && ah > 0)) return W_MIN;
   return Math.min(W_MAX, Math.max(W_MIN, Math.round(aw / ah * 190)));
 }
+
+// 画面に収まる最大の W（使える領域は cabinetWidth と同じ）。手動の幅の上限。200 未満にはしない
+export function fitWidth(vw, vh, tab) {
+  const aw = vw - 2 * tab - 32, ah = vh - 32;
+  if (!(aw > 0 && ah > 0)) return W_MIN;
+  return Math.max(W_MIN, Math.floor(aw * 190 / ah));
+}
+
+// 実際に使う W。user が null なら自動（cabinetWidth）、数値なら 200〜fitWidth に収める（340 を超えてよい）。スマホは常に 200
+export function effectiveWidth(vw, vh, tab, user) {
+  if (vw < 600) return W_MIN;
+  if (user === null) return cabinetWidth(vw, vh, tab);
+  return Math.min(fitWidth(vw, vh, tab), Math.max(W_MIN, user));
+}
+
+// 表示された筐体の幅(px)から論理幅 W を逆算する（ドラッグ用。範囲に収めるのは呼び出し側）
+export const widthAt = (px, vh) => Math.round(px / (vh - 32) * 190);

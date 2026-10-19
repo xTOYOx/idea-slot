@@ -53,7 +53,7 @@ test('wrong-typed settings → default; saved settings load', () => {
 });
 test('v1 settings with animate migrate to reduceMotion', () => {
   const s = createStore(mem({ 'slot.settings': JSON.stringify({ count: 2, slots: [{ type: 'verb' }, { type: 'any' }], animate: false }) }));
-  assert.deepEqual(s.state.settings, { count: 2, slots: [{ type: 'verb' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: true, width: 620 });
+  assert.deepEqual(s.state.settings, { count: 2, slots: [{ type: 'verb' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: true, width: 620, cabW: null });
 });
 test('defaults include stats and new settings', () => {
   const s = createStore(mem());
@@ -162,4 +162,23 @@ test('settings.width defaults to 620 and is clamped to 460..1400', () => {
   assert.equal(load(5000), 1400);
   assert.equal(load(100), 460);
   assert.equal(load('wide'), 620);
+});
+
+test('settings.cabW is null (auto) or an integer >= 200; old data is null', () => {
+  assert.equal(createStore(mem()).state.settings.cabW, null);
+  const load = c => createStore(mem({ 'slot.settings': JSON.stringify({ count: 3, slots: [], ...(c === undefined ? {} : { cabW: c }) }) })).state.settings.cabW;
+  assert.equal(load(undefined), null);
+  assert.equal(load(null), null);
+  assert.equal(load(280), 280);
+  assert.equal(load(280.6), 281);
+  assert.equal(load(150), 200);
+  assert.equal(load('wide'), null);
+  assert.equal(load(Infinity), null);
+});
+test('cabW travels through export / import', () => {
+  const s = createStore(mem());
+  s.state.settings.cabW = 300;
+  const t = createStore(mem());
+  assert.deepEqual(t.importJSON(s.exportJSON()), { ok: true });
+  assert.equal(t.state.settings.cabW, 300);
 });

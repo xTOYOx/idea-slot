@@ -11,7 +11,7 @@ button:disabled { opacity: .45; cursor: default; }
 /* 筐体と重ね物（1論理ピクセル = --u） */
 #wrap { position: relative; --u: 3.1px; --W: 200; /* --W: 筐体の論理幅（app.js が画面に合わせて決める） */ user-select: none; width: 100%; }
 #cv { width: 100%; display: block; image-rendering: pixelated; }
-.ov, .rw, .wm { position: absolute; }
+.ov, .rw { position: absolute; }
 /* リール上のモニター: 種類名は緑、テーマ中は金 */
 .mon { display: flex; align-items: center; justify-content: center; padding: 0 calc(var(--u) * 1); color: #5dff8a; font-size: max(calc(var(--u) * 4.2), 10px); line-height: 1; }
 .mon.th { color: #ffe066; }
@@ -65,12 +65,6 @@ button:disabled { opacity: .45; cursor: default; }
 /* 演出を減らす: 掲示板は流さず、リールは転がさない（語は変わり続ける） */
 .reduce-motion .tk span { display: block; padding-left: 0; animation: none; overflow: hidden; text-overflow: ellipsis; }
 .reduce-motion .spin .strip, .reduce-motion .bn .strip { animation: none; }
-.wm { z-index: 2; max-width: 90vw; max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 4px; background: #0f5a3a; border: 2px solid #e8b020; outline: 2px solid #000; }
-.wm .sep { flex: none; height: 2px; background: #e8b020; }
-/* チェック欄 */
-.cb { flex: none; width: 16px; height: 16px; border: 2px solid #000; background: #fff; }
-.cb.on { background: #ffe066; box-shadow: inset 0 0 0 3px #fff8ec, inset 0 0 0 8px #108a4a; }
-.wm button { font-size: 14px; min-height: 36px; display: flex; align-items: center; gap: 8px; padding: 4px 10px; white-space: normal; overflow-wrap: anywhere; text-align: left; background: #fff8ec; color: #1a1020; border: 2px solid #000; border-radius: 0; cursor: pointer; }
 
 .sbtn, dialog button { font-size: 14px; min-height: 40px; background: #fff8ec; color: #1a1020; border: 2px solid #000; box-shadow: 3px 3px 0 #000; border-radius: 0; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
 .sbtn:active, dialog button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #000; }
@@ -118,6 +112,22 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 #pbtn:active { transform: translate(2px, 2px); box-shadow: inset 0 0 0 2px #fff, 1px 1px 0 #000; }
 #pbtn:focus-visible, .dtab:focus-visible, #spin:focus-visible { outline: 2px solid #3ef0ff; outline-offset: 2px; }
 
+/* 種類（テーマ）えらびのパネル。チェック式のボタンをグループごとに並べる */
+#types { max-width: 94vw; max-height: 94dvh; }
+#types button { font-size: 16px; }
+.thead { display: flex; align-items: flex-start; gap: 8px; }
+.thead h3 { flex: 1; min-width: 0; margin: 0; font-size: 1.2em; }
+.thead small { display: block; margin-top: .2em; color: #9fd8b8; font-size: .75em; overflow-wrap: anywhere; }
+#types h4 { margin: .8em 0 .3em; font-size: 1.05em; font-weight: 400; color: #ffe066; }
+.tg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4em; }
+#types [data-ty] { display: flex; align-items: center; gap: .5em; min-height: 44px; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+#types [aria-checked=true] { background: #ffe066; }
+.cb { flex: none; position: relative; width: 1em; height: 1em; border: 2px solid #000; background: #fff; }
+[aria-checked=true] > .cb { background: #108a4a; }
+[aria-checked=true] > .cb::after { content: ''; position: absolute; left: 26%; top: 0; width: 28%; height: 58%; border: solid #fff; border-width: 0 .17em .17em 0; transform: rotate(45deg); }
+#types button:focus-visible { outline: 2px solid #3ef0ff; outline-offset: 2px; }
+.tpick { display: block; width: 100%; margin-top: .8em; }
+
 /* ポーズメニュー・語えらび */
 #pause { max-width: min(92vw, 340px); }
 #pause h2 { text-align: center; margin-top: 0; }
@@ -150,10 +160,28 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 #spin { display: none; width: 100%; min-height: 60px; margin-top: 14px; font-size: 26px; letter-spacing: .3em; color: #fff; background: #8a1fa0; border: 5px dashed #fff; cursor: pointer; box-shadow: inset 0 0 0 5px #8a1fa0, inset 0 0 0 7px #fff, 0 5px 0 #000; }
 #spin:active { transform: translateY(4px); box-shadow: inset 0 0 0 5px #8a1fa0, inset 0 0 0 7px #fff, 0 1px 0 #000; }
 
+/* 筐体の横幅のつまみ（PC のみ）。当たり判定は 24px、見える金の棒は細く。ドラッグ中は「横幅 280」を出す */
+.grip { display: none; position: absolute; top: 50%; height: 36%; width: 24px; transform: translateY(-50%); z-index: 1; cursor: ew-resize; touch-action: none; outline: 0; }
+.grip.l { right: 100%; }
+.grip.r { left: 100%; }
+.grip::before { content: ''; position: absolute; top: 0; bottom: 0; width: 10px; border: 3px solid #000; opacity: .5;
+  background: repeating-linear-gradient(#e8b020 0 6px, #a8700c 6px 12px); box-shadow: inset 0 0 0 2px #ffe066; }
+.grip.l::before { right: 0; }
+.grip.r::before { left: 0; }
+.grip:hover::before, .grip.on::before, .grip:focus-visible::before { opacity: 1; }
+.grip:focus-visible::before { outline: 2px solid #3ef0ff; outline-offset: 2px; }
+.grip b { display: none; position: absolute; top: 0; padding: .15em .5em; font-weight: 400; font-size: var(--fs, 16px); white-space: nowrap; pointer-events: none; color: #ffe066; background: #0f5a3a; border: 2px solid #e8b020; outline: 2px solid #000; }
+.grip.l b { left: calc(100% + 6px); }
+.grip.r b { right: calc(100% + 6px); }
+.grip.on b, .grip:focus-visible b { display: block; }
+#pause button small { display: block; font-size: .7em; }
+#pause button[aria-disabled=true] { cursor: default; box-shadow: none; transform: none; background: #d8d0bc; }
+
 /* PC: ページはスクロールさせず、筐体は画面に収まる最大の大きさで中央に置く */
 @media (min-width: 600px) {
   body { height: 100dvh; overflow: hidden; }
   #app { max-width: none; height: 100%; margin: 0; display: grid; place-items: center; }
+  .grip { display: block; }
   #wrap { width: min(100vw - 2 * var(--tab) - 32px, (100dvh - 32px) * var(--W) / 190); } /* 左右は端のタブの分を空ける（app.js も同じ式で W を決める） */
 
   /* 画面に合わせて UI を大きくする。基準の文字サイズ --fs（1280×800 で約 19px、1920×1080 で 26px）。スマホ（600 未満）は上の元の大きさのまま */
@@ -163,7 +191,7 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   dialog h2 { font-size: 1.2em; }
   dialog h3 { font-size: 1em; }
   dialog input[type=text], dialog input:not([type]), dialog select, dialog textarea { font-size: var(--fs); min-height: max(40px, 2.4em); padding: .3em .4em; }
-  #pause { max-width: min(640px, 90vw); }
+  #pause { max-width: min(640px, 90vw); max-height: 94dvh; }
   #pause h2 { font-size: 1.4em; margin-bottom: .5em; }
   #pause .col { gap: .6em; }
   #pause button { min-height: 2.6em; }
@@ -180,9 +208,10 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   .bdg { font-size: .8em; min-width: 1.5em; }
   #pbtn { width: var(--tab); height: var(--tab); left: 8px; top: 8px; gap: calc(var(--fs) * .4); }
   #pbtn i { width: calc(var(--fs) * .4); height: calc(var(--fs) * 1.2); }
-  /* モニターの種類リスト: 文字は基準サイズ（筐体が大きければそれに合わせる） */
-  .wm button { font-size: max(var(--fs), calc(var(--u) * 4.2)); min-height: max(40px, 2.2em); gap: .5em; }
-  .cb { width: 1em; height: 1em; }
+  /* 種類えらびのパネル: 文字は基準サイズ、列は幅に合わせて増える */
+  #types { max-width: min(calc(var(--fs) * 58), 94vw); }
+  #types button { font-size: var(--fs); }
+  .tg { grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); }
 }
 @media (max-width: 599px) {
   #spin { display: block; }
