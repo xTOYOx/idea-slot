@@ -6,7 +6,7 @@ const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isArr = Array.isArray;
 
 const defaults = () => ({
-  settings: { count: 3, slots: [{ type: 'any' }, { type: 'any' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: false },
+  settings: { count: 3, slots: [{ type: 'any' }, { type: 'any' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: false, width: 620 },
   history: [],
   favorites: [],
   custom: {},
@@ -25,6 +25,7 @@ const normalizeSettings = v => {
     autoStop: bool(v.autoStop, false),
     sound: bool(v.sound, true),
     reduceMotion: bool(v.reduceMotion, typeof v.animate === 'boolean' ? !v.animate : false),
+    width: Number.isFinite(v.width) ? Math.min(1400, Math.max(460, Math.round(v.width))) : 620, // PC での横幅(px)
   };
 };
 

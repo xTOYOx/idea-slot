@@ -8,7 +8,9 @@ const SLOT = '<div class="e"><span></span></div>';
 
 export function createOverlay(wrap, ov, on) {
   let rects = [], wins = [], btns = [], mons = [], menuEl = null, menuIndex = null, ticker = null;
-  new ResizeObserver(() => wrap.style.setProperty('--u', wrap.clientWidth / 200 + 'px')).observe(wrap);
+  const fit = () => wrap.style.setProperty('--u', wrap.clientWidth / 200 + 'px');
+  fit(); // 最初の描画から合わせる（ResizeObserver の通知を待たない）
+  new ResizeObserver(fit).observe(wrap);
 
   const view = {
     build(n) {

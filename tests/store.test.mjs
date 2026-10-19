@@ -53,7 +53,7 @@ test('wrong-typed settings → default; saved settings load', () => {
 });
 test('v1 settings with animate migrate to reduceMotion', () => {
   const s = createStore(mem({ 'slot.settings': JSON.stringify({ count: 2, slots: [{ type: 'verb' }, { type: 'any' }], animate: false }) }));
-  assert.deepEqual(s.state.settings, { count: 2, slots: [{ type: 'verb' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: true });
+  assert.deepEqual(s.state.settings, { count: 2, slots: [{ type: 'verb' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: true, width: 620 });
 });
 test('defaults include stats and new settings', () => {
   const s = createStore(mem());
@@ -153,4 +153,13 @@ test('theme names are trimmed: blank is invalid, "A" and "A " are duplicates; wo
   const d = JSON.parse(s.exportJSON()); d.themes = [{ name: ' A ', words: [' x ', 'x'] }];
   assert.deepEqual(s.importJSON(JSON.stringify(d)), { ok: true });
   assert.deepEqual(s.state.themes, [{ name: 'A', words: ['x'] }]);
+});
+
+test('settings.width defaults to 620 and is clamped to 460..1400', () => {
+  assert.equal(createStore(mem()).state.settings.width, 620);
+  const load = w => createStore(mem({ 'slot.settings': JSON.stringify({ count: 3, slots: [], width: w }) })).state.settings.width;
+  assert.equal(load(900), 900);
+  assert.equal(load(5000), 1400);
+  assert.equal(load(100), 460);
+  assert.equal(load('wide'), 620);
 });
