@@ -63,13 +63,13 @@ export function initThemeScreen({ store, data, isSpinning, changed }) {
     if (view.v === 'list') {
       const mine = store.state.themes;
       body.innerHTML = `<h2>テーマ</h2>
-        ${groups.map(g => `<h3>${esc(g.title)}</h3>${grid(g.items.map(x => `<button data-act="type" data-k="${esc(x.k)}">${esc(x.text)}（${wordCount(baseWords(data, x.k), customOf(x.k), ex)}語）</button>`))}`).join('')}
+        ${groups.map(g => `<h3>${esc(g.title)}</h3>${grid(g.items.map(x => `<button data-act="type" data-k="${esc(x.k)}">${esc(x.text)}<small>${wordCount(baseWords(data, x.k), customOf(x.k), ex)}語</small></button>`))}`).join('')}
         <h3>自分のテーマ</h3>
         <form class="row" data-form="new"><input name="name" value="${esc(draft ?? '')}" placeholder="新しいテーマの名前" aria-label="テーマの名前" autocomplete="off"><button>作成</button></form>
         ${errP()}
-        ${mine.length ? grid(mine.map((x, i) => `<button data-act="open" data-i="${i}">★${esc(x.name)}（${wordCount(x.words, [], ex)}語）</button>`)) : '<p>テーマはまだありません</p>'}
+        ${mine.length ? grid(mine.map((x, i) => `<button data-act="open" data-i="${i}">★${esc(x.name)}<small>${wordCount(x.words, [], ex)}語</small></button>`)) : '<p>テーマはまだありません</p>'}
         <h3>除外した語</h3>
-        ${grid([`<button data-act="exl">除外した語（${exCount()}）</button>`])}`;
+        ${grid([`<button data-act="exl">除外した語<small>${exCount()}語</small></button>`])}`;
       return;
     }
     const wl = `<h3>語</h3>${search}<div class="wl"></div>`;
