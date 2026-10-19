@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { ACTIONS, DEFAULT_KEYS, normalizeKeys, assignKey, isAssignable, keyName, actionFor, canonCode, keyHelp } from '../src/keys.js';
 
 test('defaults cover every action with unique codes', () => {
-  assert.deepEqual(ACTIONS.map(a => a.id), ['lever', 'idea', 'reel1', 'reel2', 'reel3', 'reel4', 'more', 'less', 'hist', 'hits', 'help']);
+  assert.deepEqual(ACTIONS.map(a => a.id), ['lever', 'idea', 'reel1', 'reel2', 'reel3', 'reel4', 'more', 'less', 'hist', 'hits', 'tpl', 'help']);
   assert.deepEqual(Object.keys(DEFAULT_KEYS), ACTIONS.map(a => a.id));
   assert.equal(new Set(Object.values(DEFAULT_KEYS)).size, ACTIONS.length);
-  assert.deepEqual([DEFAULT_KEYS.lever, DEFAULT_KEYS.idea, DEFAULT_KEYS.reel1, DEFAULT_KEYS.more, DEFAULT_KEYS.less, DEFAULT_KEYS.hist, DEFAULT_KEYS.hits, DEFAULT_KEYS.help],
-    ['Space', 'Enter', 'Digit1', 'ArrowUp', 'ArrowDown', 'KeyH', 'KeyB', 'Slash']);
+  assert.deepEqual([DEFAULT_KEYS.lever, DEFAULT_KEYS.idea, DEFAULT_KEYS.reel1, DEFAULT_KEYS.more, DEFAULT_KEYS.less, DEFAULT_KEYS.hist, DEFAULT_KEYS.hits, DEFAULT_KEYS.tpl, DEFAULT_KEYS.help],
+    ['Space', 'Enter', 'Digit1', 'ArrowUp', 'ArrowDown', 'KeyH', 'KeyB', 'KeyT', 'Slash']);
 });
 
 test('normalizeKeys: anything unusable becomes the defaults; good values are kept', () => {
@@ -69,5 +69,6 @@ test('keyHelp: built from the keys, Esc stays last', () => {
   assert.equal(lines[1], 'Enter：IDEA!');
   assert.ok(lines.includes('1 / 2 / 3 / 4：リール1〜4の STOP / LOCK'));
   assert.ok(lines.includes('H：履歴'));
+  assert.ok(lines.includes('T：テンプレート'));
   assert.equal(lines.at(-1), 'Esc：ポーズ');
 });
