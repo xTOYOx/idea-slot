@@ -1,6 +1,6 @@
 // 筐体の上に重ねるHTML（モニター・リール窓・STOP/LOCKボタン・IDEA!・掲示板・レバー）。
 // 座標は論理 W×190（W は 200〜340）から%で配置する。x は左に付く／右に付く（+ W-200）／伸びる／中央（W/2）のどれか（cabinet.js と同じ）。状態は持たず、app.js から言われたとおりに表示を変えるだけ。
-import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H, COUNT_BTN } from './layout.js';
+import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H, COUNT_BTN, LEVER_REST, LEVER_DOWN, LEVER_PULL, leverAmount } from './layout.js';
 
 const SLOT = '<div class="e"><span></span></div>';
 
@@ -25,7 +25,7 @@ export function createOverlay(wrap, ov, on) {
       ov.innerHTML = rects.map((r, i) => {
         const s = stopRect(r, W);
         return `<div class="ov mon" style="${pos(r.x, MONITOR_Y, r.w, MONITOR_H)}"><span></span><button class="hb mb" data-mon="${i}"></button></div>
-          <div class="rw" style="${pos(r.x, REEL_Y, r.w, REEL_H)}"><div class="strip">${SLOT}${SLOT}<button class="m" data-w="${i}" title="クリックでコピー"><span></span></button>${SLOT}</div></div>
+          <div class="rw" style="${pos(r.x, REEL_Y, r.w, REEL_H)}"><div class="strip">${SLOT}${SLOT}<button class="m" data-w="${i}"><span></span></button>${SLOT}</div></div>
           <div class="ov" style="${pos(s.x + 2, 144, s.w - 4, 13)}"><button class="hb sb" data-s="${i}"><span class="f"></span></button></div>`;
       }).join('') + `<div class="ov" style="${pos(COUNT_BTN.x, COUNT_BTN.plusY, COUNT_BTN.size, COUNT_BTN.size)}"><button class="hb rb up" id="rp" data-c="1" aria-label="リールを1つ増やす"><span class="cf plus"></span></button></div>
         <div class="ov" style="${pos(COUNT_BTN.x, COUNT_BTN.minusY, COUNT_BTN.size, COUNT_BTN.size)}"><button class="hb rb dn" id="rn" data-c="-1" aria-label="リールを1つ減らす"><span class="cf"></span></button></div>
@@ -78,6 +78,36 @@ export function createOverlay(wrap, ov, on) {
     focusMon: i => ov.querySelector(`[data-mon="${i}"]`)?.focus(),
   };
 
+  // レバー: 押して下へドラッグ。玉は引いた量に合わせて下がり、LEVER_PULL 以上で離すと引いた扱い（途中で離したら戻るだけ）。
+  // ほとんど動かさずに離したときはクリック扱い（下のクリック処理）。ドラッグの後に続いて来るクリックは無視する
+  const DRAG_PX = 4;
+  let drag = null, dragEnd = 0;
+  ov.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('#lev');
+    if (!b || e.button !== 0) return;
+    try { b.setPointerCapture(e.pointerId); } catch { /* 触れている指・マウスが既に無いとき */ }
+    drag = { id: e.pointerId, y0: e.clientY, travel: (LEVER_DOWN - LEVER_REST) * wrap.clientWidth / W, moved: false };
+  });
+  ov.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dy = e.clientY - drag.y0;
+    if (Math.abs(dy) > DRAG_PX) drag.moved = true;
+    if (drag.moved) on.leverPos(leverAmount(dy, drag.travel));
+  });
+  const release = (e, cancel) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const { moved, y0, travel } = drag;
+    drag = null;
+    if (!moved) return;
+    dragEnd = e.timeStamp;
+    on.leverPos(0);
+    ov.querySelector('#lev')?.blur(); // ドラッグのあともキー操作（スペース等）を筐体に返す
+    if (!cancel && leverAmount(e.clientY - y0, travel) >= LEVER_PULL) on.lever();
+  };
+  ov.addEventListener('pointerup', e => release(e, false));
+  ov.addEventListener('pointercancel', e => release(e, true));
+  ov.addEventListener('lostpointercapture', e => release(e, true));
+
   ov.addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
@@ -87,7 +117,7 @@ export function createOverlay(wrap, ov, on) {
     else if (b.dataset.mon !== undefined) on.mon(+b.dataset.mon);
     else if (b.dataset.c !== undefined) on.count(+b.dataset.c);
     else if (b.id === 'idea') on.idea();
-    else if (b.id === 'lev') on.lever();
+    else if (b.id === 'lev' && e.timeStamp - dragEnd > 300) on.lever();
   });
   return view;
 }

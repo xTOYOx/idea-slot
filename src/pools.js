@@ -1,4 +1,4 @@
-import { EXTRA } from './types.js';
+import { EXTRA, EXTRA_ONLY } from './types.js';
 const NOUN_KEYS = ['animal', 'plant', 'food', 'person', 'place', 'tool', 'nature', 'body', 'feeling', 'event', 'abstract', 'other'];
 const TAG_KEYS = ['look', 'mood', 'mechanic'];
 const EXTRA_KEYS = Object.keys(EXTRA);
@@ -23,7 +23,7 @@ export function buildPools(data, custom = {}, excluded = []) {
   const keys = [...NOUN_KEYS.map(k => `noun:${k}`), 'verb', 'genre', 'game', ...EXTRA_KEYS.map(k => `extra:${k}`), ...TAG_KEYS.map(k => `tag:${k}`)];
   for (const k of keys) pools[k] = make(baseWords(data, k), k);
   pools.noun = union(NOUN_KEYS.map(k => `noun:${k}`));
-  pools.extra = union(EXTRA_KEYS.map(k => `extra:${k}`));
+  pools.extra = union(EXTRA_KEYS.filter(k => !EXTRA_ONLY.includes(k)).map(k => `extra:${k}`));
   pools.tag = union(TAG_KEYS.map(k => `tag:${k}`));
   pools.any = union(['noun', 'verb', 'genre', 'tag', 'extra']);
   return pools;

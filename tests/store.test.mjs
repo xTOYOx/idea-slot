@@ -54,7 +54,7 @@ test('wrong-typed settings → default; saved settings load', () => {
 });
 test('v1 settings with animate migrate to reduceMotion', () => {
   const s = createStore(mem({ 'slot.settings': JSON.stringify({ count: 2, slots: [{ type: 'verb' }, { type: 'any' }], animate: false }) }));
-  assert.deepEqual(s.state.settings, { count: 2, slots: [{ type: 'verb' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: true, width: 620, cabW: null, keys: DEFAULT_KEYS });
+  assert.deepEqual(s.state.settings, { count: 2, slots: [{ type: 'verb' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: true, width: 620, cabW: null, keys: DEFAULT_KEYS, tourSeen: false });
 });
 test('defaults include stats and new settings', () => {
   const s = createStore(mem());
@@ -85,7 +85,28 @@ test('version 1 export imports (no stats, animate)', () => {
 test('load drops malformed favorites, keeps valid ones, fills memo/savedAt', () => {
   const favs = [{ combo: ['a', 'b'], memo: 'm', savedAt: 5 }, { memo: 'x' }, { combo: [1] }, null, { combo: ['c'] }];
   const s = createStore(mem({ 'slot.favorites': JSON.stringify(favs) }));
-  assert.deepEqual(s.state.favorites, [{ combo: ['a', 'b'], memo: 'm', savedAt: 5 }, { combo: ['c'], memo: '', savedAt: 0 }]);
+  assert.deepEqual(s.state.favorites, [{ combo: ['a', 'b'], memo: 'm', savedAt: 5, rating: 0, tags: [] }, { combo: ['c'], memo: '', savedAt: 0, rating: 0, tags: [] }]);
+});
+test('favorites: rating is an integer 0..5 (else 0), tags are trimmed/deduped strings (else [])', () => {
+  const favs = [
+    { combo: ['a'], rating: 4, tags: [' x ', 'x', '', 'y'] },
+    { combo: ['b'], rating: 9, tags: 'z' },
+    { combo: ['c'], rating: 2.5 },
+  ];
+  const s = createStore(mem({ 'slot.favorites': JSON.stringify(favs) }));
+  assert.deepEqual(s.state.favorites.map(f => [f.rating, f.tags]), [[4, ['x', 'y']], [0, []], [0, []]]);
+});
+test('import: favorites keep rating/tags, old files without them get defaults, version stays 3', () => {
+  const a = createStore(mem());
+  a.state.favorites = [{ combo: ['p', 'q'], memo: '', savedAt: 1, rating: 3, tags: ['t'] }];
+  const json = JSON.parse(a.exportJSON());
+  assert.equal(json.version, 3);
+  const b = createStore(mem());
+  assert.deepEqual(b.importJSON(JSON.stringify(json)), { ok: true });
+  assert.deepEqual(b.state.favorites, a.state.favorites);
+  json.favorites = [{ combo: ['p'], memo: 'm', savedAt: 2 }];
+  assert.deepEqual(b.importJSON(JSON.stringify(json)), { ok: true });
+  assert.deepEqual(b.state.favorites, [{ combo: ['p'], memo: 'm', savedAt: 2, rating: 0, tags: [] }]);
 });
 test('import with malformed favorites → error, state unchanged', () => {
   const s = createStore(mem()); s.state.excluded.push('猫');
@@ -175,6 +196,18 @@ test('settings.cabW is null (auto) or an integer >= 200; old data is null', () =
   assert.equal(load(150), 200);
   assert.equal(load('wide'), null);
   assert.equal(load(Infinity), null);
+});
+test('settings.tourSeen is a boolean (false unless saved as true) and survives export / import', () => {
+  const load = t => createStore(mem({ 'slot.settings': JSON.stringify({ count: 3, slots: [], ...(t === undefined ? {} : { tourSeen: t }) }) })).state.settings.tourSeen;
+  assert.equal(createStore(mem()).state.settings.tourSeen, false);
+  assert.equal(load(undefined), false);
+  assert.equal(load('yes'), false);
+  assert.equal(load(true), true);
+  const a = createStore(mem());
+  a.state.settings.tourSeen = true;
+  const b = createStore(mem());
+  assert.equal(b.importJSON(a.exportJSON()).ok, true);
+  assert.equal(b.state.settings.tourSeen, true);
 });
 test('cabW travels through export / import', () => {
   const s = createStore(mem());

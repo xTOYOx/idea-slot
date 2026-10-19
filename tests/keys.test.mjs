@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ACTIONS, DEFAULT_KEYS, normalizeKeys, assignKey, isAssignable, keyName, actionFor, canonCode, keyHelp } from '../src/keys.js';
+import { ACTIONS, DEFAULT_KEYS, normalizeKeys, assignKey, isAssignable, keyName, actionsFor, dupCodes, canonCode, keyHelp } from '../src/keys.js';
 
 test('defaults cover every action with unique codes', () => {
   assert.deepEqual(ACTIONS.map(a => a.id), ['lever', 'idea', 'reel1', 'reel2', 'reel3', 'reel4', 'more', 'less', 'hist', 'hits', 'tpl', 'help']);
@@ -19,8 +19,9 @@ test('normalizeKeys: unknown actions and non-string / blocked / empty values are
   const r = normalizeKeys({ lever: 5, idea: '', hist: 'Escape', hits: 'Tab', help: 'ShiftLeft', ghost: 'KeyZ', more: 'KeyM' });
   assert.deepEqual(r, { ...DEFAULT_KEYS, more: 'KeyM' });
 });
-test('normalizeKeys: duplicate codes make the whole map fall back to the defaults', () => {
-  assert.deepEqual(normalizeKeys({ lever: 'Digit1' }), DEFAULT_KEYS);
+test('normalizeKeys: duplicate codes are kept (no reset to the defaults)', () => {
+  assert.deepEqual(normalizeKeys({ lever: 'Digit1' }), { ...DEFAULT_KEYS, lever: 'Digit1' });
+  assert.equal(normalizeKeys({ lever: 'KeyZ', idea: 'KeyZ' }).idea, 'KeyZ');
 });
 
 test('isAssignable: Escape, Tab and bare modifiers are refused', () => {
@@ -29,15 +30,12 @@ test('isAssignable: Escape, Tab and bare modifiers are refused', () => {
 });
 
 test('assignKey: a free key just moves', () => {
-  const r = assignKey(DEFAULT_KEYS, 'lever', 'KeyZ');
-  assert.deepEqual(r, { keys: { ...DEFAULT_KEYS, lever: 'KeyZ' }, swapped: null });
+  assert.deepEqual(assignKey(DEFAULT_KEYS, 'lever', 'KeyZ'), { ...DEFAULT_KEYS, lever: 'KeyZ' });
 });
-test('assignKey: a key used elsewhere is swapped, the other action gets the old key', () => {
-  const r = assignKey(DEFAULT_KEYS, 'lever', 'Enter');
-  assert.deepEqual(r, { keys: { ...DEFAULT_KEYS, lever: 'Enter', idea: 'Space' }, swapped: 'idea' });
+test('assignKey: a key used elsewhere is shared, nothing is swapped', () => {
+  assert.deepEqual(assignKey(DEFAULT_KEYS, 'lever', 'Enter'), { ...DEFAULT_KEYS, lever: 'Enter' });
 });
-test('assignKey: same key again changes nothing; refused keys give null; input is not mutated', () => {
-  assert.deepEqual(assignKey(DEFAULT_KEYS, 'lever', 'Space'), { keys: DEFAULT_KEYS, swapped: null });
+test('assignKey: refused keys give null; input is not mutated', () => {
   assert.equal(assignKey(DEFAULT_KEYS, 'lever', 'Escape'), null);
   assert.equal(assignKey(DEFAULT_KEYS, 'ghost', 'KeyZ'), null);
   const before = { ...DEFAULT_KEYS };
@@ -45,16 +43,22 @@ test('assignKey: same key again changes nothing; refused keys give null; input i
   assert.deepEqual(DEFAULT_KEYS, before);
 });
 
+test('dupCodes: the codes used by two or more actions', () => {
+  assert.equal(dupCodes(DEFAULT_KEYS).size, 0);
+  assert.deepEqual([...dupCodes({ ...DEFAULT_KEYS, lever: 'Enter', hist: 'KeyB' })].sort(), ['Enter', 'KeyB']);
+});
+
 test('keyName: readable names', () => {
   const names = { Space: 'スペース', Enter: 'Enter', Digit1: '1', KeyH: 'H', Minus: '-', Equal: '=', Slash: '/', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', F5: 'F5' };
   for (const [code, name] of Object.entries(names)) assert.equal(keyName(code), name, code);
 });
 
-test('actionFor: finds the action of a code, or null', () => {
-  assert.equal(actionFor(DEFAULT_KEYS, 'Space'), 'lever');
-  assert.equal(actionFor({ ...DEFAULT_KEYS, lever: 'KeyZ' }, 'KeyZ'), 'lever');
-  assert.equal(actionFor(DEFAULT_KEYS, 'KeyQ'), null);
-  assert.equal(actionFor(DEFAULT_KEYS, undefined), null);
+test('actionsFor: every action of a code, or an empty list', () => {
+  assert.deepEqual(actionsFor(DEFAULT_KEYS, 'Space'), ['lever']);
+  assert.deepEqual(actionsFor({ ...DEFAULT_KEYS, lever: 'KeyZ' }, 'KeyZ'), ['lever']);
+  assert.deepEqual(actionsFor({ ...DEFAULT_KEYS, lever: 'Enter' }, 'Enter'), ['lever', 'idea']);
+  assert.deepEqual(actionsFor(DEFAULT_KEYS, 'KeyQ'), []);
+  assert.deepEqual(actionsFor(DEFAULT_KEYS, undefined), []);
 });
 
 test('canonCode: the numpad digits and Enter count as the main-row keys', () => {

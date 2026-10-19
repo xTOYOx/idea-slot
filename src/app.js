@@ -3,7 +3,8 @@ import { buildPools } from './pools.js';
 import { spin, rerollOne, setSlotType, resizeSlots, pickWord } from './pick.js';
 import { parseType, toggleType, normalizeType, remapType } from './typekey.js';
 import { initPanels } from './panels.js';
-import { startSpin, stopReel, pressReel, isSpinning, allStopped, canEdit, canSave, autoStopDelays, restore } from './machine.js';
+import { startSpin, stopReel, pressReel, isSpinning, allStopped, canEdit, canSave, autoStopDelays, restore, lockExcept } from './machine.js';
+import { addTags, formatHits, hasCombo, isActive, tagsOf, toggleRating, viewHits } from './hits.js';
 import { buildIndex, searchWords } from './search.js';
 import { indexGraph, themeWords } from './theme.js';
 import { createStore } from './store.js';
@@ -16,10 +17,14 @@ import { effectiveWidth, fitWidth, widthAt, W_MIN } from './layout.js';
 import { initGrips } from './grips.js';
 import { initTypePanel } from './typepanel.js';
 import { initHelp } from './help.js';
-import { actionFor, canonCode, keyHelp } from './keys.js';
+import { actionsFor, canonCode, keyHelp } from './keys.js';
 import { applySlots } from './templates.js';
 import { initKeyScreen } from './keyscreen.js';
 import { initTemplateScreen } from './tplscreen.js';
+import { createDefs } from './defs.js';
+import { createTip } from './tip.js';
+import { createTour } from './tour.js';
+import { registerSw } from './pwa.js';
 
 // 保存済みの WordNet テーマ（設定の slots[].theme）を読み込むかのスイッチ。false の間は読み込まない（保存データからは消さない）
 const THEMES_ON = false;
@@ -43,6 +48,7 @@ let graphP = null; // data/graph.json を読む Promise（最初にテーマを�
 let reels = [], reelCount = 0, cab = null, view = null;
 let cabW = 200, widthTimer = 0, widthFrame = 0, liveW = null; // 筐体の論理幅（自動は画面の縦横比、手動は settings.cabW。cabinet.js・reels.js・CSS の --W と揃える）。liveW: ドラッグ中の仮の幅
 let tpl = null; // テンプレの引き出し（tplscreen.js）
+let tip = null; // 語の意味の吹き出し（tip.js）
 let tickTimer = null, beat = 0, autoTimers = [], editing = -1;
 const neigh = []; // 止まっている枠の上下の語（止まったときに決め、LOCKしても変えない）
 
@@ -93,6 +99,7 @@ function paint(i, fresh = false) {
   view.setMonitor(i, m.text, m.gold); // 窓の札は短く（リストは完全な名前）
   view.setWords(i, rowsOf(reels[i], i, fresh));
   view.setState(i, { running: !!reels[i].running, held: reels[i].held });
+  tip?.check(); // 語が変わった・回り始めたら、出ている吹き出しを消す
 }
 
 // 回転中だけ押せない部品（枠の数・種類・語えらび・枠に戻す）をまとめて切り替える
@@ -199,7 +206,6 @@ function finish() {
   if (values.every(Boolean)) store.pushHistory(values);
   store.countSpin();
   sound.play('chime');
-  cab.dribble();
   say(`♦ ${comboText(values)} ♦ いいね！と思ったら IDEA! ボタン ♦`);
   renderHistory();
 }
@@ -253,6 +259,10 @@ function press(i) {
 }
 
 // --- IDEA! ---
+const addHit = combo => {
+  state.favorites = [{ combo, memo: '', savedAt: Date.now(), rating: 0, tags: [] }, ...state.favorites];
+  store.save('favorites');
+};
 function idea() {
   if (!ready) return;
   if (cab.celebrating()) return;
@@ -262,9 +272,7 @@ function idea() {
   if (status === 'saved') say('この組み合わせは当たり帳に保存ずみ');
   if (status !== 'ok') { sound.play('deny'); return; }
   const combo = reels.map(r => r.value);
-  const saved = { combo, memo: '', savedAt: Date.now() };
-  state.favorites = [saved, ...state.favorites];
-  store.save('favorites');
+  addHit(combo);
   cab.celebrate();
   sound.play('jackpot');
   say(`★★★ BIG IDEA!! ★★★ ${combo.join(' × ')} を当たり帳に保存 ★★★`);
@@ -273,21 +281,27 @@ function idea() {
   if (!reduceMotion()) panels.flash('hits');
 }
 
-// --- 窓の語をクリック = クリップボードにコピー（調べもの用） ---
-async function copyWord(i) {
-  const w = reels[i]?.value;
-  if (!w || reels[i].running) return;
-  try { await navigator.clipboard.writeText(w); } catch {
+// --- クリップボードにコピー（窓の語・当たり帳）。コピーできたら true ---
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {
     const t = document.createElement('textarea'); // クリップボード API が使えない／断られたとき
-    t.value = w;
+    t.value = text;
     t.readOnly = true; // iOS のキーボードや拡大を出さない
     t.style.cssText = 'position:fixed;opacity:0;font-size:16px';
     document.body.append(t);
     t.select();
     const ok = document.execCommand('copy');
     t.remove();
-    if (!ok) { say('コピーできませんでした'); sound.play('deny'); return; }
+    return ok;
   }
+}
+const copyFailed = () => { say('コピーできませんでした'); sound.play('deny'); };
+
+// 窓の語をクリック = コピー（調べもの用）
+async function copyWord(i) {
+  const w = reels[i]?.value;
+  if (!w || reels[i].running) return;
+  if (!await copyText(w)) { copyFailed(); return; }
   if (reels[i]?.running) return; // コピーの間に回し始めたら、掲示板と光を上書きしない
   sound.play('lock');
   say(`「${w}」をコピーしました`);
@@ -410,14 +424,39 @@ $('q').addEventListener('keydown', e => {
 $('cards').addEventListener('click', e => { const c = e.target.closest('.card'); if (c) fix(c.dataset.w); });
 
 // --- 当たり帳・履歴 ---
+const hv = { sort: 'new', text: '', min: 0, tag: '' }; // 一覧の並べ替えと絞り込み（保存しない）
+const STARS = [1, 2, 3, 4, 5];
+// メモの先頭の改行は <textarea> が1つ捨てるので、1つ足しておく
+const hitHtml = ({ f, i }) => `<div class="hit${i === 0 ? ' new' : ''}">
+  <div class="stars" role="group" aria-label="評価">${STARS.map(n => `<button class="star${n <= f.rating ? ' on' : ''}" data-star="${i}:${n}" aria-pressed="${n === f.rating}" aria-label="★${n}">★</button>`).join('')}</div>
+  <b>${f.combo.map((w, j) => `<span class="wr"><span class="w">${esc(w)}</span>${j < 4 ? `<button class="rr" data-edit data-respin="${i}:${j}" aria-label="「${esc(w)}」だけ回し直す" title="この語だけ回し直す">↻</button>` : ''}</span>`).join(' <i>×</i> ')}</b>
+  <div class="htags">${f.tags.map((t, k) => `<span class="htag"><button class="tagb" data-tag="${esc(t)}" title="このタグで絞り込む">#${esc(t)}</button><button class="tagx" data-untag="${i}:${k}" aria-label="タグ「${esc(t)}」を消す">×</button></span>`).join('')}<input class="tagin" data-tagin="${i}" placeholder="タグを足す（Enter か 、）" aria-label="タグを足す"></div>
+  <textarea data-h="${i}" rows="1" placeholder="ひとことメモ（思いついたことを書いておく）" aria-label="メモ">
+${esc(f.memo)}</textarea>
+  <div class="row"><button class="sbtn" data-copy="${i}">コピー</button><button class="sbtn" data-edit data-back="${i}">枠に戻す</button><button class="sbtn" data-del="${i}">削除</button></div></div>`;
+
+// メモの欄は内容に合わせて高さを伸ばす
+const fitMemo = t => { t.style.height = 'auto'; t.style.height = t.scrollHeight + 4 + 'px'; };
+const fitMemos = () => $('hits').querySelectorAll('textarea').forEach(fitMemo);
+addEventListener('resize', fitMemos);
+document.fonts?.ready.then(fitMemos);
+
 function renderHits() {
-  const list = state.favorites.map((f, i) => `<div class="hit${i === 0 ? ' new' : ''}"><b>${f.combo.map(esc).join(' <i>×</i> ')}</b>
-    <input data-h="${i}" value="${esc(f.memo)}" placeholder="ひとことメモ（思いついたことを書いておく）" aria-label="メモ">
-    <div class="row"><button class="sbtn" data-edit data-back="${i}">枠に戻す</button><button class="sbtn" data-del="${i}">削除</button></div></div>`).join('');
-  $('hits').innerHTML = list || '<div id="empty">まだありません</div>';
-  panels.setCount('hits', state.favorites.length);
+  const all = state.favorites, tags = tagsOf(all);
+  if (hv.tag && !tags.includes(hv.tag)) hv.tag = '';
+  const shown = viewHits(all, hv), active = isActive(hv);
+  $('htag').innerHTML = '<option value="">タグ：すべて</option>' + tags.map(t => `<option value="${esc(t)}">#${esc(t)}</option>`).join('');
+  $('htag').value = hv.tag;
+  $('hctl').hidden = !all.length && !active;
+  $('hstat').hidden = !active;
+  $('hcount').textContent = `絞り込み中：${all.length}件中 ${shown.length}件`;
+  $('hcopy').disabled = !shown.length;
+  $('hits').innerHTML = shown.map(hitHtml).join('') || `<div id="empty">${all.length ? '条件に合う当たりがありません' : 'まだありません'}</div>`;
+  fitMemos();
+  panels.setCount('hits', all.length);
   pauseLabels();
   applyBusy();
+  tip?.check();
 }
 
 function renderHistory() {
@@ -425,7 +464,7 @@ function renderHistory() {
   $('hclear').disabled = !state.history.length;
   pauseLabels();
   $('hist').innerHTML = state.history.map((c, i) =>
-    `<li><button class="card" data-edit data-r="${i}">${esc(c.join(' × '))}</button></li>`).join('');
+    `<li><button class="card" data-edit data-r="${i}">${esc(c.join(' × '))}</button><button class="sbtn hstar" data-tohit="${i}" aria-label="当たり帳に入れる" title="当たり帳に入れる">★</button></li>`).join('');
   applyBusy();
 }
 
@@ -436,6 +475,39 @@ function restoreCombo(combo) {
   setReels(next);
   say(`${comboText(next.map(r => r.value))} を枠に戻しました`);
 }
+const closeSheetOnMobile = () => { if (matchMedia('(max-width: 599px)').matches) panels.closeAll(false); }; // スマホではシートを閉じて筐体を見せる（ポーズには戻らない）
+
+// 当たりカードの語の ↻: 組み合わせを枠に戻し、その語以外をロックして、その語のリールだけ回す
+function respinWord(i, j) {
+  const combo = state.favorites[i]?.combo;
+  if (!ready || !canEdit(reels) || !combo?.[j]) return;
+  restoreCombo(combo);
+  setReels(lockExcept(reels, j));
+  pull();
+  say(`「${combo[j]}」を回し直します`);
+  closeSheetOnMobile();
+}
+
+// 履歴の ★: その組み合わせを当たり帳に入れる（コインは出さない）
+function historyToHit(i) {
+  const combo = state.history[i];
+  if (!combo) return;
+  if (hasCombo(state.favorites, combo)) { say('すでに当たり帳にあります'); sound.play('deny'); return; }
+  addHit([...combo]);
+  renderHits();
+  sync();
+  sound.play('lock');
+  say(`★ ${combo.join(' × ')} を当たり帳に入れました`);
+  if (!reduceMotion()) panels.flash('hits');
+}
+
+async function copyHit(i) {
+  const f = state.favorites[i];
+  if (!f) return;
+  if (!await copyText(f.combo.join('×'))) { copyFailed(); return; }
+  sound.play('lock');
+  say('コピーしました');
+}
 
 document.addEventListener('click', e => {
   const b = e.target.closest('button');
@@ -444,8 +516,9 @@ document.addEventListener('click', e => {
   const d = b.dataset;
   if (d.back !== undefined || d.r !== undefined) {
     restoreCombo(d.back !== undefined ? state.favorites[Number(d.back)].combo : state.history[Number(d.r)]);
-    if (matchMedia('(max-width: 599px)').matches) panels.closeAll(false); // スマホではシートを閉じて筐体を見せる（ポーズには戻らない）
+    closeSheetOnMobile();
   }
+  else if (d.tohit !== undefined) historyToHit(Number(d.tohit));
   else if (d.del !== undefined) { state.favorites.splice(Number(d.del), 1); store.save('favorites'); renderHits(); sync(); }
 });
 $('hclear').addEventListener('click', () => {
@@ -455,12 +528,70 @@ $('hclear').addEventListener('click', () => {
   renderHistory();
 });
 $('hits').addEventListener('input', e => {
-  if (e.target.dataset.h === undefined) return;
-  state.favorites[Number(e.target.dataset.h)].memo = e.target.value;
+  const t = e.target;
+  if (t.dataset.h !== undefined) {
+    state.favorites[Number(t.dataset.h)].memo = t.value;
+    store.save('favorites');
+    fitMemo(t);
+  } else if (t.dataset.tagin !== undefined && !e.isComposing && /[,、]/.test(t.value)) commitTag(t);
+});
+// タグ: Enter か「、」「,」で追加（日本語入力の確定中は待つ）
+function commitTag(el) {
+  const i = Number(el.dataset.tagin), f = state.favorites[i], next = addTags(f.tags, el.value);
+  el.value = '';
+  if (next.length === f.tags.length) return;
+  f.tags = next;
   store.save('favorites');
+  renderHits();
+  $('hits').querySelector(`[data-tagin="${i}"]`)?.focus(); // 続けて入力できるように
+}
+$('hits').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229 && e.target.dataset.tagin !== undefined) { e.preventDefault(); commitTag(e.target); }
+});
+$('hits').addEventListener('compositionend', e => { if (e.target.dataset.tagin !== undefined && /[,、]/.test(e.target.value)) commitTag(e.target); });
+$('hits').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const d = b.dataset, kb = e.detail === 0; // キーボードで押したときは、描き直したあとにフォーカスを戻す
+  if (d.star !== undefined) {
+    const [i, n] = d.star.split(':').map(Number), f = state.favorites[i];
+    f.rating = toggleRating(f.rating, n);
+    store.save('favorites');
+    renderHits();
+    if (kb) $('hits').querySelector(`[data-star="${d.star}"]`)?.focus();
+  } else if (d.untag !== undefined) {
+    const [i, k] = d.untag.split(':').map(Number), f = state.favorites[i];
+    f.tags = f.tags.filter((_, x) => x !== k);
+    store.save('favorites');
+    renderHits();
+    if (kb) $('hits').querySelector(`[data-tagin="${i}"]`)?.focus();
+  } else if (d.tag !== undefined) { hv.tag = d.tag; renderHits(); if (kb) $('htag').focus(); }
+  else if (d.copy !== undefined) copyHit(Number(d.copy));
+  else if (d.respin !== undefined) respinWord(...d.respin.split(':').map(Number));
+});
+
+// 一覧の操作（並べ替え・絞り込み・まとめてコピー）
+for (const [id, key, f] of [['hsort', 'sort', String], ['hmin', 'min', Number], ['htag', 'tag', String], ['hq', 'text', String]]) {
+  $(id).addEventListener(id === 'hq' ? 'input' : 'change', e => { hv[key] = f(e.target.value); renderHits(); });
+}
+$('hreset').addEventListener('click', () => {
+  Object.assign(hv, { text: '', min: 0, tag: '' });
+  $('hq').value = '';
+  $('hmin').value = '0';
+  renderHits();
+});
+$('hcopy').addEventListener('click', async () => {
+  const list = viewHits(state.favorites, hv).map(x => x.f);
+  if (!list.length) return;
+  if (!await copyText(formatHits(list, $('hfmt').value))) { copyFailed(); return; }
+  sound.play('lock');
+  say(`${list.length}件をコピーしました`);
 });
 
 const help = initHelp();
+// 初めての案内（settings.tourSeen）。使い方の「案内をもう一度見る」でも開く
+const tour = createTour(() => { if (!state.settings.tourSeen) { state.settings.tourSeen = true; store.save('settings'); } });
+$('tour-again').addEventListener('click', () => { $('help').close(); tour.start(); });
 const renderKeyHelp = () => help.setKeys(keyHelp(state.settings.keys)); // 使い方の「キー操作」はキー設定から作る
 renderKeyHelp();
 
@@ -470,7 +601,7 @@ function useTemplate(t) {
   if (!ready || !canEdit(reels)) return false;
   setReels(spin(applySlots(t.slots, validType).map(s => ({ ...s, value: null, held: false })), pools));
   say(`テンプレート「${t.name}」を使いました`);
-  if (matchMedia('(max-width: 599px)').matches) panels.closeAll(false); // スマホではシートを閉じて筐体を見せる（ポーズには戻らない）。PC は開いたまま
+  closeSheetOnMobile(); // PC は開いたまま
   return true;
 }
 
@@ -488,10 +619,10 @@ document.addEventListener('keydown', e => {
     return;
   }
   if (a?.tagName === 'BUTTON' && (e.code === 'Space' || e.key === 'Enter')) return; // ボタン自身の押下に任せる
-  const act = actionFor(state.settings.keys, canonCode(e.code || ''));
-  if (!act) return;
+  const acts = actionsFor(state.settings.keys, canonCode(e.code || ''));
+  if (!acts.length) return;
   e.preventDefault();
-  keyActions[act]();
+  acts.forEach(act => keyActions[act]()); // 同じキーを複数の操作に割り当てていたら、全部動かす
 });
 // キー設定（settings.keys）の操作 → 動作。Esc（ポーズ）は割り当てず、上の keydown が固定で受ける
 const keyActions = {
@@ -517,8 +648,9 @@ async function start() {
   rebuildPools();
   sound.enabled = state.settings.sound;
   cab = createCabinet($('cv'));
+  cab.initPile(state.favorites.length); // 受け皿の山は当たり帳の件数から
   view = createOverlay($('wrap'), $('ov'), {
-    reel: press, lever: pull, idea,
+    reel: press, lever: pull, leverPos: a => cab.setLever(a), idea,
     word: copyWord,
     mon(i) {
       if (!ready || !canEdit(reels) || !reels[i]) return;
@@ -526,6 +658,15 @@ async function start() {
     },
     count: changeCount,
   });
+  // 語の意味: 窓の中央の語と当たり帳の語。PC はマウスを乗せる、スマホは長押し。使う語のファイルだけを読む
+  const defs = createDefs(n => fetch(`data/defs/${n}.json`).then(r => { if (!r.ok) throw new Error(n); return r.json(); }), data.games);
+  tip = createTip(w => defs.lookup(w), el => {
+    if (!el.classList.contains('m')) return el.textContent; // 当たり帳の語
+    const r = reels[+el.dataset.w];
+    return r && !r.running ? r.value : null; // 回転中は出さない
+  });
+  tip.attach($('ov'), '.m');
+  tip.attach($('hits'), '.w');
   initThemeScreen({ store, data, isSpinning: () => isSpinning(reels), changed: themesChanged });
   tpl = initTemplateScreen({
     store, isSpinning: () => isSpinning(reels),
@@ -547,6 +688,7 @@ async function start() {
         rebuildPools();
         sound.enabled = state.settings.sound;
         fitCabinet(); // 読み込んだ設定の筐体の幅に合わせる
+        cab.initPile(state.favorites.length); // 受け皿の山も読み込んだ当たり帳の件数に合わせる
         pauseLabels();
         renderKeyHelp();
         closePick();
@@ -575,6 +717,8 @@ async function start() {
   renderHits();
   renderHistory();
   tpl.render();
+  if (!state.settings.tourSeen) tour.start();
+  registerSw();
   say(themesOk ? '★ WELCOME TO IDEA CASINO ★ レバーで回す ★ 気に入った語はLOCK ★ いいね！と思ったら IDEA! ★' : `${THEME_FAIL} ... テーマなしで開始`);
 }
 

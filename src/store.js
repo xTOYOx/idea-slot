@@ -1,6 +1,7 @@
 // localStorage persistence (DOM-free). `storage` has getItem/setItem, or is null for memory-only.
 import { DEFAULT_KEYS, normalizeKeys } from './keys.js';
 import { cleanTemplate } from './templates.js';
+import { cleanRating, cleanTags } from './hits.js';
 
 const KEYS = ['settings', 'history', 'favorites', 'custom', 'excluded', 'stats', 'themes', 'templates'];
 const HISTORY_MAX = 100;
@@ -9,7 +10,7 @@ const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isArr = Array.isArray;
 
 const defaults = () => ({
-  settings: { count: 3, slots: [{ type: 'any' }, { type: 'any' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: false, width: 620, cabW: null, keys: { ...DEFAULT_KEYS } },
+  settings: { count: 3, slots: [{ type: 'any' }, { type: 'any' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: false, width: 620, cabW: null, keys: { ...DEFAULT_KEYS }, tourSeen: false },
   history: [],
   favorites: [],
   custom: {},
@@ -32,6 +33,7 @@ const normalizeSettings = v => {
     width: Number.isFinite(v.width) ? Math.min(1400, Math.max(460, Math.round(v.width))) : 620, // PC での横幅(px)
     cabW: Number.isFinite(v.cabW) ? Math.max(200, Math.round(v.cabW)) : null, // 筐体の論理幅（null = 画面に合わせて自動）
     keys: normalizeKeys(v.keys), // キー設定（操作 → KeyboardEvent.code）
+    tourSeen: bool(v.tourSeen, false), // 初めての人向けの案内を見たか
   };
 };
 
@@ -39,7 +41,7 @@ const normalizeSettings = v => {
 const keep = ok => v => (ok(v) ? v : null);
 const isStrs = v => isArr(v) && v.every(s => typeof s === 'string');
 const fav = f => (isObj(f) && isStrs(f.combo)
-  ? { combo: f.combo, memo: typeof f.memo === 'string' ? f.memo : '', savedAt: typeof f.savedAt === 'number' ? f.savedAt : 0 }
+  ? { combo: f.combo, memo: typeof f.memo === 'string' ? f.memo : '', savedAt: typeof f.savedAt === 'number' ? f.savedAt : 0, rating: cleanRating(f.rating), tags: cleanTags(f.tags) }
   : null);
 // 名前・語は前後の空白を除く（名前が空なら不正、語は空を捨てて重複を除く）
 const theme = t => {

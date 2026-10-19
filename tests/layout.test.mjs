@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { reelRects, stopRect, cabinetWidth, fitWidth, effectiveWidth, widthAt } from '../src/layout.js';
+import { reelRects, stopRect, cabinetWidth, fitWidth, effectiveWidth, widthAt, leverAmount, LEVER_PULL } from '../src/layout.js';
 test('3 reels match mockup', () => assert.deepEqual(reelRects(3), [{ x: 33, w: 40 }, { x: 80, w: 40 }, { x: 127, w: 40 }]));
 test('2 and 4 reels fit inside 33..167 with gap 7', () => {
   for (const n of [2, 4]) {
@@ -62,4 +62,11 @@ test('widthAt: displayed width (px) to logical W with the usable height', () => 
   assert.equal(widthAt(768, 800), 190);
   assert.equal(widthAt(1000, 800), 247);
   assert.equal(widthAt(0, 800), 0);
+});
+test('leverAmount: follows the drag down, clamped to 0..1', () => {
+  assert.equal(leverAmount(-10, 100), 0);
+  assert.equal(leverAmount(25, 100), 0.25);
+  assert.equal(leverAmount(400, 100), 1);
+  assert.equal(leverAmount(5, 0), 0);
+  assert.ok(LEVER_PULL >= 0.6 && LEVER_PULL < 1);
 });

@@ -1,6 +1,7 @@
 // ピクセルアート筐体の描画（論理 W×190。W は 200〜340、基準は 200）。見た目の基準は docs/superpowers/specs/mockups/casino-v6.html
 // 描くだけで、入力処理もHTMLの重ね物も持たない（それはアプリ側）。
-import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H, COUNT_BTN, W_MIN } from './layout.js';
+import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H, COUNT_BTN, W_MIN, LEVER_REST, LEVER_DOWN } from './layout.js';
+import { COL_W, colsFor, dropCoin, initialPile, fitPile, frameScale, stepCoin, launchCoin, hitCoin, spinCoin, isGone } from './coins.js';
 
 // x 座標は三種類: 左に付く（そのまま）／右に付く（+ D、D = W - 200）／伸びる（幅に + D）／中央（CX 基準、CX = W/2）
 const H = 190, DY = 10; // DY: LEDバーより下（元の y ≥ 61）をモニターの分だけ下げる量
@@ -15,8 +16,11 @@ const T = { C: '111100100100111', R: '110101110101101', E: '111100110100111', D:
 const DOME = ['...RRRRRR...', '..RWRRRRRR..', '.RWRRRRRRRr.', '.RRRRRRRRRr.', 'RRRRRRRRRRrr', 'rrrrrrrrrrrr', 'CCCCCCCCCCCC'];
 const BALL = ['...RRRR...', '..RWWRRR..', '.RWRRRRRr.', 'RWRRRRRRrr', 'RRRRRRRRrr', 'RRRRRRRrrr', 'RRRRRRrrrr', '.RRRrrrrr.', '..rrrrrr..', '...rrrr...'];
 const COIN = [4, 3, 2, 1, 2, 3];
+const PILE_X = 35, PILE_Y = 170, PILE_STEP = 2; // 受け皿の山: 左端 x、いちばん下のコインの y(+DY)、1枚ごとに重なって見える高さ
+const PAYOUT = { y: 155, n: 40, span: 800, rm: 12, max: 80 }; // 払い出し口の y(+DY)、出る枚数と出きるまでの ms、低減モードで山に足す枚数、同時に動く枚数の上限
+const RIM_Y = 176; // 受け皿の縁の高さ(+DY込み)。コインの底がこれより下なら壁に当たり、上なら越えてこぼれる
 
-const CELEBRATE_MS = 3200, LEVER_MS = 220, PRESS_MS = 120;
+const FRAME_MS = 1000 / 60, CELEBRATE_MS = 3200, LEVER_MS = 220, PRESS_MS = 120;
 
 export function createCabinet(canvas) {
   let W = W_MIN, D = 0, CX = 100;
@@ -104,6 +108,7 @@ export function createCabinet(canvas) {
     box(22, 129 + DY, 156 + D, 24, '#3a0a18', '#7a1a30', '#1a0408'); px(22, 129 + DY, 156 + D, 1, G3);
     rects.forEach((r) => { const s = stopRect(r, W); box(s.x, 132 + DY, s.w, 17, C1, C3, C0); });
     box(30, 154 + DY, 140 + D, 22, C1, C3, C0); px(33, 159 + DY, 134 + D, 14, '#14141c'); px(33, 159 + DY, 134 + D, 2, '#06060a');
+    px(CX - 18, 155 + DY, 36, 3, '#06060a'); px(CX - 18, 158 + DY, 36, 1, C0); // コインの払い出し口
     ['#c8202f', '#1f4fbf', '#108a4a', '#222222', '#c8202f', '#e8b020'].forEach((c, k) => {
       const y = 171 + DY - k * 4;
       px(3, y, 14, 4, K); px(4, y, 12, 3, c); [6, 10, 14].forEach((xx) => px(xx - 1, y, 1, 3, '#ffffff')); px(4, y, 12, 1, '#ffffff55');
@@ -116,12 +121,11 @@ export function createCabinet(canvas) {
 
   // 動的な状態
   let v = { spinning: false, canSave: 'empty', ideas: 0, hits: 0, reduceMotion: false };
-  let t0 = performance.now(), celebrateUntil = 0, leverUntil = 0, pressUntil = 0;
+  let t0 = performance.now(), celebrateUntil = 0, leverUntil = 0, pressUntil = 0, leverAmt = 0, prevT = t0;
   let parts = [];
-  // 受け皿のコイン。x は皿の左端(35)からの距離 ox。W が変わったら皿の幅に合わせて詰め直す
-  const pile = [];
-  const coin = () => ({ ox: Math.random() * (128 + D) | 0, y: 161 + DY + (Math.random() * 9 | 0) });
-  for (let i = 0; i < 18; i++) pile.push(coin());
+  // 受け皿のコインの山（列ごとの高さ。計算は coins.js）。W が変わったら列の数を取り直す
+  let pile = Array(colsFor(128 + D)).fill(0);
+  const colOf = x => Math.max(0, Math.min(pile.length - 1, Math.floor((x - PILE_X) / COL_W)));
 
   function bulbs(fr, rain) {
     const pos = [];
@@ -140,15 +144,18 @@ export function createCabinet(canvas) {
     }
   }
 
-  function burst(n, x0, x1, y, vy) {
-    for (let k = 0; k < n; k++) parts.push({ x: x0 + Math.random() * (x1 - x0), y, vx: (Math.random() - 0.5) * 2.4, vy: -(Math.random() * vy + 1), f: k });
+  // 払い出し口から n 枚、時間差で飛び出す（ジャラジャラ）。初速は coins.js の launchCoin、wait: 出るまでの ms
+  function payout(n) {
+    for (let k = 0; k < n && parts.length < PAYOUT.max; k++) parts.push({ ...launchCoin(Math.random, CX - 18 + Math.random() * 32, PAYOUT.y + DY), wait: Math.random() * PAYOUT.span });
   }
+  // 受け皿の壁・床・筐体の下端（山の幅に合わせる）
+  const tray = () => ({ l: PILE_X - 2, r: PILE_X + pile.length * COL_W + 2, floor: PILE_Y + DY - 2, step: PILE_STEP, rim: RIM_Y, bottom: H });
 
   let lastDraw = 0, wasBusy = false;
   function frame(t) {
     requestAnimationFrame(frame);
     // 動くものが無いときは間引く（点滅などは時刻から決めるので見た目は同じ）
-    const busy = v.spinning || t < celebrateUntil || t < leverUntil || t < pressUntil || parts.length > 0;
+    const busy = v.spinning || t < celebrateUntil || t < leverUntil || t < pressUntil || leverAmt > 0 || parts.length > 0;
     if (!busy && !wasBusy && t - lastDraw < (v.reduceMotion ? 250 : 100)) return;
     wasBusy = busy;
     render(t);
@@ -156,6 +163,8 @@ export function createCabinet(canvas) {
   function render(t) {
     lastDraw = t;
     const rm = v.reduceMotion, celebrating = t < celebrateUntil;
+    const s = frameScale(t - prevT); // 落下は経過時間で進める（リフレッシュレートに依らない）
+    prevT = t;
     const rain = celebrating && !rm; // 低減モードでは電球・回転灯・コインは動かさない
     const el = t - t0;
     const fr = rm ? 0 : Math.floor(el / (rain ? 50 : v.spinning ? 70 : 150));
@@ -186,19 +195,26 @@ export function createCabinet(canvas) {
     }
 
     // レバー
-    const top = t < leverUntil ? 78 : 46;
+    const top = leverAmt > 0 ? Math.round(LEVER_REST + (LEVER_DOWN - LEVER_REST) * leverAmt) : t < leverUntil ? LEVER_DOWN : LEVER_REST;
     const stalk = 100 + DY - top - 8; // 棒の根元は台座（+DY）まで伸ばす。玉の上端は動かさない
     px(184 + D, top + 8, 3, stalk, C3); px(184 + D, top + 8, 1, stalk, '#ffffff'); px(186 + D, top + 8, 1, stalk, C1);
     spr(BALL, 180 + D, top, { R: '#ff3030', r: '#a01010', W: '#ffffff' });
 
-    // 受け皿のコインと落ちてくる粒
-    pile.forEach(({ ox, y }) => { const x = 35 + ox; px(x, y, 4, 3, G1); px(x, y, 4, 2, G2); px(x + 1, y, 2, 1, G4); });
+    // 受け皿のコインの山と落ちてくる粒。山の各コインは列と段から決めた 1px のずれで、整列して見えないようにする
+    pile.forEach((n, c) => {
+      for (let k = 0; k < n; k++) {
+        const x = PILE_X + c * COL_W + ((c * 7 + k * 13) % 3) - 1, y = PILE_Y + DY - k * PILE_STEP;
+        px(x, y, 4, 3, G1); px(x, y, 4, 2, G2); px(x + 1, y, 2, 1, G4);
+      }
+    });
+    const tr = tray();
     parts = parts.filter((p) => {
-      p.vy += 0.18; p.x += p.vx; p.y += p.vy;
-      if (p.y >= 168 + DY && p.vy > 0 && p.x > 34 && p.x < 162 + D) { if (pile.length < 90) pile.push({ ox: (p.x | 0) - 35, y: 161 + DY + (Math.random() * 9 | 0) }); return false; }
-      if (p.y > 182 + DY) return false;
-      const w = COIN[(p.f++ >> 1) % 6];
-      px(p.x + (4 - w) / 2, p.y, w, 4, G2); px(p.x + (4 - w) / 2, p.y, Math.max(1, w - 1), 1, G4);
+      if ((p.wait -= s * FRAME_MS) > 0) return true; // まだ出ていない
+      stepCoin(p, s);
+      if (hitCoin(p, pile, tr) === 'settled' || isGone(p, tr)) return false; // 山に積もった／筐体の下へ落ちた
+      spinCoin(p, s);
+      const w = COIN[Math.floor(p.f) % 6];
+      px(Math.round(p.x + (4 - w) / 2), Math.round(p.y), w, 4, G2); px(Math.round(p.x + (4 - w) / 2), Math.round(p.y), Math.max(1, w - 1), 1, G4);
       return true;
     });
   }
@@ -207,10 +223,8 @@ export function createCabinet(canvas) {
     // n: リール数。w: 論理幅（省略すると今のまま）。幅が変わったときだけ canvas を作り直す（代入すると中身が消える）
     setReels(n, w = W) {
       if (w !== W) {
-        const k = (128 + w - W_MIN) / (128 + D);
         W = w; D = W - W_MIN; CX = W >> 1;
-        pile.forEach(c => { c.ox = c.ox * k | 0; });
-        while (pile.length < Math.round(18 * (128 + D) / 128)) pile.push(coin());
+        pile = fitPile(pile, colsFor(128 + D));
         canvas.width = st.width = W;
         parts = []; // 粒の位置は古い幅のもの
         drawStatic(n);
@@ -221,11 +235,18 @@ export function createCabinet(canvas) {
     },
     update(view) { v = { ...v, ...view }; },
     pullLever() { leverUntil = performance.now() + LEVER_MS; },
+    // ドラッグ中のレバー。引いた量 0〜1（0 で元の位置）
+    setLever(a) { leverAmt = Math.max(0, Math.min(1, a)); },
+    // 当たりのとき、コインが出て受け皿に積もる。低減モードでは降らせず、山だけを少し足す
     celebrate() {
-      celebrateUntil = performance.now() + CELEBRATE_MS;
-      if (!v.reduceMotion) burst(48, 40, 160 + D, 52, 3);
+      const now = performance.now();
+      celebrateUntil = now + CELEBRATE_MS;
+      if (v.reduceMotion) { for (let i = 0; i < PAYOUT.rm; i++) dropCoin(pile, colOf(CX + (Math.random() - 0.5) * 32)); return; }
+      prevT = now; // 止まっていた間の時間を dt に入れない
+      payout(PAYOUT.n);
     },
-    dribble() { if (!v.reduceMotion) burst(5, CX - 20, CX + 20, 158 + DY, 2.2); },
+    // 起動時の山: 当たり帳の件数 hits に応じた高さから始める
+    initPile(hits) { pile = initialPile(pile.length, hits); },
     pressIdea() { pressUntil = performance.now() + PRESS_MS; },
     celebrating() { return performance.now() < celebrateUntil; },
   };

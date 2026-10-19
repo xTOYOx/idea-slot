@@ -71,3 +71,11 @@ test('pure: inputs not mutated', () => {
   M.startSpin(inp, pools); M.pressReel(inp, 0, 0); M.restore(inp, ['a']);
   assert.deepEqual(inp, copy);
 });
+
+test('lockExcept: holds every reel with a word except the one to respin', () => {
+  const out = M.lockExcept([R('x'), R('y'), R('z'), { type: 'a', value: null, held: false }], 1);
+  assert.deepEqual(out.map(r => r.held), [true, false, true, false]);
+  const { reels } = M.startSpin(out, pools);
+  assert.deepEqual(reels.map(r => !!r.running), [false, true, false, true]);
+  assert.equal(reels[0].value, 'x');
+});

@@ -5,8 +5,10 @@ const NOUN = {
 // テーマ集（data/extra.json の id → 表示名。この順で並べる）
 export const EXTRA = {
   ono: 'オノマトペ', jfood: '日本の食べ物', jlife: '日本の暮らし', yokai: '妖怪・神話', play: '遊び・スポーツ', season: '行事・季節', gameterm: 'ゲーム用語',
-  monster: 'モンスター・幻獣', power: '超能力・スキル', chara: 'キャラの型', net: 'ネット・現代語', stage: '舞台・ロケーション', sf: 'SF・技術', plot: '物語の展開',
+  monster: 'モンスター・幻獣', power: '超能力・スキル', chara: 'キャラの型', net: 'ネット・現代語', stage: '舞台・ロケーション', sf: 'SF・技術', plot: '物語の展開', rule: '制約',
 };
+// 選んだときだけ出すテーマ。テーマ集（全部）と全部ランダムには入れない（作品名の「ゲーム」と同じ扱い）
+export const EXTRA_ONLY = ['rule'];
 const TAG = { look: 'タグ：見た目', mood: 'タグ：雰囲気・テーマ', mechanic: 'タグ：仕組み' };
 
 export const TYPE_LABELS = {

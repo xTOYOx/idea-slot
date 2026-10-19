@@ -1,4 +1,4 @@
-@font-face { font-family: 'DotGothic16'; src: url('fonts/DotGothic16-Regular.ttf'); font-display: swap; }
+@font-face { font-family: 'DotGothic16'; src: url('fonts/DotGothic16-Regular.woff2') format('woff2'), url('fonts/DotGothic16-Regular.ttf') format('truetype'); font-display: swap; }
 * { box-sizing: border-box; }
 html { height: 100%; }
 :root { --th: 140px; } /* 端のタブの高さ */
@@ -43,7 +43,7 @@ button:disabled { opacity: .45; cursor: default; }
 /* 広げる向きを分ける: STOP は下へ、IDEA! は上へ（間のすき間で重ならない） */
 .sb { top: 0; height: max(100%, 44px); transform: translateX(-50%); }
 #idea { top: auto; bottom: 0; height: max(100%, 44px); transform: translateX(-50%); }
-#lev { width: max(100%, 44px); cursor: grab; }
+#lev { width: max(100%, 44px); cursor: grab; touch-action: none; } /* 縦にドラッグして引くので、触って画面がスクロールしない */
 /* リール数の＋－: 台座は筐体の絵。＋は上へ、－は下へ押す範囲を広げる（間のすき間で重ならない） */
 .rb { width: max(100%, 40px); height: max(100%, 40px); transform: translateX(-50%); }
 .rb.up { top: auto; bottom: 0; }
@@ -78,8 +78,38 @@ button:disabled { opacity: .45; cursor: default; }
 .hit { background: #fff8ec; color: #1a1020; border: 2px solid #000; box-shadow: 3px 3px 0 #000; padding: 8px 10px; margin: 8px 0; }
 .hit b { font-weight: 400; font-size: 15px; display: block; margin-bottom: 6px; overflow-wrap: anywhere; }
 .hit b i { font-style: normal; color: #c8202f; }
-.hit input { background: #fff; color: #1a1020; border: 2px solid #1a1020; font-size: 13px; padding: 4px 6px; min-height: 40px; }
+.hit input, .hit textarea { background: #fff; color: #1a1020; border: 2px solid #1a1020; font: inherit; font-size: 13px; padding: 4px 6px; min-height: 40px; }
+.hit textarea { display: block; width: 100%; resize: none; overflow: hidden; line-height: 1.4; }
+/* 当たりカード: ★の評価、語の横の ↻、タグ */
+.hit .stars { display: flex; margin: -4px 0 2px -4px; }
+.hit .star { flex: none; min-width: 36px; min-height: 36px; padding: 0; font-size: 24px; line-height: 1; color: #b3a88f; background: none; border: 0; cursor: pointer; }
+.hit .star.on { color: #f0a000; text-shadow: 1px 0 #000, -1px 0 #000, 0 1px #000, 0 -1px #000; }
+.hit .star:focus-visible, .hit .rr:focus-visible, .hit .htag button:focus-visible { outline: 3px solid #3ef0ff; outline-offset: 1px; }
+.hit .wr { display: inline-block; max-width: 100%; }
+.hit .rr { min-width: 1.9em; min-height: 1.9em; margin-left: .3em; padding: 0; vertical-align: middle; font-size: .9em; line-height: 1; color: #1a1020; background: #fff; border: 2px solid #000; box-shadow: 2px 2px 0 #000; border-radius: 0; cursor: pointer; }
+.hit .rr:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 #000; }
+.hit .htags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 6px; }
+.hit .htag { display: inline-flex; background: #d8f3e4; border: 2px solid #0b4a2f; }
+.hit .htag button { min-height: 32px; padding: 0 .5em; font-size: .9em; color: #0b4a2f; background: none; border: 0; cursor: pointer; }
+.hit .htag .tagx { padding: 0 .5em; color: #c8202f; border-left: 1px solid #0b4a2f; }
+.hit input.tagin { flex: 1 1 7em; width: auto; min-width: 6em; }
+/* 当たり帳の一覧の操作（見出しの下の固定部分） */
+.hctl { margin: 0 0 8px; display: flex; flex-direction: column; gap: 6px; }
+.hctl .hrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.hctl select, .hctl input { flex: 1 1 6em; min-width: 0; min-height: 40px; padding: 4px 6px; font-size: 14px; color: #fff; background: #083a26; border: 2px solid #e8b020; border-radius: 0; }
+.hctl input { flex-basis: 100%; }
+.hctl .hstat { justify-content: space-between; color: #ffe066; }
+.hctl .hstat span { flex: 1 1 auto; min-width: 0; }
+.hctl button { flex: none; }
+/* 履歴の ★（当たり帳に入れる） */
+#hist li { display: flex; align-items: flex-start; }
+#hist .hstar { flex: none; min-width: 40px; margin: 5px 5px 5px 0; padding: 6px; color: #c8202f; }
 .hit.new { background: #ffe066; }
+/* 語の意味の吹き出し（tip.js）。画面からはみ出さない位置は JS が決める。文字は PC では基準の --fs */
+#tip { position: fixed; z-index: 50; pointer-events: none; width: max-content; max-width: min(90vw, 30em); padding: .5em .7em; font-size: var(--fs, 15px); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; color: #fff; background: #0f5a3a; border: 3px solid #e8b020; outline: 2px solid #000; }
+#tip b { display: block; font-weight: 400; color: #ffe066; }
+#wrap, .hit .w { -webkit-touch-callout: none; } /* 長押しの吹き出しと、OS の選択メニューが重ならないように */
+@media (pointer: coarse) { .hit .w { user-select: none; -webkit-user-select: none; } }
 .hit .row { display: flex; gap: 8px; margin: 8px 0 0; }
 #empty { color: #9fd8b8; font-size: 13px; text-align: center; margin: 4px 0; }
 #hist { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-content: flex-start; }
@@ -175,12 +205,23 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 .krows li { display: flex; align-items: center; gap: .6em; padding: 4px 10px; }
 .krows span { flex: 1; }
 .krows button { flex: 0 1 12em; white-space: normal; }
+.krows button.dup { background: #e0303e; color: #fff; } /* 同じキーが複数の操作にある */
 .krows button[aria-pressed=true] { background: #ffe066; }
 /* 使い方 */
 #help { font-size: 15px; line-height: 1.7; }
 #help .thead { margin-bottom: 4px; }
 #help h4 { margin: 12px 0 2px; font-size: 1em; font-weight: 400; color: #ffe066; }
 #help ul { margin: 0; padding-left: 1.4em; }
+/* 初めての案内（tour.js）: 画面全体の dialog。暗くした画面から、指している部品だけ穴を抜く */
+#tour { position: fixed; inset: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; outline: 0; background: none; overflow: hidden; }
+#tour::backdrop { background: none; }
+#tour .tdim { position: absolute; inset: 0; background: rgba(0, 0, 0, .72); pointer-events: none; }
+#tour .tbox { position: absolute; border: 3px solid #ffe066; outline: 2px solid #000; box-shadow: 0 0 12px #ffe066; pointer-events: none; }
+#tour .tbal { position: absolute; width: max-content; max-width: min(90vw, 24em); padding: .6em .8em; font-size: var(--fs, 15px); line-height: 1.5; color: #fff; background: #0f5a3a; border: 3px solid #e8b020; outline: 2px solid #000; }
+#tour .tbal p { margin: 0; }
+#tour .tn { color: #ffe066; font-size: .85em; }
+#tour .tbal .row { justify-content: flex-end; margin-bottom: 0; }
+#tour button:focus-visible { outline: 3px solid #3ef0ff; outline-offset: 2px; }
 /* 引き出しの中: 見出しなどは固定し、一覧（.dscroll）だけをスクロールする */
 .dbody > * { flex: none; }
 .dbody > .dscroll, #tpl { flex: 1 1 auto; min-height: 0; }
@@ -258,7 +299,11 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   .card { font-size: var(--fs); min-height: max(40px, 2.4em); min-width: 4em; padding: .3em .6em; }
   .card small { font-size: .78em; }
   .hit b { font-size: var(--fs); }
-  .hit input { width: 100%; font-size: var(--fs); min-height: max(40px, 2.4em); padding: .2em .4em; }
+  .hit input, .hit textarea { width: 100%; font-size: var(--fs); min-height: max(40px, 2.4em); padding: .2em .4em; }
+  .hit .star { min-width: 1.8em; min-height: 1.8em; font-size: calc(var(--fs) * 1.5); }
+  .hit .htag button { min-height: 1.8em; }
+  .hctl select, .hctl input { font-size: var(--fs); min-height: max(40px, 2.4em); padding: .2em .4em; }
+  #hist .hstar { min-width: max(40px, 2.4em); }
   #empty { font-size: .9em; }
   :root { --hw: min(560px, 42vw); --lw: max(var(--hw), min(calc(var(--fs) * 24), 34vw)); } /* 引き出しの幅。左の2つ（履歴・テンプレ）は同じ幅 --lw */
   .drawer { width: var(--hw); }
