@@ -23,7 +23,8 @@ const clamp = n => (Number.isInteger(n) ? Math.min(4, Math.max(2, n)) : 3);
 const reduceMotion = () => state.settings.reduceMotion || motionQuery.matches;
 
 let data = null, pools = null, index = null;
-let themes = {}; // テーマの語 → 集めた語のリスト（除外前の分も含め、プールは rebuildPools で作る）
+let themes = {}; // テーマの語 → 集めた語のリスト（除外語を引く前のもの。プールは rebuildPools のたびに除外語を除いて作る）
+let ready = false; // 起動の最初の spin が済むまで、回す・IDEA!・リール設定を受け付けない（保存テーマの読み込み待ち）
 let graphP = null; // data/graph.json を読む Promise（最初にテーマを使うときだけ。失敗したら捨てて次回やり直す）
 let reels = [], reelCount = 0, cab = null, view = null;
 let tickTimer = null, beat = 0, autoTimers = [], editing = -1, memoTimer = null;
@@ -38,9 +39,9 @@ function rebuildPools() {
 }
 const say = text => view.say(text);
 const rnd = type => { const p = pools[type] ?? []; return p.length ? p[Math.floor(Math.random() * p.length)] : ''; };
-const loadGraph = () => (graphP ??= fetch('data/graph.json')
+const loadGraph = () => (graphP ??= fetch('data/graph.json', { signal: AbortSignal.timeout(15000) })
   .then(r => { if (!r.ok) throw new Error('graph'); return r.json(); })
-  .then(indexGraph)
+  .then(indexGraph) // 15秒で打ち切る（signal は本文の読み込みにも効く）
   .catch(e => { graphP = null; throw e; }));
 const THEME_FAIL = 'テーマのデータを読み込めませんでした';
 const rowsOf = (r, i, fresh) => {
@@ -121,6 +122,7 @@ function commitStops(next) {
 }
 
 function pull() {
+  if (!ready) return;
   const r = startSpin(reels, pools);
   if (!r.ok) {
     if (r.reason === 'allLocked') { say('全部LOCK中 ... どれかのLOCKをはずしてね'); sound.play('deny'); }
@@ -161,6 +163,7 @@ function press(i) {
 
 // --- IDEA! ---
 function idea() {
+  if (!ready) return;
   if (cab.celebrating()) return;
   const status = canSave(reels, state.favorites);
   if (status === 'spinning') { sound.play('deny'); return; }
@@ -215,7 +218,7 @@ async function setTheme(i) {
   let G;
   try { G = await loadGraph(); } catch { say(THEME_FAIL); sound.play('deny'); return; }
   if (!canEdit(reels) || reels[i]?.value !== w) return;
-  const list = themeWords(G, w, { excluded: state.excluded });
+  const list = themeWords(G, w);
   if (!list.length) { say(`「${w}」はテーマにできない語です`); sound.play('deny'); return; }
   themes[w] = list;
   rebuildPools();
@@ -227,13 +230,14 @@ async function setTheme(i) {
 }
 
 // 保存したテーマの語を集める（初回起動・インポート後）。読めなければ false。保存データのテーマは消さない
+const savedThemes = () => [...new Set(state.settings.slots.map(s => s?.theme).filter(w => typeof w === 'string' && w))];
 async function prepareThemes() {
-  themes = {};
-  const words = [...new Set(state.settings.slots.map(s => s?.theme).filter(w => typeof w === 'string' && w))];
-  if (!words.length) return true;
+  const words = savedThemes(), next = {};
+  if (!words.length) { themes = next; return true; }
   try {
     const G = await loadGraph();
-    for (const w of words) { const list = themeWords(G, w, { excluded: state.excluded }); if (list.length) themes[w] = list; }
+    for (const w of words) { const list = themeWords(G, w); if (list.length) next[w] = list; }
+    themes = next;
     return true;
   } catch { return false; }
 }
@@ -357,7 +361,7 @@ function toggleSetup() {
 const chipActions = {
   all() { if (isSpinning(reels)) commitStops(stopAll(reels, performance.now())); },
   mode() { state.settings.autoStop = !state.settings.autoStop; store.save('settings'); chips(); },
-  cfg: toggleSetup,
+  cfg() { if (ready) toggleSetup(); },
   snd() { state.settings.sound = sound.enabled = !state.settings.sound; store.save('settings'); chips(); },
   menuBtn() { if (!isSpinning(reels)) $('menu').hidden = !$('menu').hidden; },
   spin: pull,
@@ -388,7 +392,6 @@ function initialReels() {
 }
 
 async function start() {
-  const themesOk = await prepareThemes();
   rebuildPools();
   sound.enabled = state.settings.sound;
   cab = createCabinet($('cv'));
@@ -417,10 +420,23 @@ async function start() {
   });
   motionQuery.addEventListener?.('change', sync);
   chips();
+  // 保存したテーマがあれば、筐体を出してからグラフを読む（読めなければテーマなしで続ける）
+  reelCount = clamp(state.settings.count);
+  cab.setReels(reelCount);
+  view.build(reelCount); // 空の筐体を先に出す（掲示板もここで使えるようになる）
+  if (savedThemes().length) say('テーマを準備中…');
+  const themesOk = await prepareThemes();
+  rebuildPools();
   setReels(initialReels());
+  ready = true;
   renderHits();
   renderHistory();
   say(themesOk ? '★ WELCOME TO IDEA CASINO ★ レバーで回す ★ 気に入った語はLOCK ★ いいね！と思ったら IDEA! ★' : `${THEME_FAIL} ... テーマなしで開始`);
+}
+
+function fail() {
+  app.innerHTML = '<div class="error"><p>データを読み込めませんでした</p><button class="sbtn" id="reload">再読み込み</button></div>';
+  $('reload').onclick = () => location.reload();
 }
 
 async function load() {
@@ -429,10 +445,9 @@ async function load() {
       ['words', 'verbs', 'genres', 'tags'].map(n => fetch(`data/${n}.json`).then(r => { if (!r.ok) throw new Error(n); return r.json(); })));
     data = { words, verbs, genres, tags };
   } catch {
-    app.innerHTML = '<div class="error"><p>データを読み込めませんでした</p><button class="sbtn" id="reload">再読み込み</button></div>';
-    $('reload').onclick = () => location.reload();
+    fail();
     return;
   }
-  start();
+  start().catch(fail);
 }
 load();
