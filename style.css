@@ -150,10 +150,28 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 #spin { display: none; width: 100%; min-height: 60px; margin-top: 14px; font-size: 26px; letter-spacing: .3em; color: #fff; background: #8a1fa0; border: 5px dashed #fff; cursor: pointer; box-shadow: inset 0 0 0 5px #8a1fa0, inset 0 0 0 7px #fff, 0 5px 0 #000; }
 #spin:active { transform: translateY(4px); box-shadow: inset 0 0 0 5px #8a1fa0, inset 0 0 0 7px #fff, 0 1px 0 #000; }
 
+/* 筐体の横幅のつまみ（PC のみ）。当たり判定は 24px、見える金の棒は細く。ドラッグ中は「横幅 280」を出す */
+.grip { display: none; position: absolute; top: 50%; height: 36%; width: 24px; transform: translateY(-50%); z-index: 1; cursor: ew-resize; touch-action: none; outline: 0; }
+.grip.l { right: 100%; }
+.grip.r { left: 100%; }
+.grip::before { content: ''; position: absolute; top: 0; bottom: 0; width: 10px; border: 3px solid #000; opacity: .5;
+  background: repeating-linear-gradient(#e8b020 0 6px, #a8700c 6px 12px); box-shadow: inset 0 0 0 2px #ffe066; }
+.grip.l::before { right: 0; }
+.grip.r::before { left: 0; }
+.grip:hover::before, .grip.on::before, .grip:focus-visible::before { opacity: 1; }
+.grip:focus-visible::before { outline: 2px solid #3ef0ff; outline-offset: 2px; }
+.grip b { display: none; position: absolute; top: 0; padding: .15em .5em; font-weight: 400; font-size: var(--fs, 16px); white-space: nowrap; pointer-events: none; color: #ffe066; background: #0f5a3a; border: 2px solid #e8b020; outline: 2px solid #000; }
+.grip.l b { left: calc(100% + 6px); }
+.grip.r b { right: calc(100% + 6px); }
+.grip.on b, .grip:focus-visible b { display: block; }
+#pause button small { display: block; font-size: .7em; }
+#pause button[aria-disabled=true] { cursor: default; box-shadow: none; transform: none; background: #d8d0bc; }
+
 /* PC: ページはスクロールさせず、筐体は画面に収まる最大の大きさで中央に置く */
 @media (min-width: 600px) {
   body { height: 100dvh; overflow: hidden; }
   #app { max-width: none; height: 100%; margin: 0; display: grid; place-items: center; }
+  .grip { display: block; }
   #wrap { width: min(100vw - 2 * var(--tab) - 32px, (100dvh - 32px) * var(--W) / 190); } /* 左右は端のタブの分を空ける（app.js も同じ式で W を決める） */
 
   /* 画面に合わせて UI を大きくする。基準の文字サイズ --fs（1280×800 で約 19px、1920×1080 で 26px）。スマホ（600 未満）は上の元の大きさのまま */
@@ -163,7 +181,7 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   dialog h2 { font-size: 1.2em; }
   dialog h3 { font-size: 1em; }
   dialog input[type=text], dialog input:not([type]), dialog select, dialog textarea { font-size: var(--fs); min-height: max(40px, 2.4em); padding: .3em .4em; }
-  #pause { max-width: min(640px, 90vw); }
+  #pause { max-width: min(640px, 90vw); max-height: 94dvh; }
   #pause h2 { font-size: 1.4em; margin-bottom: .5em; }
   #pause .col { gap: .6em; }
   #pause button { min-height: 2.6em; }
