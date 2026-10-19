@@ -101,7 +101,7 @@ export function createOverlay(wrap, ov, on) {
     const r = rects[i], side = r.x + r.w / 2 < W / 2 ? `left:${r.x / W * 100}%` : `right:${(W - r.x - r.w) / W * 100}%`;
     let y = REEL_Y + REEL_H;
     menuEl = document.createElement('div');
-    menuEl.className = 'wm tl';
+    menuEl.className = 'wm';
     menuEl.innerHTML = html;
     ov.appendChild(menuEl);
     const wr = wrap.getBoundingClientRect(), at = yy => wr.top + wr.height * yy / 190;

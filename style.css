@@ -65,14 +65,12 @@ button:disabled { opacity: .45; cursor: default; }
 /* 演出を減らす: 掲示板は流さず、リールは転がさない（語は変わり続ける） */
 .reduce-motion .tk span { display: block; padding-left: 0; animation: none; overflow: hidden; text-overflow: ellipsis; }
 .reduce-motion .spin .strip, .reduce-motion .bn .strip { animation: none; }
-.wm { z-index: 2; max-width: 70vw; max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 4px; background: #0f5a3a; border: 2px solid #e8b020; outline: 2px solid #000; }
-.wm.tl { max-width: 90vw; }
-.wm.tl button { min-height: 36px; display: flex; align-items: center; gap: 8px; }
+.wm { z-index: 2; max-width: 90vw; max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 4px; background: #0f5a3a; border: 2px solid #e8b020; outline: 2px solid #000; }
 .wm .sep { flex: none; height: 2px; background: #e8b020; }
 /* チェック欄 */
 .cb { flex: none; width: 16px; height: 16px; border: 2px solid #000; background: #fff; }
 .cb.on { background: #ffe066; box-shadow: inset 0 0 0 3px #fff8ec, inset 0 0 0 8px #108a4a; }
-.wm button { font-size: 14px; min-height: 40px; padding: 4px 10px; white-space: normal; overflow-wrap: anywhere; text-align: left; background: #fff8ec; color: #1a1020; border: 2px solid #000; border-radius: 0; cursor: pointer; }
+.wm button { font-size: 14px; min-height: 36px; display: flex; align-items: center; gap: 8px; padding: 4px 10px; white-space: normal; overflow-wrap: anywhere; text-align: left; background: #fff8ec; color: #1a1020; border: 2px solid #000; border-radius: 0; cursor: pointer; }
 
 .sbtn, dialog button { font-size: 14px; min-height: 40px; background: #fff8ec; color: #1a1020; border: 2px solid #000; box-shadow: 3px 3px 0 #000; border-radius: 0; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
 .sbtn:active, dialog button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #000; }
@@ -159,7 +157,7 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   #wrap { width: min(100vw - 2 * var(--tab) - 32px, (100dvh - 32px) * var(--W) / 190); } /* 左右は端のタブの分を空ける（app.js も同じ式で W を決める） */
 
   /* 画面に合わせて UI を大きくする。基準の文字サイズ --fs（1280×800 で約 19px、1920×1080 で 26px）。スマホ（600 未満）は上の元の大きさのまま */
-  :root { --fs: clamp(16px, 1.1vw + .6vh, 26px); --tab: max(44px, calc(var(--fs) * 2.8)); }
+  :root { --fs: clamp(16px, min(1.1vw + .6vh, 2.5vh), 26px); --tab: max(44px, calc(var(--fs) * 2.8)); }
   .sbtn, dialog button { font-size: var(--fs); min-height: max(40px, 2.4em); padding: .3em .7em; }
   dialog { font-size: var(--fs); max-width: min(820px, 92vw); }
   dialog h2 { font-size: 1.2em; }
@@ -182,9 +180,8 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   .bdg { font-size: .8em; min-width: 1.5em; }
   #pbtn { width: var(--tab); height: var(--tab); left: 8px; top: 8px; gap: calc(var(--fs) * .4); }
   #pbtn i { width: calc(var(--fs) * .4); height: calc(var(--fs) * 1.2); }
-  /* 語メニュー・モニターのリスト: 文字は基準サイズ（筐体が大きければそれに合わせる） */
-  .wm button { font-size: max(var(--fs), calc(var(--u) * 4.2)); min-height: max(40px, 2.2em); }
-  .wm.tl button { min-height: max(40px, 2.2em); gap: .5em; }
+  /* モニターの種類リスト: 文字は基準サイズ（筐体が大きければそれに合わせる） */
+  .wm button { font-size: max(var(--fs), calc(var(--u) * 4.2)); min-height: max(40px, 2.2em); gap: .5em; }
   .cb { width: 1em; height: 1em; }
 }
 @media (max-width: 599px) {

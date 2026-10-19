@@ -14,7 +14,7 @@ import { initScreens } from './screens.js';
 import { initThemeScreen } from './themescreen.js';
 import { cabinetWidth } from './layout.js';
 
-// テーマ機能のスイッチ。false の間は語メニューに出さず、保存済みのテーマも使わない（保存データからは消さない）
+// 保存済みの WordNet テーマ（設定の slots[].theme）を読み込むかのスイッチ。false の間は読み込まない（保存データからは消さない）
 const THEMES_ON = false;
 
 let ls = null;
@@ -246,21 +246,22 @@ async function copyWord(i) {
   try { await navigator.clipboard.writeText(w); } catch {
     const t = document.createElement('textarea'); // クリップボード API が使えない／断られたとき
     t.value = w;
-    t.style.cssText = 'position:fixed;opacity:0';
+    t.readOnly = true; // iOS のキーボードや拡大を出さない
+    t.style.cssText = 'position:fixed;opacity:0;font-size:16px';
     document.body.append(t);
     t.select();
     const ok = document.execCommand('copy');
     t.remove();
     if (!ok) { say('コピーできませんでした'); sound.play('deny'); return; }
   }
+  if (reels[i]?.running) return; // コピーの間に回し始めたら、掲示板と光を上書きしない
   sound.play('lock');
   say(`「${w}」をコピーしました`);
   if (!reduceMotion()) view.flash(i);
 }
 
 // 自作テーマが変わった（作成・語の増減・名前変更・削除）。remap = {from, to}（to が null なら削除）で、その種類のリールを付け替える
-// quiet: 語メニューからの追加（リールの見た目は触らない）
-function themesChanged(remap, quiet = false) {
+function themesChanged(remap) {
   rebuildPools();
   const hit = [];
   if (remap) {
@@ -275,7 +276,7 @@ function themesChanged(remap, quiet = false) {
     if (to === null) for (const i of hit) if (!reels[i].held) reels = rerollOne(reels, i, pools); // 消えたテーマの語が窓に残らないように
     saveSettings();
   }
-  if (!quiet) reels.forEach((r, i) => { if (parseType(r.type).some(k => k.startsWith(MY)) || hit.includes(i)) paint(i, true); }); // 語が減った・名前が変わった・振り直した枠を描き直す
+  reels.forEach((r, i) => { if (parseType(r.type).some(k => k.startsWith(MY)) || hit.includes(i)) paint(i, true); }); // 語が減った・名前が変わった・振り直した枠を描き直す
   sync();
   if (editing >= 0) renderCards();
 }

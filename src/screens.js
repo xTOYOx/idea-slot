@@ -18,7 +18,7 @@ export function initScreens({ store, typeLabels, typeKeys, isSpinning, rebuildPo
         <form class="row"><select name="type" aria-label="種類">${opts}</select>
         <input name="word" placeholder="語" required aria-label="語"><button>追加</button></form>
         ${groups || '<p>追加した語はありません</p>'}
-        <h2>除外した語</h2>${ex ? `<ul class="list">${ex}</ul>` : '<p>ありません</p>'}`;
+        ${ex ? `<h2>除外した語</h2><ul class="list">${ex}</ul>` : ''}`;
     },
     settings() {
       return `<h2>書き出し・読み込み</h2>

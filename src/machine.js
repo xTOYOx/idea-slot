@@ -39,8 +39,5 @@ export function canSave(reels, favorites) {
 
 export const autoStopDelays = reels => reels.map((r, i) => (r.running ? 600 + 320 * i : null));
 
-export const excludeAt = (reels, i, pools, rng = Math.random) =>
-  rerollOne(mapAt(reels, i, r => ({ ...r, held: false })), i, pools, rng);
-
 export const restore = (reels, combo) =>
   resizeSlots(reels, combo.length).map((r, i) => ({ ...r, value: combo[i], held: false, running: false, target: undefined, stoppedAt: undefined }));
