@@ -53,10 +53,6 @@ test('autoStopDelays', () => {
   const { reels } = M.startSpin([R('x'), R('y', true), R('z')], pools);
   assert.deepEqual(M.autoStopDelays(reels), [600, null, 1240]);
 });
-test('excludeAt unlocks and rerolls', () => {
-  const out = M.excludeAt([R('x', true), R('y')], 0, { a: ['z'] });
-  assert.deepEqual(out[0], { type: 'a', value: 'z', held: false });
-});
 test('restore resizes and clears locks', () => {
   const out = M.restore([R('x', true), R('y', true), R('z')], ['p', 'q']);
   assert.deepEqual(out.map(r => [r.value, r.held, !!r.running]), [['p', false, false], ['q', false, false]]);

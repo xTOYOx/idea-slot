@@ -9,7 +9,7 @@ button:disabled { opacity: .45; cursor: default; }
 [hidden] { display: none !important; }
 
 /* 筐体と重ね物（1論理ピクセル = --u） */
-#wrap { position: relative; --u: 3.1px; user-select: none; width: 100%; }
+#wrap { position: relative; --u: 3.1px; --W: 200; /* --W: 筐体の論理幅（app.js が画面に合わせて決める） */ user-select: none; width: 100%; }
 #cv { width: 100%; display: block; image-rendering: pixelated; }
 .ov, .rw, .wm { position: absolute; }
 /* リール上のモニター: 種類名は緑、テーマ中は金 */
@@ -27,7 +27,9 @@ button:disabled { opacity: .45; cursor: default; }
 .strip span { max-width: 100%; overflow-wrap: anywhere; }
 .e { font-size: calc(var(--u) * 3.4); color: #8a6a34; }
 .e span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.m { font-size: max(calc(var(--u) * 5.2), 12px); color: #2a1020; cursor: pointer; }
+.m { font-size: max(calc(var(--u) * 5.2), 12px); color: #2a1020; cursor: copy; }
+.cp { animation: cp .35s steps(2); }
+@keyframes cp { 50% { background: rgba(255, 224, 102, .75); } }
 .m span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .spin .m { pointer-events: none; }
 .spin .strip { animation: rl .12s steps(3) infinite; }
@@ -63,15 +65,12 @@ button:disabled { opacity: .45; cursor: default; }
 /* 演出を減らす: 掲示板は流さず、リールは転がさない（語は変わり続ける） */
 .reduce-motion .tk span { display: block; padding-left: 0; animation: none; overflow: hidden; text-overflow: ellipsis; }
 .reduce-motion .spin .strip, .reduce-motion .bn .strip { animation: none; }
-.wm { z-index: 2; max-width: 70vw; max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 4px; background: #0f5a3a; border: 2px solid #e8b020; outline: 2px solid #000; }
-.wm .sub { display: flex; flex-direction: column; gap: 4px; }
-.wm.tl { max-width: 90vw; }
-.wm.tl button { min-height: 36px; display: flex; align-items: center; gap: 8px; }
+.wm { z-index: 2; max-width: 90vw; max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 4px; background: #0f5a3a; border: 2px solid #e8b020; outline: 2px solid #000; }
 .wm .sep { flex: none; height: 2px; background: #e8b020; }
 /* チェック欄 */
 .cb { flex: none; width: 16px; height: 16px; border: 2px solid #000; background: #fff; }
 .cb.on { background: #ffe066; box-shadow: inset 0 0 0 3px #fff8ec, inset 0 0 0 8px #108a4a; }
-.wm button { font-size: 14px; min-height: 40px; padding: 4px 10px; white-space: normal; overflow-wrap: anywhere; text-align: left; background: #fff8ec; color: #1a1020; border: 2px solid #000; border-radius: 0; cursor: pointer; }
+.wm button { font-size: 14px; min-height: 36px; display: flex; align-items: center; gap: 8px; padding: 4px 10px; white-space: normal; overflow-wrap: anywhere; text-align: left; background: #fff8ec; color: #1a1020; border: 2px solid #000; border-radius: 0; cursor: pointer; }
 
 .sbtn, dialog button { font-size: 14px; min-height: 40px; background: #fff8ec; color: #1a1020; border: 2px solid #000; box-shadow: 3px 3px 0 #000; border-radius: 0; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
 .sbtn:active, dialog button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #000; }
@@ -155,7 +154,35 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 @media (min-width: 600px) {
   body { height: 100dvh; overflow: hidden; }
   #app { max-width: none; height: 100%; margin: 0; display: grid; place-items: center; }
-  #wrap { width: min(100vw - 120px, (100dvh - 32px) * 200 / 190); } /* 左右は端のタブ（44px）の分を空ける */
+  #wrap { width: min(100vw - 2 * var(--tab) - 32px, (100dvh - 32px) * var(--W) / 190); } /* 左右は端のタブの分を空ける（app.js も同じ式で W を決める） */
+
+  /* 画面に合わせて UI を大きくする。基準の文字サイズ --fs（1280×800 で約 19px、1920×1080 で 26px）。スマホ（600 未満）は上の元の大きさのまま */
+  :root { --fs: clamp(16px, min(1.1vw + .6vh, 2.5vh), 26px); --tab: max(44px, calc(var(--fs) * 2.8)); }
+  .sbtn, dialog button { font-size: var(--fs); min-height: max(40px, 2.4em); padding: .3em .7em; }
+  dialog { font-size: var(--fs); max-width: min(820px, 92vw); }
+  dialog h2 { font-size: 1.2em; }
+  dialog h3 { font-size: 1em; }
+  dialog input[type=text], dialog input:not([type]), dialog select, dialog textarea { font-size: var(--fs); min-height: max(40px, 2.4em); padding: .3em .4em; }
+  #pause { max-width: min(640px, 90vw); }
+  #pause h2 { font-size: 1.4em; margin-bottom: .5em; }
+  #pause .col { gap: .6em; }
+  #pause button { min-height: 2.6em; }
+  .card { font-size: var(--fs); min-height: max(40px, 2.4em); min-width: 4em; padding: .3em .6em; }
+  .card small { font-size: .78em; }
+  .hit b { font-size: var(--fs); }
+  .hit input { width: 100%; font-size: var(--fs); min-height: max(40px, 2.4em); padding: .2em .4em; }
+  #empty { font-size: .9em; }
+  .drawer { width: min(560px, 42vw); }
+  .dbody { font-size: var(--fs); padding: .7em .8em; }
+  .dhead h3 { font-size: 1.2em; }
+  .l .dhead { margin-left: calc(var(--tab) + 8px); } /* ⏸ の下に隠れないように */
+  .dtab { width: var(--tab); height: calc(var(--fs) * 9.4); margin-top: calc(var(--fs) * -4.7); font-size: var(--fs); gap: .5em; }
+  .bdg { font-size: .8em; min-width: 1.5em; }
+  #pbtn { width: var(--tab); height: var(--tab); left: 8px; top: 8px; gap: calc(var(--fs) * .4); }
+  #pbtn i { width: calc(var(--fs) * .4); height: calc(var(--fs) * 1.2); }
+  /* モニターの種類リスト: 文字は基準サイズ（筐体が大きければそれに合わせる） */
+  .wm button { font-size: max(var(--fs), calc(var(--u) * 4.2)); min-height: max(40px, 2.2em); gap: .5em; }
+  .cb { width: 1em; height: 1em; }
 }
 @media (max-width: 599px) {
   #spin { display: block; }

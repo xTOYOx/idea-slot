@@ -3,7 +3,7 @@ import { buildPools } from './pools.js';
 import { spin, rerollOne, setSlotType, resizeSlots, pickWord } from './pick.js';
 import { parseType, toggleType, normalizeType, remapType } from './typekey.js';
 import { initPanels } from './panels.js';
-import { startSpin, stopReel, pressReel, isSpinning, allStopped, canEdit, canSave, autoStopDelays, excludeAt, restore } from './machine.js';
+import { startSpin, stopReel, pressReel, isSpinning, allStopped, canEdit, canSave, autoStopDelays, restore } from './machine.js';
 import { buildIndex, searchWords } from './search.js';
 import { indexGraph, themeWords } from './theme.js';
 import { createStore } from './store.js';
@@ -12,9 +12,9 @@ import { createSound } from './sound.js';
 import { createOverlay } from './reels.js';
 import { initScreens } from './screens.js';
 import { initThemeScreen } from './themescreen.js';
-import { addWords } from './mythemes.js';
+import { cabinetWidth } from './layout.js';
 
-// テーマ機能のスイッチ。false の間は語メニューに出さず、保存済みのテーマも使わない（保存データからは消さない）
+// 保存済みの WordNet テーマ（設定の slots[].theme）を読み込むかのスイッチ。false の間は読み込まない（保存データからは消さない）
 const THEMES_ON = false;
 
 let ls = null;
@@ -34,6 +34,7 @@ let themes = Object.create(null); // テーマの語 → 集めた語のリス�
 let ready = false; // 起動の最初の spin が済むまで、回す・IDEA!・リール設定を受け付けない（保存テーマの読み込み待ち）
 let graphP = null; // data/graph.json を読む Promise（最初にテーマを使うときだけ。失敗したら捨てて次回やり直す）
 let reels = [], reelCount = 0, cab = null, view = null;
+let cabW = 200, widthTimer = 0; // 筐体の論理幅（画面の縦横比で決まる。cabinet.js・reels.js・CSS の --W と揃える）
 let tickTimer = null, beat = 0, autoTimers = [], editing = -1;
 const neigh = []; // 止まっている枠の上下の語（止まったときに決め、LOCKしても変えない）
 
@@ -126,14 +127,33 @@ function setReels(next) {
   reels = next;
   if (reels.length !== reelCount) {
     reelCount = reels.length;
-    cab.setReels(reelCount);
-    view.build(reelCount);
+    cab.setReels(reelCount, cabW);
+    view.build(reelCount, cabW);
     if (editing >= reelCount) closePick();
   }
   reels.forEach((_, i) => paint(i, true));
   saveSettings();
   sync();
 }
+
+// --- 筐体の幅（画面に合わせる） ---
+const wantedWidth = () => cabinetWidth(innerWidth, innerHeight, document.querySelector('.dtab').offsetWidth);
+function setCabW(w) {
+  cabW = w;
+  $('wrap').style.setProperty('--W', w); // CSS の筐体の幅（縦横比）と canvas の幅を同じ値にする
+}
+// 画面が変わって幅 W が変わったら、静的レイヤーと重ね物を作り直す。連続リサイズ（回転中など）では止まるまで待つ
+function fitCabinet() {
+  widthTimer = 0;
+  const w = wantedWidth();
+  if (!view || w === cabW) return;
+  setCabW(w);
+  cab.setReels(reelCount, w);
+  view.build(reelCount, w);
+  reels.forEach((_, i) => paint(i));
+  sync();
+}
+addEventListener('resize', () => { clearTimeout(widthTimer); widthTimer = setTimeout(fitCabinet, 200); });
 
 // --- 回す・止める・ロック ---
 function finish() {
@@ -219,49 +239,29 @@ function idea() {
   if (!reduceMotion()) panels.flash('hits');
 }
 
-// --- 窓の語メニュー ---
-function wordMenu(action, i) {
-  if (!canEdit(reels) || !reels[i]?.value) return;
-  const w = reels[i].value;
-  if (action === 'x') {
-    if (!state.excluded.includes(w)) { state.excluded = [...state.excluded, w]; store.save('excluded'); }
-    rebuildPools();
-    reels = excludeAt(reels, i, pools);
-    say(`「${w}」を除外`);
-  } else if (action === 't') {
-    setTheme(i);
-    return;
-  } else if (/^a\d+$/.test(action)) {
-    addToMyTheme(Number(action.slice(1)), w);
-    return;
-  } else if (action === 'u') {
-    reels = reels.map((r, j) => (j === i ? { ...r, type: r.base, base: undefined } : r));
-    saveSettings();
-    say(`${i + 1}番リールのテーマを解除`);
-  } else {
-    reels = rerollOne(reels, i, pools);
-    say(`${i + 1}番リールを振り直し`);
+// --- 窓の語をクリック = クリップボードにコピー（調べもの用） ---
+async function copyWord(i) {
+  const w = reels[i]?.value;
+  if (!w || reels[i].running) return;
+  try { await navigator.clipboard.writeText(w); } catch {
+    const t = document.createElement('textarea'); // クリップボード API が使えない／断られたとき
+    t.value = w;
+    t.readOnly = true; // iOS のキーボードや拡大を出さない
+    t.style.cssText = 'position:fixed;opacity:0;font-size:16px';
+    document.body.append(t);
+    t.select();
+    const ok = document.execCommand('copy');
+    t.remove();
+    if (!ok) { say('コピーできませんでした'); sound.play('deny'); return; }
   }
-  paint(i, true);
-  sync();
-}
-
-// 窓の語を自作テーマに足す（リールの状態は変えない）
-function addToMyTheme(k, w) {
-  const t = state.themes[k];
-  if (!t) return;
-  const r = addWords(t, [w]);
-  if (!r.added) { say(`「${w}」は★${t.name}にすでに入っています`); return; }
-  state.themes = state.themes.map((x, j) => (j === k ? r.theme : x));
-  store.save('themes');
-  store.unexclude([w]);
-  themesChanged(undefined, true);
-  say(`「${w}」を★${t.name}に追加（${r.theme.words.length}語）`);
+  if (reels[i]?.running) return; // コピーの間に回し始めたら、掲示板と光を上書きしない
+  sound.play('lock');
+  say(`「${w}」をコピーしました`);
+  if (!reduceMotion()) view.flash(i);
 }
 
 // 自作テーマが変わった（作成・語の増減・名前変更・削除）。remap = {from, to}（to が null なら削除）で、その種類のリールを付け替える
-// quiet: 語メニューからの追加（リールの見た目は触らない）
-function themesChanged(remap, quiet = false) {
+function themesChanged(remap) {
   rebuildPools();
   const hit = [];
   if (remap) {
@@ -276,27 +276,9 @@ function themesChanged(remap, quiet = false) {
     if (to === null) for (const i of hit) if (!reels[i].held) reels = rerollOne(reels, i, pools); // 消えたテーマの語が窓に残らないように
     saveSettings();
   }
-  if (!quiet) reels.forEach((r, i) => { if (parseType(r.type).some(k => k.startsWith(MY)) || hit.includes(i)) paint(i, true); }); // 語が減った・名前が変わった・振り直した枠を描き直す
+  reels.forEach((r, i) => { if (parseType(r.type).some(k => k.startsWith(MY)) || hit.includes(i)) paint(i, true); }); // 語が減った・名前が変わった・振り直した枠を描き直す
   sync();
   if (editing >= 0) renderCards();
-}
-
-// 語をテーマにする。グラフは初回だけ読む。止まっている間だけ（読み込み中に回し始めたら何もしない）
-async function setTheme(i) {
-  const w = reels[i].value;
-  if (!graphP) say('テーマを準備中…');
-  let G;
-  try { G = await loadGraph(); } catch { say(THEME_FAIL); sound.play('deny'); return; }
-  if (!canEdit(reels) || reels[i]?.value !== w) return;
-  const raw = themeWords(G, w), drop = new Set(state.excluded);
-  if (!raw.some(x => !drop.has(x))) { say(`「${w}」はテーマにできない語です`); sound.play('deny'); return; }
-  themes[w] = raw; // 除外前の語を持つ（除外を戻したとき rebuildPools で復活する）
-  rebuildPools();
-  reels = reels.map((r, j) => (j === i ? { ...r, type: 'theme:' + w, base: r.base ?? r.type, savedTheme: undefined, held: false } : r));
-  saveSettings();
-  say(`★ ${i + 1}番リールのテーマ：${w}（${pools['theme:' + w].length}語）`);
-  paint(i, true);
-  sync();
 }
 
 // 保存したテーマの語を集める（初回起動・インポート後）。読めなければ false。保存データのテーマは消さない
@@ -471,14 +453,10 @@ async function start() {
   cab = createCabinet($('cv'));
   view = createOverlay($('wrap'), $('ov'), {
     reel: press, lever: pull, idea,
-    word(i) {
-      if (!canEdit(reels) || !reels[i]?.value) return;
-      if (view.menuOpen('w') === i) view.hideMenu(); else view.showMenu(i, { themed: !!themeOf(reels[i]), themes: THEMES_ON, mine: state.themes.map(t => t.name) });
-    },
-    menu: wordMenu,
+    word: copyWord,
     mon(i) {
       if (!ready || !canEdit(reels) || !reels[i]) return;
-      if (view.menuOpen('t') === i) view.hideMenu(); else showTypes(i);
+      if (view.menuOpen() === i) view.hideMenu(); else showTypes(i);
     },
     type: toggleReelType,
     pickWord: openPick,
@@ -509,8 +487,9 @@ async function start() {
   pauseLabels();
   // 保存したテーマがあれば、筐体を出してからグラフを読む（読めなければテーマなしで続ける）
   reelCount = clamp(state.settings.count);
-  cab.setReels(reelCount);
-  view.build(reelCount); // 空の筐体を先に出す（掲示板もここで使えるようになる）
+  setCabW(wantedWidth());
+  cab.setReels(reelCount, cabW);
+  view.build(reelCount, cabW); // 空の筐体を先に出す（掲示板もここで使えるようになる）
   if (savedThemes().length) say('テーマを準備中…');
   const themesOk = await prepareThemes();
   rebuildPools();

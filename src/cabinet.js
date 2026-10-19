@@ -1,8 +1,9 @@
-// ピクセルアート筐体の描画（論理 200×190）。見た目の基準は docs/superpowers/specs/mockups/casino-v6.html
+// ピクセルアート筐体の描画（論理 W×190。W は 200〜340、基準は 200）。見た目の基準は docs/superpowers/specs/mockups/casino-v6.html
 // 描くだけで、入力処理もHTMLの重ね物も持たない（それはアプリ側）。
-import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H, COUNT_BTN } from './layout.js';
+import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H, COUNT_BTN, W_MIN } from './layout.js';
 
-const W = 200, H = 190, DY = 10; // DY: LEDバーより下（元の y ≥ 61）をモニターの分だけ下げる量
+// x 座標は三種類: 左に付く（そのまま）／右に付く（+ D、D = W - 200）／伸びる（幅に + D）／中央（CX 基準、CX = W/2）
+const H = 190, DY = 10; // DY: LEDバーより下（元の y ≥ 61）をモニターの分だけ下げる量
 const K = '#0b0610', R0 = '#3a0614', R1 = '#6b0f24', R2 = '#a3182f', R3 = '#e0303e';
 const G0 = '#5c3a06', G1 = '#a8700c', G2 = '#e8b020', G3 = '#ffe066', G4 = '#fff7c2';
 const C0 = '#2a2f3a', C1 = '#5d6577', C2 = '#9aa3b5', C3 = '#d8deea';
@@ -18,6 +19,7 @@ const COIN = [4, 3, 2, 1, 2, 3];
 const CELEBRATE_MS = 3200, LEVER_MS = 220, PRESS_MS = 120;
 
 export function createCabinet(canvas) {
+  let W = W_MIN, D = 0, CX = 100;
   canvas.width = W;
   canvas.height = H;
   const C = canvas.getContext('2d');
@@ -50,7 +52,7 @@ export function createCabinet(canvas) {
   // 静的レイヤー（カーペットだけで36k回のfillRectなので、リール数が変わったときだけ描き直す）
   function drawStatic(n) {
     X = S;
-    const rects = reelRects(n);
+    const rects = reelRects(n, W);
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const a = (x + y) % 12, b = (x - y + 600) % 12;
@@ -62,15 +64,15 @@ export function createCabinet(canvas) {
         px(x, y, 1, 1, c);
       }
     }
-    px(16, 176 + DY, 168, 4, '#12040a');
-    box(20, 12, 160, 166 + DY, R1, R2, R0);
-    [20, 176].forEach((a) => { px(a, 12, 1, 166 + DY, K); px(a + 1, 12, 1, 166 + DY, C2); px(a + 2, 12, 1, 166 + DY, C3); px(a + 3, 12, 1, 166 + DY, C1); });
-    px(24, 12, 152, 36, G2); px(24, 12, 152, 1, G4); px(24, 47, 152, 1, G0); px(28, 16, 144, 28, K); px(29, 17, 142, 26, '#160818');
-    box(24, 50, 152, 10, K, '#1a1a1a', K); px(26, 51, 42, 8, '#1c0404'); px(132, 51, 42, 8, '#1c0404'); px(70, 51, 60, 8, '#140800');
-    tiny('IDEAS', 28, 53, '#ff9a20'); tiny('HITS', 138, 53, '#ff9a20');
+    px(16, 176 + DY, 168 + D, 4, '#12040a');
+    box(20, 12, 160 + D, 166 + DY, R1, R2, R0);
+    [20, 176 + D].forEach((a) => { px(a, 12, 1, 166 + DY, K); px(a + 1, 12, 1, 166 + DY, C2); px(a + 2, 12, 1, 166 + DY, C3); px(a + 3, 12, 1, 166 + DY, C1); });
+    px(24, 12, 152 + D, 36, G2); px(24, 12, 152 + D, 1, G4); px(24, 47, 152 + D, 1, G0); px(28, 16, 144 + D, 28, K); px(29, 17, 142 + D, 26, '#160818');
+    box(24, 50, 152 + D, 10, K, '#1a1a1a', K); px(26, 51, 42, 8, '#1c0404'); px(132 + D, 51, 42, 8, '#1c0404'); px(70, 51, 60 + D, 8, '#140800');
+    tiny('IDEAS', 28, 53, '#ff9a20'); tiny('HITS', 138 + D, 53, '#ff9a20');
     // モニター枠（文字はHTML）。暗い緑の液晶の地に黒い縁
     rects.forEach(({ x, w }) => { px(x, MONITOR_Y, w, MONITOR_H, K); px(x + 1, MONITOR_Y + 1, w - 2, MONITOR_H - 2, '#0b2a18'); px(x + 1, MONITOR_Y + 1, w - 2, 1, '#10381f'); });
-    box(26, 61 + DY, 148, 67, C1, C3, C0); px(30, 68 + DY, 140, 50, K);
+    box(26, 61 + DY, 148 + D, 67, C1, C3, C0); px(30, 68 + DY, 140 + D, 50, K);
     // 番号札: 窓の中央。左右の飾り線は札と窓の端の間に収まる分だけ
     rects.forEach(({ x, w }, i) => {
       const bx = x + Math.round((w - 10) / 2);
@@ -86,18 +88,18 @@ export function createCabinet(canvas) {
         px(x, REEL_Y + r, w, 1, e < 2 ? '#5a4626' : e < 5 ? '#a8884c' : e < 9 ? '#e0cc98' : (r >= 16 && r < 32) ? '#fffbea' : '#fff2d0');
       }
     });
-    [[27, 1], [172, -1]].forEach(([x0, dir]) => [1, 2, 3, 3, 3, 2, 1].forEach((w, j) => px(dir > 0 ? x0 : x0 - w + 1, 90 + DY + j, w, 1, R3)));
+    [[27, 1], [172 + D, -1]].forEach(([x0, dir]) => [1, 2, 3, 3, 3, 2, 1].forEach((w, j) => px(dir > 0 ? x0 : x0 - w + 1, 90 + DY + j, w, 1, R3)));
     for (let i = 0; i + 1 < n; i++) px(rects[i].x + rects[i].w, 93 + DY, rects[i + 1].x - rects[i].x - rects[i].w, 1, '#ff3030');
-    px(80, 118 + DY, 40, 10, C0);
-    box(22, 129 + DY, 156, 24, '#3a0a18', '#7a1a30', '#1a0408'); px(22, 129 + DY, 156, 1, G3);
-    rects.forEach((r) => { const s = stopRect(r); box(s.x, 132 + DY, s.w, 17, C1, C3, C0); });
-    box(30, 154 + DY, 140, 22, C1, C3, C0); px(33, 159 + DY, 134, 14, '#14141c'); px(33, 159 + DY, 134, 2, '#06060a');
+    px(CX - 20, 118 + DY, 40, 10, C0);
+    box(22, 129 + DY, 156 + D, 24, '#3a0a18', '#7a1a30', '#1a0408'); px(22, 129 + DY, 156 + D, 1, G3);
+    rects.forEach((r) => { const s = stopRect(r, W); box(s.x, 132 + DY, s.w, 17, C1, C3, C0); });
+    box(30, 154 + DY, 140 + D, 22, C1, C3, C0); px(33, 159 + DY, 134 + D, 14, '#14141c'); px(33, 159 + DY, 134 + D, 2, '#06060a');
     ['#c8202f', '#1f4fbf', '#108a4a', '#222222', '#c8202f', '#e8b020'].forEach((c, k) => {
       const y = 171 + DY - k * 4;
       px(3, y, 14, 4, K); px(4, y, 12, 3, c); [6, 10, 14].forEach((xx) => px(xx - 1, y, 1, 3, '#ffffff')); px(4, y, 12, 1, '#ffffff55');
     });
-    [[186, 168 + DY], [192, 170 + DY]].forEach(([x, y]) => { px(x, y, 6, 6, K); px(x + 1, y + 1, 4, 4, G2); px(x + 2, y + 1, 2, 1, G4); });
-    box(180, 100 + DY, 10, 14, C1, C3, C0);
+    [[186 + D, 168 + DY], [192 + D, 170 + DY]].forEach(([x, y]) => { px(x, y, 6, 6, K); px(x + 1, y + 1, 4, 4, G2); px(x + 2, y + 1, 2, 1, G4); });
+    box(180 + D, 100 + DY, 10, 14, C1, C3, C0);
     // リール数ボタンの台座（＋と－の絵は HTML）
     [COUNT_BTN.plusY, COUNT_BTN.minusY].forEach((y) => box(COUNT_BTN.x, y, COUNT_BTN.size, COUNT_BTN.size, C1, C3, C0));
   }
@@ -106,14 +108,16 @@ export function createCabinet(canvas) {
   let v = { spinning: false, canSave: 'empty', ideas: 0, hits: 0, reduceMotion: false };
   let t0 = performance.now(), celebrateUntil = 0, leverUntil = 0, pressUntil = 0;
   let parts = [];
+  // 受け皿のコイン。x は皿の左端(35)からの距離 ox。W が変わったら皿の幅に合わせて詰め直す
   const pile = [];
-  for (let i = 0; i < 18; i++) pile.push([35 + (Math.random() * 128 | 0), 161 + DY + (Math.random() * 9 | 0)]);
+  const coin = () => ({ ox: Math.random() * (128 + D) | 0, y: 161 + DY + (Math.random() * 9 | 0) });
+  for (let i = 0; i < 18; i++) pile.push(coin());
 
   function bulbs(fr, rain) {
     const pos = [];
-    for (let x = 27; x < 172; x += 6) pos.push([x, 13]);
-    for (let y = 19; y < 44; y += 6) pos.push([172, y]);
-    for (let x = 171; x > 26; x -= 6) pos.push([x, 44]);
+    for (let x = 27; x < 172 + D; x += 6) pos.push([x, 13]);
+    for (let y = 19; y < 44; y += 6) pos.push([172 + D, y]);
+    for (let x = 171 + D; x > 26; x -= 6) pos.push([x, 44]);
     for (let y = 43; y > 18; y -= 6) pos.push([25, y]);
     pos.forEach(([x, y], i) => {
       const q = ((i - fr) % 4 + 4) % 4, on = q === 0 || (q === 2 && rain);
@@ -122,7 +126,7 @@ export function createCabinet(canvas) {
     });
     for (let y = 52; y < 174 + DY; y += 8) {
       const k = y / 8 | 0, on = ((k - fr) % 3 + 3) % 3 === 0;
-      [21, 177].forEach((x) => px(x, y, 2, 2, rain ? RAINBOW[(k + fr) % 5] : on ? G4 : '#6a4010'));
+      [21, 177 + D].forEach((x) => px(x, y, 2, 2, rain ? RAINBOW[(k + fr) % 5] : on ? G4 : '#6a4010'));
     }
   }
 
@@ -147,38 +151,38 @@ export function createCabinet(canvas) {
     bulbs(fr, rain);
     const sw = rm ? -99 : (el / 9) % 420 - 60;
     const RR = ['#3a0614', '#a3182f', '#e0303e', '#ff6a6a', '#ffd0d0'];
-    big('7', 33, 23, RR, -99); big('7', 159, 23, RR, -99); big('IDEA SLOT', 46, 23, [G0, G1, G2, G3, G4], sw);
-    spr(DOME, 94, 3, { R: rain ? (fr % 2 ? '#ff3030' : '#ff7070') : '#7a1414', r: rain ? '#a01010' : '#4a0808', W: rain ? '#ffffff' : '#c06060', C: C2 });
+    big('7', 33, 23, RR, -99); big('7', 159 + D, 23, RR, -99); big('IDEA SLOT', CX - 54, 23, [G0, G1, G2, G3, G4], sw);
+    spr(DOME, CX - 6, 3, { R: rain ? (fr % 2 ? '#ff3030' : '#ff7070') : '#7a1414', r: rain ? '#a01010' : '#4a0808', W: rain ? '#ffffff' : '#c06060', C: C2 });
     if (rain) {
       const L = fr % 2;
-      for (let k = 1; k < 9; k++) { const xx = L ? 92 - k * 3 : 108 + k * 3; px(xx, 6 - (k >> 2), 2, 1, '#ffe066'); px(xx, 9 + (k >> 2), 2, 1, '#ffe06688'); }
+      for (let k = 1; k < 9; k++) { const xx = L ? CX - 8 - k * 3 : CX + 8 + k * 3; px(xx, 6 - (k >> 2), 2, 1, '#ffe066'); px(xx, 9 + (k >> 2), 2, 1, '#ffe06688'); }
     }
-    led(v.ideas, 4, 51, 53); led(v.hits, 4, 155, 53);
+    led(v.ideas, 4, 51, 53); led(v.hits, 4, 155 + D, 53);
 
     // IDEA! ランプ
     const blink = rm ? 1 : Math.floor(el / 320) % 2, ly = 119 + DY + (t < pressUntil ? 1 : 0);
     if (celebrating) {
-      box(82, ly, 36, 9, rm ? '#ffe066' : ['#ff3ea5', '#3ef0ff', '#ffe066', '#3eff7a'][fr % 4], '#ffffff', '#a01060'); tiny('IDEA!', 90, ly + 2, '#ffffff');
+      box(CX - 18, ly, 36, 9, rm ? '#ffe066' : ['#ff3ea5', '#3ef0ff', '#ffe066', '#3eff7a'][fr % 4], '#ffffff', '#a01060'); tiny('IDEA!', CX - 10, ly + 2, '#ffffff');
     } else if (v.canSave === 'ok') {
-      box(82, ly, 36, 9, blink ? '#ff3ea5' : '#a0105a', blink ? '#ffc0e0' : '#d04080', '#5a0030'); tiny(blink ? 'IDEA!' : 'PUSH!', 90, ly + 2, '#ffffff');
-      if (blink) { px(78, ly + 3, 2, 3, G3); px(120, ly + 3, 2, 3, G3); }
+      box(CX - 18, ly, 36, 9, blink ? '#ff3ea5' : '#a0105a', blink ? '#ffc0e0' : '#d04080', '#5a0030'); tiny(blink ? 'IDEA!' : 'PUSH!', CX - 10, ly + 2, '#ffffff');
+      if (blink) { px(CX - 22, ly + 3, 2, 3, G3); px(CX + 20, ly + 3, 2, 3, G3); }
     } else if (v.canSave === 'saved') {
-      box(82, ly, 36, 9, G1, G3, G0); tiny('SAVED', 90, ly + 2, G4);
+      box(CX - 18, ly, 36, 9, G1, G3, G0); tiny('SAVED', CX - 10, ly + 2, G4);
     } else {
-      box(82, ly, 36, 9, '#1a1018', '#2a2030', '#0a0610'); tiny('IDEA!', 90, ly + 2, '#3a3040');
+      box(CX - 18, ly, 36, 9, '#1a1018', '#2a2030', '#0a0610'); tiny('IDEA!', CX - 10, ly + 2, '#3a3040');
     }
 
     // レバー
     const top = t < leverUntil ? 78 : 46;
     const stalk = 100 + DY - top - 8; // 棒の根元は台座（+DY）まで伸ばす。玉の上端は動かさない
-    px(184, top + 8, 3, stalk, C3); px(184, top + 8, 1, stalk, '#ffffff'); px(186, top + 8, 1, stalk, C1);
-    spr(BALL, 180, top, { R: '#ff3030', r: '#a01010', W: '#ffffff' });
+    px(184 + D, top + 8, 3, stalk, C3); px(184 + D, top + 8, 1, stalk, '#ffffff'); px(186 + D, top + 8, 1, stalk, C1);
+    spr(BALL, 180 + D, top, { R: '#ff3030', r: '#a01010', W: '#ffffff' });
 
     // 受け皿のコインと落ちてくる粒
-    pile.forEach(([x, y]) => { px(x, y, 4, 3, G1); px(x, y, 4, 2, G2); px(x + 1, y, 2, 1, G4); });
+    pile.forEach(({ ox, y }) => { const x = 35 + ox; px(x, y, 4, 3, G1); px(x, y, 4, 2, G2); px(x + 1, y, 2, 1, G4); });
     parts = parts.filter((p) => {
       p.vy += 0.18; p.x += p.vx; p.y += p.vy;
-      if (p.y >= 168 + DY && p.vy > 0 && p.x > 34 && p.x < 162) { if (pile.length < 90) pile.push([p.x | 0, 161 + DY + (Math.random() * 9 | 0)]); return false; }
+      if (p.y >= 168 + DY && p.vy > 0 && p.x > 34 && p.x < 162 + D) { if (pile.length < 90) pile.push({ ox: (p.x | 0) - 35, y: 161 + DY + (Math.random() * 9 | 0) }); return false; }
       if (p.y > 182 + DY) return false;
       const w = COIN[(p.f++ >> 1) % 6];
       px(p.x + (4 - w) / 2, p.y, w, 4, G2); px(p.x + (4 - w) / 2, p.y, Math.max(1, w - 1), 1, G4);
@@ -187,14 +191,25 @@ export function createCabinet(canvas) {
   }
 
   const cab = {
-    setReels(n) { drawStatic(n); },
+    // n: リール数。w: 論理幅（省略すると今のまま）。幅が変わったときだけ canvas を作り直す（代入すると中身が消える）
+    setReels(n, w = W) {
+      if (w !== W) {
+        const k = (128 + w - W_MIN) / (128 + D);
+        W = w; D = W - W_MIN; CX = W >> 1;
+        pile.forEach(c => { c.ox = c.ox * k | 0; });
+        while (pile.length < Math.round(18 * (128 + D) / 128)) pile.push(coin());
+        canvas.width = st.width = W;
+        parts = []; // 粒の位置は古い幅のもの
+      }
+      drawStatic(n);
+    },
     update(view) { v = { ...v, ...view }; },
     pullLever() { leverUntil = performance.now() + LEVER_MS; },
     celebrate() {
       celebrateUntil = performance.now() + CELEBRATE_MS;
-      if (!v.reduceMotion) burst(48, 40, 160, 52, 3);
+      if (!v.reduceMotion) burst(48, 40, 160 + D, 52, 3);
     },
-    dribble() { if (!v.reduceMotion) burst(5, 80, 120, 158 + DY, 2.2); },
+    dribble() { if (!v.reduceMotion) burst(5, CX - 20, CX + 20, 158 + DY, 2.2); },
     pressIdea() { pressUntil = performance.now() + PRESS_MS; },
     celebrating() { return performance.now() < celebrateUntil; },
   };
