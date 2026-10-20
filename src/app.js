@@ -618,6 +618,7 @@ document.addEventListener('keydown', e => {
   const acts = actionsFor(state.settings.keys, canonCode(e.code || ''));
   if (!acts.length) return; // 割り当ての無いキー（Space も）は、フォーカスのあるボタンをそのまま押す
   e.preventDefault(); // Space などに割り当てがあれば、フォーカスのあるボタンを押さずにその操作だけ
+  if (a && a !== document.body) a.blur(); // ダイアログを閉じて戻ったモニターなどに、フォーカスの枠・光りを残さない
   acts.forEach(act => keyActions[act]()); // 同じキーを複数の操作に割り当てていたら、全部動かす
 });
 // ブラウザによっては Space を離したときにボタンを押すので、keyup でも止める（割り当てがあるときだけ）
