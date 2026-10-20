@@ -25,13 +25,24 @@ import { createDefs } from './defs.js';
 import { createTip } from './tip.js';
 import { createTour } from './tour.js';
 import { registerSw } from './pwa.js';
+import { createBoot } from './boot.js';
+import { initAbout } from './about.js';
+import { DEMO_SCRIPT, DEMO_WORDS, DEMO_TYPES, LEVER_RAMP_MS, SWEEP_MS, modeOf, sweepAt } from './demo.js';
 
 // 保存済みの WordNet テーマ（設定の slots[].theme）を読み込むかのスイッチ。false の間は読み込まない（保存データからは消さない）
 const THEMES_ON = false;
 
+// ?demo（録画用の自動プレイ）と ?shot（カード画像の撮影）は、保存データを読み書きしない（メモリだけ）
+const mode = modeOf(location.search), scripted = mode.demo || mode.shot;
 let ls = null;
-try { ls = localStorage; } catch { /* memory only */ }
+try { if (!scripted) ls = localStorage; } catch { /* memory only */ }
 const store = createStore(ls);
+if (scripted) {
+  store.state.settings.tourSeen = true; // 案内は出さない
+  store.state.settings.slots = DEMO_TYPES.map(type => ({ type }));
+}
+if (mode.shot) document.body.classList.add('shot'); // 部品を隠す（style.css）。筐体の幅を決める前に付ける
+const boot = createBoot(document.getElementById('boot'), 6);
 const { state } = store;
 const sound = createSound();
 const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
@@ -659,6 +670,7 @@ async function start() {
     count: n => { panels.setCount('tpl', n); pauseLabels(); },
   });
   initKeyScreen({ store, changed: renderKeyHelp });
+  initAbout();
   initScreens({
     store, isSpinning: () => isSpinning(reels),
     async afterImport() {
@@ -700,22 +712,86 @@ async function start() {
   renderHits();
   renderHistory();
   tpl.render();
+  boot.hide(reduceMotion());
   if (!state.settings.tourSeen) tour.start();
   registerSw();
   say(themesOk ? '★ WELCOME TO IDEA CASINO ★ レバーで回す ★ 気に入った語はLOCK ★ いいね！と思ったら IDEA! ★' : `${THEME_FAIL} ... テーマなしで開始`);
+  if (mode.shot) shoot();
+  else if (mode.demo) playDemo();
+}
+
+// --- ?shot: カード画像（tools/og.mjs）用に、決まった語で止めて当たりの演出を出す。UI の部品は隠す（CSS の body.shot） ---
+function shoot() {
+  reels = reels.map((r, i) => ({ ...r, value: DEMO_WORDS[i], held: false }));
+  reels.forEach((_, i) => paint(i, true));
+  state.favorites = [{ combo: [...DEMO_WORDS], memo: '', savedAt: 0, rating: 0 }];
+  cab.initPile(8); // 受け皿にはコインの山
+  sync();
+  cab.celebrate();
+  say(`★★★ BIG IDEA!! ★★★ ${DEMO_WORDS.join(' × ')} ★★★`);
+}
+
+// --- ?demo: 台本（demo.js）どおりに1回演じる。?demo&loop は繰り返す ---
+const demoActs = {
+  reset() {
+    state.favorites = [];
+    cab.initPile(0);
+    renderHits();
+    sync();
+  },
+  // レバーを下まで引いて（引く動きが見える）、離すと回り始める。止まる語は決まった組み合わせにする
+  lever() {
+    const t0 = performance.now();
+    const id = setInterval(() => {
+      const a = Math.min(1, (performance.now() - t0) / LEVER_RAMP_MS);
+      cab.setLever(a);
+      if (a < 1) return;
+      clearInterval(id);
+      cab.setLever(0);
+      pull();
+      reels = reels.map((r, i) => (r.running ? { ...r, target: DEMO_WORDS[i] } : r));
+    }, 16);
+  },
+  stop: ({ reel }) => press(reel),
+  idea,
+  // 指の印を出して、受け皿のコインをなぞる（本物のポインタ操作を cabinet.js に送る）
+  sweep() {
+    const cv = $('cv'), finger = document.body.appendChild(Object.assign(document.createElement('div'), { className: 'demo-finger' }));
+    const t0 = performance.now(), fire = (type, p) => {
+      const r = cv.getBoundingClientRect(), x = r.left + p.x / cabW * r.width, y = r.top + p.y / 190 * r.height;
+      finger.style.cssText = `left:${x}px;top:${y}px`;
+      cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerType: 'touch', bubbles: true }));
+    };
+    fire('pointerdown', sweepAt(0, cabW));
+    const id = setInterval(() => {
+      const a = Math.min(1, (performance.now() - t0) / SWEEP_MS), p = sweepAt(a, cabW);
+      fire('pointermove', p);
+      if (a < 1) return;
+      clearInterval(id);
+      fire('pointerup', p);
+      finger.remove();
+    }, 16);
+  },
+  end() { if (mode.loop) playDemo(); },
+};
+function playDemo() {
+  for (const s of DEMO_SCRIPT) setTimeout(() => demoActs[s.act](s), s.at);
 }
 
 function fail() {
+  boot.hide(true); // 読み込み画面を消して、このエラーを見せる
   app.innerHTML = '<div class="error"><p>データを読み込めませんでした</p><button class="sbtn" id="reload">再読み込み</button></div>';
   $('reload').onclick = () => location.reload();
 }
 
 async function load() {
   try {
-    const [words, verbs, genres, tags, games] = await Promise.all(
-      ['words', 'verbs', 'genres', 'tags', 'games'].map(n => fetch(`data/${n}.json`).then(r => { if (!r.ok) throw new Error(n); return r.json(); })));
-    // テーマ集は無くても続行（全部空のテーマ）
-    const extra = await fetch('data/extra.json').then(r => (r.ok ? r.json() : {})).catch(() => ({}));
+    // 読み込み画面の「n / 6」は、読み終えたファイルの数（boot は全部で 6 つと数える）
+    const [words, verbs, genres, tags, games, extra] = await Promise.all([
+      ...['words', 'verbs', 'genres', 'tags', 'games'].map(n => fetch(`data/${n}.json`).then(r => { if (!r.ok) throw new Error(n); return r.json(); }).finally(boot.step)),
+      // テーマ集は無くても続行（全部空のテーマ）
+      fetch('data/extra.json').then(r => (r.ok ? r.json() : {})).catch(() => ({})).finally(boot.step),
+    ]);
     data = { words, verbs, genres, tags, games, extra };
   } catch {
     fail();

@@ -367,3 +367,32 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   .hit.open textarea { display: block; order: 5; flex: 1 0 100%; }
   .hit.open .row button:not(.go) { display: block; order: 6; flex: 1 1 0; }
 }
+
+/* 読み込み画面（#boot）: HTML と CSS だけで最初から出す。読み終わったら app.js が .done を付けて、短くフェードして消す。文字は --fs 基準（スマホは 16px） */
+#boot { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--fs, 16px) * .8); padding: 16px; text-align: center; background: #1b0b14; color: #fff; font-size: var(--fs, 16px); transition: opacity .4s; }
+#boot.done { opacity: 0; pointer-events: none; }
+#boot p { margin: 0; }
+#boot .bt { max-width: 100%; font-size: clamp(36px, calc(var(--fs, 16px) * 3.2), 96px); line-height: 1.1; letter-spacing: .06em; color: #ffe066; text-shadow: 3px 3px 0 #a3182f, 6px 6px 0 #000; }
+#boot .bm { font-size: 1.3em; }
+#boot .bb { width: min(80vw, calc(var(--fs, 16px) * 22)); height: calc(var(--fs, 16px) * 1.4); padding: 3px; background: #000; border: 3px solid #e8b020; }
+#boot .bb i { display: block; height: 100%; width: calc(var(--p, 0) * 100%); background: repeating-linear-gradient(90deg, #ffe066 0 10px, #a8700c 10px 13px); transition: width .2s steps(4); }
+#boot .bn { font-size: 1.2em; color: #9fd8b8; min-height: 1.2em; }
+#boot .bw { max-width: 90vw; font-size: .9em; color: #9fd8b8; opacity: 0; animation: boot-warn .5s 15s forwards; } /* 15 秒たっても終わらないときだけ、案内を出す */
+@keyframes boot-warn { to { opacity: 1; } }
+
+/* このアプリについて: 使い方と同じ作り。外部リンクは金色、押しやすい余白 */
+#about { font-size: 15px; line-height: 1.7; }
+#about h4 { margin: 12px 0 2px; font-size: 1em; font-weight: 400; color: #ffe066; }
+#about ul { margin: 0; padding-left: 1.4em; }
+#about li { margin-bottom: .4em; }
+#about p { margin: .4em 0; }
+#about a { color: #ffe066; overflow-wrap: anywhere; }
+#about a:focus-visible { outline: 2px solid #3ef0ff; outline-offset: 2px; }
+#about-v { color: #9fd8b8; white-space: nowrap; }
+#about-tag { color: #ffe066; font-weight: 400; }
+@media (min-width: 600px) { #about { font-size: var(--fs); max-width: min(calc(var(--fs) * 36), 92vw); max-height: 94dvh; } }
+
+/* ?demo の指の印（受け皿のコインをなぞるとき）と、?shot（カード画像の撮影）で隠す部品 */
+.demo-finger { position: fixed; z-index: 60; width: 28px; height: 28px; margin: -14px 0 0 -14px; border: 3px solid #000; border-radius: 50%; background: rgba(255, 224, 102, .85); box-shadow: 0 0 0 2px #fff; pointer-events: none; }
+body.shot { --tab: 0px; }
+body.shot .grip, body.shot #pbtn, body.shot #hbtn, body.shot .drawer, body.shot #boot { display: none; }
