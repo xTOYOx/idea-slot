@@ -34,15 +34,20 @@ export const TYPE_KEYS = Object.keys(TYPE_LABELS);
 export const MY = 'my:'; // 自作テーマの種類キーの頭（my:<名前>）
 
 // 種類えらびパネルのグループ。items: {k: 種類キー, text: ボタンの文字}。自作テーマが無ければそのグループは無い
+// 見出しのチェックが扱う members（キーの並び）と、あれば all（まとめの種類キー。items には出さない）。先頭の全部ランダムは見出しなし
 export function typeGroups(themes) {
   const text = k => TYPE_LABELS[k].replace(/^タグ：/, '');
   const of = pick => TYPE_KEYS.filter(pick).map(k => ({ k, text: text(k) }));
+  const grp = (title, items, all, members = items.map(x => x.k)) => ({ title, items, members, ...(all && { all }) });
+  const sub = p => of(k => k.startsWith(p + ':'));
+  const extra = sub('extra');
   return [
     { title: null, items: of(k => k === 'any') },
-    { title: '単語', items: of(k => k.startsWith('noun')) },
-    { title: 'その他の種類', items: of(k => ['verb', 'genre', 'game'].includes(k)) },
-    { title: 'テーマ集', items: of(k => k.startsWith('extra')) },
-    { title: 'タグ', items: of(k => k.startsWith('tag')) },
-    ...(themes.length ? [{ title: '自分のテーマ', items: themes.map(t => ({ k: MY + t.name, text: `★${t.name}（${t.words.length}語）` })) }] : []),
+    grp('単語', sub('noun'), 'noun'),
+    grp('その他の種類', of(k => ['verb', 'genre', 'game'].includes(k))),
+    // 制約・NG語は選んだときだけ出すので、見出しのチェックには含めない
+    grp('テーマ集', extra, 'extra', extra.map(x => x.k).filter(k => !EXTRA_ONLY.includes(k.slice(6)))),
+    grp('タグ', sub('tag'), 'tag'),
+    ...(themes.length ? [grp('自分のテーマ', themes.map(t => ({ k: MY + t.name, text: `★${t.name}（${t.words.length}語）` })))] : []),
   ];
 }

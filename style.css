@@ -155,13 +155,18 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 .thead { display: flex; align-items: flex-start; gap: 8px; }
 .thead h3 { flex: 1; min-width: 0; margin: 0; font-size: 1.2em; }
 .thead small { display: block; margin-top: .2em; color: #9fd8b8; font-size: .75em; overflow-wrap: anywhere; }
-#types h4 { margin: .8em 0 .3em; font-size: 1.05em; font-weight: 400; color: #ffe066; }
+#types h4 { margin: .8em 0 .3em; font-size: 1.05em; font-weight: 400; }
+/* 見出しのチェック: 文字の横に付ける。チップの背景は付けず、黄色い見出しのまま */
+#types [data-grp] { display: flex; align-items: center; gap: .5em; min-height: 44px; padding-left: 0; border: 0; box-shadow: none; background: none; color: #ffe066; font-size: inherit; text-align: left; }
+#types [data-grp][aria-checked] { background: none; }
 .tg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4em; }
 #types [data-ty] { display: flex; align-items: center; gap: .5em; min-height: 44px; text-align: left; white-space: normal; overflow-wrap: anywhere; }
 #types [aria-checked=true] { background: #ffe066; }
 .cb { flex: none; position: relative; width: 1em; height: 1em; border: 2px solid #000; background: #fff; }
 [aria-checked=true] > .cb { background: #108a4a; }
 [aria-checked=true] > .cb::after { content: ''; position: absolute; left: 26%; top: 0; width: 28%; height: 58%; border: solid #fff; border-width: 0 .17em .17em 0; transform: rotate(45deg); }
+[aria-checked=mixed] > .cb { background: #108a4a; }
+[aria-checked=mixed] > .cb::after { content: ''; position: absolute; left: 18%; right: 18%; top: 38%; height: .17em; background: #fff; }
 #types button:focus-visible { outline: 2px solid #3ef0ff; outline-offset: 2px; }
 .tpick { display: block; width: 100%; margin-top: .8em; }
 
