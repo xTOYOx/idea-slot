@@ -8,7 +8,7 @@ import { stampHtml, stampJs, stampCss, stampSw } from './stamp.mjs';
 
 const ACCOUNT = 'toyogame';
 const REPO = `${ACCOUNT}/idea-slot`;
-const FILES = ['index.html', 'style.css', 'manifest.webmanifest', 'sw.js', 'icons', 'src', 'data', 'fonts', 'LICENSE-DATA.md', '.nojekyll'];
+const FILES = ['index.html', 'style.css', 'manifest.webmanifest', 'sw.js', 'icons', 'src', 'data', 'fonts', 'LICENSE-DATA.md', 'LICENSE', 'og.png', '.nojekyll'];
 const GH = existsSync('C:/Program Files/GitHub CLI/gh.exe') ? 'C:/Program Files/GitHub CLI/gh.exe' : 'gh';
 
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: 'utf8', ...opts }).trim();
@@ -32,7 +32,7 @@ try {
   stamp(join(dir, 'sw.js'), stampSw);
   for (const f of readdirSync(join(dir, 'src'))) if (f.endsWith('.js')) stamp(join(dir, 'src', f), stampJs);
   writeFileSync(join(dir, 'README.md'),
-    `# アイデアスロット\n\nゲーム企画のアイデア出しに使うスロットです。\n\nhttps://${ACCOUNT}.github.io/idea-slot/\n\n語データの出典は LICENSE-DATA.md、フォントは fonts/OFL.txt を参照してください。\n`);
+    `# アイデアスロット\n\nゲーム企画のアイデア出しに使うスロットです。\n\nhttps://${ACCOUNT}.github.io/idea-slot/\n\nプログラムは MIT License（LICENSE）。語データの出典は LICENSE-DATA.md、フォントは fonts/OFL.txt を参照してください。\n`);
   git(['add', '-A']);
   if (!git(['status', '--porcelain'])) {
     console.log('変更なし。公開済みの内容と同じです');

@@ -5,11 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>アイデアスロット</title>
 <meta name="theme-color" content="#0f5a3a">
+<meta name="description" content="単語・動詞・ジャンル・タグ・テーマをランダムにかけ合わせて、ゲームのアイデアを出すスロット。ブラウザで無料、登録不要。">
+<meta property="og:title" content="アイデアスロット｜ゲームのアイデアを出すスロット">
+<meta property="og:description" content="単語・動詞・ジャンル・タグ・テーマをランダムにかけ合わせて、ゲームのアイデアを出すスロット。ブラウザで無料、登録不要。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://toyogame.github.io/idea-slot/">
+<meta property="og:image" content="https://toyogame.github.io/idea-slot/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="アイデアスロット｜ゲームのアイデアを出すスロット">
+<meta name="twitter:description" content="単語・動詞・ジャンル・タグ・テーマをランダムにかけ合わせて、ゲームのアイデアを出すスロット。ブラウザで無料、登録不要。">
+<meta name="twitter:image" content="https://toyogame.github.io/idea-slot/og.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="boot" role="status" aria-live="polite"><p class="bt">IDEA SLOT</p><p class="bm">読み込み中…</p><div class="bb"><i id="boot-bar"></i></div><p class="bn" id="boot-n"></p><p class="bw">なかなか進まないときは、ページを再読み込みしてください</p></div>
 <h1 class="sr">アイデアスロット</h1>
 <button id="pbtn" aria-label="ポーズメニュー"><i></i><i></i></button>
 <button id="hbtn" aria-label="使い方">？</button>
@@ -66,6 +80,7 @@
         <button class="prow" data-edit data-open="themes"><span class="nm">テーマ</span><b class="chev" aria-hidden="true">›</b></button>
         <button class="prow" data-wide data-open="keys"><span class="nm">キー設定</span><b class="chev" aria-hidden="true">›</b></button>
         <button class="prow" data-edit data-open="settings"><span class="nm">書き出し・読み込み</span><b class="chev" aria-hidden="true">›</b></button>
+        <button class="prow" data-open="about"><span class="nm">このアプリについて</span><b class="chev" aria-hidden="true">›</b></button>
       </div>
     </section>
   </div>
@@ -86,7 +101,7 @@
   <ul><li>左端の「テンプレ」タブ（T キー。スマホの縦画面は、筐体の下のタブ）で、リールの構成を保存・呼び出し</li></ul>
   <h4>キー操作（PC）</h4>
   <ul id="help-keys"></ul>
-  <div class="row"><button id="tour-again">案内をもう一度見る</button></div>
+  <div class="row"><button id="tour-again">案内をもう一度見る</button><button id="help-about">このアプリについて</button></div>
 </dialog>
 <dialog id="types"><div class="thead"><h3>1番リールのテーマ<small></small></h3><button data-close>閉じる</button></div>
   <div class="tbody"></div>
@@ -100,6 +115,24 @@
 <dialog id="themes"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
 <dialog id="keys"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
 <dialog id="settings"><button class="close" data-close>← もどる</button><div class="body"></div></dialog>
+<dialog id="about" aria-labelledby="about-t"><button class="close" data-close>← もどる</button>
+  <h2 id="about-t">このアプリについて</h2>
+  <p>アイデアスロットは、単語・動詞・ジャンル・タグ・テーマをランダムにかけ合わせて、ゲームのアイデアを出すスロットです。ブラウザで無料、登録不要。<span id="about-v"></span></p>
+  <h4>データの出典</h4>
+  <ul>
+    <li>語と、語の意味の説明文は、日本語WordNet（NICT）のデータをもとにしています。著作権表示とライセンス文をつければ、無償で使えます。NICT の名称を宣伝に使うことはできません。全文は LICENSE-DATA.md にあります。<br><a href="https://bond-lab.github.io/wnja/" target="_blank" rel="noopener noreferrer">日本語WordNet（bond-lab.github.io/wnja）</a></li>
+    <li>「テーマ集」「制約」などの語リストと、ゲーム作品名の一覧は、AI（Claude）の支援で作成しました。</li>
+    <li>作品名は、各権利者の商標・著作物です。アイデア出しのための参照として載せています。</li>
+  </ul>
+  <h4>フォント</h4>
+  <ul><li>DotGothic16（Fontworks）。SIL Open Font License 1.1 で使っています。<a href="fonts/OFL.txt" target="_blank" rel="noopener">ライセンス文（OFL.txt）</a></li></ul>
+  <h4>プライバシー</h4>
+  <ul><li>当たり帳・履歴・設定など、保存したデータは、すべてこの端末のブラウザの中だけに保存します。外部には送信しません。</li></ul>
+  <h4>感想・バグ報告</h4>
+  <ul><li>X で、ハッシュタグ <b id="about-tag"></b> を付けて投稿してください。</li></ul>
+  <h4>ライセンス</h4>
+  <ul><li>プログラムは MIT License です。データとフォントは、それぞれのライセンスに従います。</li></ul>
+</dialog>
 <script type="module" src="src/app.js"></script>
 </body>
 </html>

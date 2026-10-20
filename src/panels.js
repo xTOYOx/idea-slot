@@ -112,7 +112,7 @@ export function initPanels({ pauseAction, open, tab, onTab }) {
       const r = dlg.getBoundingClientRect(); // パネルの余白かバックドロップか: 座標で外側だけ閉じる
       if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dlg.close();
     });
-    dlg.addEventListener('close', () => backToPause(b));
+    dlg.addEventListener('close', () => { if (dlg.dataset.nb === undefined) backToPause(b); }); // data-nb: ポーズ以外から開いた（使い方から開いた「このアプリについて」）
   }
   return panels;
 }

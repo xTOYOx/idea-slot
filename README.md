@@ -21,7 +21,13 @@ python -m http.server 8123   # http://localhost:8123/ で確認
 npm test                     # テスト
 ```
 
+告知用の素材: `?demo`（保存データを使わず、レバー → 止める → IDEA! → コイン回収を自動で1回演じる。`?demo&loop` で繰り返す）で画面録画。X のカード画像 `og.png`（1200×630）は `node tools/og.mjs` で作り直せる（Chrome の headless で `tools/og.html` を撮る。npm の追加は不要）。
+
 語データの再生成: [bond-lab/wnja v1.1](https://github.com/bond-lab/wnja) の `wnjpn.db.gz` を `raw/` にダウンロードし、`node --no-warnings tools/build-words.mjs` を実行します。語の意味（`data/defs/`）は `node --no-warnings tools/build-defs.mjs`、テーマ集は `node tools/build-extra.mjs` で作り直せます。続けてテーマ用の `data/graph.json` を作るには、リポジトリのルートで `node --no-warnings tools/build-graph.mjs` を実行します。
+
+## ライセンス
+
+プログラムは MIT License（[LICENSE](LICENSE)）です。データとフォントは、下のそれぞれのライセンスに従います。
 
 ## データの出典
 
