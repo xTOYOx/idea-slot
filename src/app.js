@@ -614,11 +614,16 @@ document.addEventListener('keydown', e => {
     if (!panels.closeTop()) panels.openPause();
     return;
   }
-  if (a?.tagName === 'BUTTON' && (e.code === 'Space' || e.key === 'Enter')) return; // ボタン自身の押下に任せる
+  if (a?.tagName === 'BUTTON' && e.key === 'Enter') return; // ボタン自身の押下に任せる
   const acts = actionsFor(state.settings.keys, canonCode(e.code || ''));
-  if (!acts.length) return;
-  e.preventDefault();
+  if (!acts.length) return; // 割り当ての無いキー（Space も）は、フォーカスのあるボタンをそのまま押す
+  e.preventDefault(); // Space などに割り当てがあれば、フォーカスのあるボタンを押さずにその操作だけ
   acts.forEach(act => keyActions[act]()); // 同じキーを複数の操作に割り当てていたら、全部動かす
+});
+// ブラウザによっては Space を離したときにボタンを押すので、keyup でも止める（割り当てがあるときだけ）
+document.addEventListener('keyup', e => {
+  if (e.code !== 'Space' || document.querySelector('dialog[open]') || document.activeElement?.tagName !== 'BUTTON') return;
+  if (actionsFor(state.settings.keys, 'Space').length) e.preventDefault();
 });
 // キー設定（settings.keys）の操作 → 動作。Esc（ポーズ）は割り当てず、上の keydown が固定で受ける
 const keyActions = {
