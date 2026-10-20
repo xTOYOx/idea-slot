@@ -12,11 +12,11 @@ export function buildType(keys) {
   return k.length === 0 ? 'any' : k.length === 1 ? k[0] : MIX + k.map(enc).join('|');
 }
 
-// 種類 k を足す／外す。最後の1つは外せない（そのまま返す）。'any' を選ぶと他が外れ、他を選ぶと 'any' が外れる
+// 種類 k を足す／外す。最後の1つを外すと 'any'（全部ランダム）に戻る。'any' を選ぶと他が外れ、他を選ぶと 'any' が外れる
 export function toggleType(type, k) {
   if (k === 'any') return 'any';
   const keys = parseType(type);
-  if (keys.includes(k)) return keys.length > 1 ? buildType(keys.filter(x => x !== k)) : type;
+  if (keys.includes(k)) return keys.length > 1 ? buildType(keys.filter(x => x !== k)) : 'any'; // 最後の1つを外したら全部ランダムに戻す
   return buildType([...keys.filter(x => x !== 'any'), k]);
 }
 

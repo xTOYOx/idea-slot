@@ -404,7 +404,7 @@ function toggleReelType(k, i) {
   if (!ready || !canEdit(reels) || !reels[i]) return;
   if (k === NG && !curKeys(i).includes(NG) && !confirm(`${NG_WARN}\n\nこのリールで使いますか？`)) return;
   const cur = reels[i].base ?? reels[i].type, next = toggleType(cur, k);
-  if (next !== cur) changeType(i, next); else sound.play('deny'); // 最後の1つは外せない
+  if (next !== cur) changeType(i, next); else sound.play('deny'); // 全部ランダムだけのときは外せない
   markTypes(i);
 }
 
