@@ -1,10 +1,17 @@
-import { EXTRA, EXTRA_ONLY } from './types.js';
+import { EXTRA, EXTRA_ONLY, NG } from './types.js';
 const NOUN_KEYS = ['animal', 'plant', 'food', 'person', 'place', 'tool', 'nature', 'body', 'feeling', 'event', 'abstract', 'other'];
 const TAG_KEYS = ['look', 'mood', 'mechanic'];
 const EXTRA_KEYS = Object.keys(EXTRA);
 
-// 種類キー（'noun:animal' / 'verb' / 'tag:look' / 'extra:ono' …）の元の語。まとめの種類（noun / tag / extra / any）と自作テーマは空
+// 種類キー（'noun:animal' / 'verb' / 'tag:look' / 'extra:ono' …）の元の語。まとめの種類（noun / tag / extra / any）と自作テーマは空。
+// NG語（data.extra.ng）は NG のテーマにだけ入れ、ほかの種類からは外す
 export function baseWords(data, key) {
+  const all = rawWords(data, key), ng = data.extra?.ng;
+  if (key === NG || !ng?.length) return all;
+  const drop = new Set(ng);
+  return all.filter(w => !drop.has(w));
+}
+function rawWords(data, key) {
   if (key === 'verb') return data.verbs;
   if (key === 'genre') return data.genres.map(g => g.ja);
   if (key === 'game') return data.games.map(g => g.ja); // 作品名。any（全部ランダム）には入れない

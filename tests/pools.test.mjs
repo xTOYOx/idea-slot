@@ -75,3 +75,14 @@ test('rule (制約) is its own theme only: not in extra (all) and not in any', (
   assert.ok(p.extra.includes('すし') && p.any.includes('すし')); // 同じ語が他のテーマにもあれば、そちらで入る
   assert.equal(buildPools(d, {}, ['ワンボタン操作'])['extra:rule'].includes('ワンボタン操作'), false);
 });
+
+test('NG words: only in the NG theme; removed from every other theme, extra (all) and any; custom words stay', () => {
+  const d = { ...data, verbs: ['走る', 'わるい'], extra: { ...data.extra, ng: ['猫', 'わるい'] } };
+  const p = buildPools(d, { 'noun:animal': ['猫'] }, []);
+  assert.deepEqual(baseWords(d, 'extra:ng'), ['猫', 'わるい']);
+  assert.deepEqual(baseWords(d, 'noun:animal'), ['犬']);
+  assert.deepEqual(p['extra:ng'], ['猫', 'わるい']);
+  assert.deepEqual(p.verb, ['走る']);
+  assert.ok(!p.extra.includes('わるい') && !p.any.includes('わるい'));
+  assert.ok(p['noun:animal'].includes('猫')); // 自分で足した語は出る
+});
