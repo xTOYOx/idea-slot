@@ -21,11 +21,12 @@ test('build/parse roundtrip survives | and % in theme names', () => {
   assert.deepEqual(parseType(buildType(keys)), keys);
   assert.equal(buildType(['my:a|b']), 'my:a|b'); // single stays raw
 });
-test('toggleType: add / remove / last one stays / any is exclusive', () => {
+test('toggleType: add / remove / removing the last one goes back to any / any is exclusive', () => {
   assert.equal(toggleType('noun:animal', 'genre'), 'mix:noun:animal|genre');
   assert.equal(toggleType('mix:noun:animal|genre', 'genre'), 'noun:animal');
   assert.equal(toggleType('mix:noun:animal|genre|verb', 'genre'), 'mix:noun:animal|verb');
-  assert.equal(toggleType('verb', 'verb'), 'verb');
+  assert.equal(toggleType('verb', 'verb'), 'any');
+  assert.equal(toggleType('extra:ng', 'extra:ng'), 'any');
   assert.equal(toggleType('any', 'any'), 'any');
   assert.equal(toggleType('any', 'verb'), 'verb');
   assert.equal(toggleType('mix:verb|genre', 'any'), 'any');
