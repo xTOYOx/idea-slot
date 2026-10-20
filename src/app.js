@@ -655,7 +655,7 @@ document.addEventListener('keydown', e => {
   if (!ready || isSpinning(reels)) return;
   const snap = redo ? undo.redo() : undo.undo();
   if (!snap) { sound.play('deny'); return; }
-  setReels(snap.map(s => ({ ...s, running: false })));
+  setReels(snap.slice(0, maxN()).map(s => ({ ...s, running: false }))); // スマホ縦で戻すときは、そのときの本数の上限まで
   sound.play(redo ? 'lock' : 'unlock');
   say(redo ? '↪ やり直しました' : '↩ ひとつ前の結果に戻しました');
 });
