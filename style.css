@@ -187,7 +187,7 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 #pause .prow[data-edit]:disabled { box-shadow: none; transform: none; background: #d8d0bc; }
 #pause .prow:focus-visible, #pause .resume:focus-visible { outline: 2px solid #3ef0ff; outline-offset: 2px; }
 /* キー設定の画面、テンプレの引き出しの中身 */
-#keys { max-width: min(92vw, 560px); }
+#keys { max-width: min(92vw, 560px); height: 85vh; scrollbar-gutter: stable; } /* 標準／詳細を切り替えても大きさが変わらないよう、高さは固定（中身はスクロール） */
 #keys .body > :not(h2) { clear: right; } /* 「← もどる」（右上に浮く）の横に回り込まない */
 .cur { margin: 4px 0 8px; color: #9fd8b8; overflow-wrap: anywhere; }
 .tpl li, .krows li { padding: 8px 10px; background: #083a26; border: 2px solid #1d7a52; }
@@ -323,7 +323,7 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   #types button { font-size: var(--fs); }
   .tg { grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); }
   #themes { max-width: min(calc(var(--fs) * 58), 94vw); max-height: 94dvh; }
-  #keys { max-width: min(calc(var(--fs) * 42), 94vw); max-height: 94dvh; }
+  #keys { max-width: min(calc(var(--fs) * 42), 94vw); max-height: 94dvh; height: 94dvh; }
   .krows { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; }
   .krows button { flex-basis: 7.5em; }
   .wg { grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); }
