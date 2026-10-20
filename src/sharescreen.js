@@ -3,7 +3,7 @@
 import { codeFromHash, decodeShare, planImport } from './share.js';
 import { describeSlots } from './templates.js';
 import { parseType } from './typekey.js';
-import { TYPE_LABELS, MY } from './types.js';
+import { TYPE_LABELS, MY, NG, NG_WARN } from './types.js';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const SHOW = 200; // 語は先頭だけ見せる
@@ -21,7 +21,8 @@ export function initShareScreen({ store, isSpinning, themesChanged, templatesCha
       ? `<h2>共有されたテーマ</h2>${p.themes.map(t => `<h3>テーマ「${esc(t.name)}」（${t.words.length}語）</h3>${words(t.words)}`).join('')}`
       : `<h2>共有されたテンプレート</h2><h3>${esc(p.template.name)}</h3><p>${esc(describeSlots(p.template.slots, label))}</p>`
         + (p.themes.length ? `<h3>いっしょに追加されるテーマ</h3><ul class="list">${p.themes.map(t => `<li><span>★${esc(t.name)}（${t.words.length}語）</span></li>`).join('')}</ul>` : '');
-    body.innerHTML = `${head}${renamed.map(r => `<p class="hint">同じ名前があるので「${esc(r.to)}」として追加します</p>`).join('')}
+    const ng = p.t === 'tpl' && p.template.slots.some(s => parseType(s.type).includes(NG)); // NG語を使うテンプレは、選ぶときと同じ注意を出す
+    body.innerHTML = `${head}${ng ? `<p class="err">${esc(NG_WARN)}</p>` : ''}${renamed.map(r => `<p class="hint">同じ名前があるので「${esc(r.to)}」として追加します</p>`).join('')}
       <div class="row"><button data-act="add">追加する</button><button data-act="cancel">やめる</button></div>
       <p class="err" role="alert"></p>`;
   }
