@@ -1,7 +1,7 @@
 import { TYPE_LABELS, TYPE_KEYS, MY, NG, NG_WARN, typeGroups } from './types.js';
 import { buildPools } from './pools.js';
 import { spin, rerollOne, setSlotType, resizeSlots, pickWord } from './pick.js';
-import { parseType, toggleType, normalizeType, remapType } from './typekey.js';
+import { parseType, toggleType, toggleGroup, normalizeType, remapType } from './typekey.js';
 import { initPanels } from './panels.js';
 import { startSpin, stopReel, pressReel, setHeld, canHold, isSpinning, allStopped, canEdit, canSave, autoStopDelays, restore } from './machine.js';
 import { hasCombo, isActive, toggleRating, viewHits } from './hits.js';
@@ -395,6 +395,7 @@ const curKeys = i => parseType(reels[i].base ?? reels[i].type);
 const markTypes = i => typePanel.mark(curKeys(i), typeText(reels[i].base ?? reels[i].type));
 const typePanel = initTypePanel({
   toggle(k) { toggleReelType(k, typePanel.index()); },
+  toggleGroup(g) { toggleReelGroup(g, typePanel.index()); },
   pickWord: openPick,
   restore: i => view.focusMon(i),
 });
@@ -414,8 +415,16 @@ function changeType(i, type) {
 function toggleReelType(k, i) {
   if (!ready || !canEdit(reels) || !reels[i]) return;
   if (k === NG && !curKeys(i).includes(NG) && !confirm(`${NG_WARN}\n\nこのリールで使いますか？`)) return;
-  const cur = reels[i].base ?? reels[i].type, next = toggleType(cur, k);
+  const cur = reels[i].base ?? reels[i].type, next = toggleType(cur, k, typeGroups(state.themes));
   if (next !== cur) changeType(i, next); else sound.play('deny'); // 全部ランダムだけのときは外せない
+  markTypes(i);
+}
+
+// 見出しのチェック: その分類をまとめて付ける／外す（NG語は含まれないので確認は不要）
+function toggleReelGroup(g, i) {
+  if (!ready || !canEdit(reels) || !reels[i]) return;
+  const cur = reels[i].base ?? reels[i].type, next = toggleGroup(cur, g);
+  if (next !== cur) changeType(i, next); else sound.play('deny');
   markTypes(i);
 }
 

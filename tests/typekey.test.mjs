@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseType, buildType, toggleType, normalizeType, remapType } from '../src/typekey.js';
+import { parseType, buildType, toggleType, normalizeType, remapType, checkedKeys, groupState, toggleGroup } from '../src/typekey.js';
 
 test('parseType: plain key is one element, mix: splits on |', () => {
   assert.deepEqual(parseType('verb'), ['verb']);
@@ -30,6 +30,41 @@ test('toggleType: add / remove / removing the last one goes back to any / any is
   assert.equal(toggleType('any', 'any'), 'any');
   assert.equal(toggleType('any', 'verb'), 'verb');
   assert.equal(toggleType('mix:verb|genre', 'any'), 'any');
+});
+const N = { title: '単語', all: 'noun', members: ['noun:a', 'noun:b', 'noun:c'] }, V = { title: 'その他', members: ['verb', 'genre'] }, G = [N, V];
+test('checkedKeys: an aggregate key checks its members', () => {
+  assert.deepEqual([...checkedKeys(['noun', 'verb'], G)].sort(), ['noun', 'noun:a', 'noun:b', 'noun:c', 'verb']);
+  assert.deepEqual([...checkedKeys(['noun:a'], G)], ['noun:a']);
+});
+test('groupState: true / false / mixed', () => {
+  assert.equal(groupState(['noun'], N), 'true');
+  assert.equal(groupState(['noun:a', 'noun:b', 'noun:c'], N), 'true');
+  assert.equal(groupState(['noun:a'], N), 'mixed');
+  assert.equal(groupState(['verb'], N), 'false');
+  assert.equal(groupState(['any'], V), 'false');
+  assert.equal(groupState(['verb', 'genre'], V), 'true');
+  assert.equal(groupState(['verb'], V), 'mixed');
+});
+test('toggleGroup: check all (aggregate if any), uncheck all, keep other keys, empty → any', () => {
+  assert.equal(toggleGroup('any', N), 'noun');
+  assert.equal(toggleGroup('verb', N), 'mix:verb|noun');
+  assert.equal(toggleGroup('mix:noun:a|verb', N), 'mix:verb|noun'); // 一部 → 全部（個別はまとめに置き換わる）
+  assert.equal(toggleGroup('noun', N), 'any');
+  assert.equal(toggleGroup('mix:noun|verb', N), 'verb');
+  assert.equal(toggleGroup('mix:noun:a|noun:b|noun:c|verb', N), 'verb');
+  assert.equal(toggleGroup('any', V), 'mix:verb|genre'); // まとめが無ければ個別に全部
+  assert.equal(toggleGroup('mix:verb|genre', V), 'any');
+  assert.equal(toggleGroup('mix:verb|noun:a', V), 'mix:noun:a|verb|genre');
+});
+test('toggleType with groups: expand the aggregate on removal, collapse when all members are picked', () => {
+  assert.equal(toggleType('noun', 'noun:b', G), 'mix:noun:a|noun:c');
+  assert.equal(toggleType('mix:noun|verb', 'noun:a', G), 'mix:verb|noun:b|noun:c');
+  assert.equal(toggleType('mix:noun:a|noun:b', 'noun:c', G), 'noun');
+  assert.equal(toggleType('mix:noun:a|noun:b|verb', 'noun:c', G), 'mix:verb|noun');
+  assert.equal(toggleType('verb', 'noun:a', G), 'mix:verb|noun:a');
+  assert.equal(toggleType('mix:verb|genre', 'verb', G), 'genre');
+  assert.equal(toggleType('any', 'noun:a', G), 'noun:a');
+  assert.equal(toggleType('noun:a', 'noun:a', G), 'any');
 });
 test('normalizeType drops unknown parts: 0 → any, 1 → plain key', () => {
   const ok = k => ['any', 'verb', 'genre', 'my:海'].includes(k);
