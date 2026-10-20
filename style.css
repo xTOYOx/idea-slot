@@ -157,7 +157,7 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 .thead small { display: block; margin-top: .2em; color: #9fd8b8; font-size: .75em; overflow-wrap: anywhere; }
 #types h4 { margin: .8em 0 .3em; font-size: 1.05em; font-weight: 400; }
 /* 見出しのチェック: 文字の横に付ける。チップの背景は付けず、黄色い見出しのまま */
-#types [data-grp] { display: flex; align-items: center; gap: .5em; min-height: 44px; padding-left: 0; border-color: transparent; background: none; color: #ffe066; font-size: inherit; text-align: left; }
+#types [data-grp] { display: flex; align-items: center; gap: .5em; min-height: 44px; padding-left: 0; border: 0; box-shadow: none; background: none; color: #ffe066; font-size: inherit; text-align: left; }
 #types [data-grp][aria-checked] { background: none; }
 .tg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4em; }
 #types [data-ty] { display: flex; align-items: center; gap: .5em; min-height: 44px; text-align: left; white-space: normal; overflow-wrap: anywhere; }
