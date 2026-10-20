@@ -235,7 +235,9 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 #tpl form.row { flex-wrap: wrap; }
 #tpl form.row input { flex: 1 1 100%; } /* 引き出しは細いので、名前の欄は1行まるごと使い、保存ボタンはその下に */
 #pick h3 { text-align: center; margin: 0 0 8px; }
-#pick input { width: 100%; }
+/* 検索で結果の数が変わってもウィンドウの大きさを変えない（高さは固定、結果だけスクロール）。検索欄は上に固定 */
+#pick { height: 85vh; scrollbar-gutter: stable; }
+#pick input { width: 100%; position: sticky; top: -12px; z-index: 1; }
 
 /* 引き出し（履歴・テンプレは左端、当たり帳は右端）。タブは引き出しにくっついて動く。閉じている間は最前面（開いた引き出しの上でもタブを押せる）。開くと app の panels.js が開いた順に 5 から重ねる */
 .drawer { position: fixed; top: 0; bottom: 0; z-index: 20; width: min(380px, 90vw); transition: transform .25s steps(6); }
