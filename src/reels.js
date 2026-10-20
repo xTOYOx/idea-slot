@@ -47,8 +47,8 @@ export function createOverlay(wrap, ov, on) {
       mons[i].nextElementSibling.setAttribute('aria-label', `${i + 1}番リールの種類：${text}（押して変える）`);
     },
     // リール数の＋－: 回転中と限界では押せない
-    setCount(n, editable) {
-      plus.disabled = !editable || n >= 4;
+    setCount(n, editable, max = 4) {
+      plus.disabled = !editable || n >= max;
       minus.disabled = !editable || n <= 2;
     },
     setState(i, { running, held }) {

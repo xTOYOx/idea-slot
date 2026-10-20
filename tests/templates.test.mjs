@@ -7,9 +7,10 @@ const S = (...types) => types.map(type => ({ type }));
 test('cleanTemplate: trims the name, keeps only {type}, rejects bad shapes', () => {
   assert.deepEqual(cleanTemplate({ name: ' 動物 ', slots: [{ type: 'a', value: 'x' }, { type: 'b' }] }), { name: '動物', slots: S('a', 'b') });
   for (const bad of [null, 'x', { name: '', slots: S('a', 'b') }, { name: '  ', slots: S('a', 'b') }, { name: 'n' }, { name: 'n', slots: S('a') },
-    { name: 'n', slots: S('a', 'b', 'c', 'd', 'e') }, { name: 'n', slots: [{ type: 'a' }, { type: 5 }] }, { name: 'n', slots: [{ type: 'a' }, null] }, { name: 1, slots: S('a', 'b') }]) {
+    { name: 'n', slots: S('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h') }, { name: 'n', slots: [{ type: 'a' }, { type: 5 }] }, { name: 'n', slots: [{ type: 'a' }, null] }, { name: 1, slots: S('a', 'b') }]) {
     assert.equal(cleanTemplate(bad), null, JSON.stringify(bad));
   }
+  assert.deepEqual(cleanTemplate({ name: '7本', slots: S('a', 'b', 'c', 'd', 'e', 'f', 'g') }).slots.length, 7, 'up to 7 reels');
 });
 
 test('describeSlots: count and the type labels', () => {

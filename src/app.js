@@ -13,7 +13,7 @@ import { createSound } from './sound.js';
 import { createOverlay } from './reels.js';
 import { initScreens } from './screens.js';
 import { initThemeScreen } from './themescreen.js';
-import { effectiveWidth, fitWidth, widthAt, W_MIN } from './layout.js';
+import { effectiveWidth, fitWidth, widthAt, W_MIN, maxReels } from './layout.js';
 import { initGrips } from './grips.js';
 import { initTypePanel } from './typepanel.js';
 import { initHelp } from './help.js';
@@ -38,7 +38,8 @@ const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 const $ = id => document.getElementById(id);
 const app = $('app');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const clamp = n => (Number.isInteger(n) ? Math.min(4, Math.max(2, n)) : 3);
+const maxN = () => maxReels(innerWidth);
+const clamp = n => (Number.isInteger(n) ? Math.min(maxN(), Math.max(2, n)) : 3);
 const reduceMotion = () => state.settings.reduceMotion || motionQuery.matches;
 
 let data = null, pools = null, index = null;
@@ -108,7 +109,7 @@ const applyBusy = () => document.querySelectorAll('[data-edit]').forEach(el => {
 function sync() {
   if (!reels.length) return; // 起動中（リール未作成）はランプを触らない
   cab.update({ spinning: isSpinning(reels), canSave: canSave(reels, state.favorites), ideas: state.stats.spins, hits: state.favorites.length, coins: state.stats.coins, reduceMotion: reduceMotion() });
-  view.setCount(reels.length, canEdit(reels));
+  view.setCount(reels.length, canEdit(reels), maxN());
   applyBusy();
   tpl?.refresh(); // テンプレの「今の構成」
   document.body.classList.toggle('reduce-motion', reduceMotion());
@@ -169,6 +170,12 @@ function fitCabinet() {
     sync();
   }
   refreshGrips(liveW !== null || state.settings.cabW !== null);
+  // スマホを縦に戻したなど、今の本数が画面の上限を超えたら減らす（回転中は止まってから次のリサイズで）
+  if (view && reels.length > maxN() && canEdit(reels)) {
+    setReels(resizeSlots(reels, maxN()));
+    saveSettings();
+    say(`画面が狭いのでリールを${maxN()}本にしました`);
+  }
 }
 addEventListener('resize', () => { clearTimeout(widthTimer); widthTimer = setTimeout(fitCabinet, 200); });
 
@@ -388,7 +395,7 @@ function toggleReelType(k, i) {
 
 function changeCount(d) {
   const from = reels.length, n = from + d;
-  if (!ready || !canEdit(reels) || n < 2 || n > 4) return;
+  if (!ready || !canEdit(reels) || n < 2 || n > maxN()) return;
   typePanel.close();
   let next = resizeSlots(reels, n);
   for (let i = from; i < n; i++) next = rerollOne(next, i, pools);
@@ -465,7 +472,7 @@ function renderHistory() {
 
 function restoreCombo(combo) {
   if (!canEdit(reels)) return;
-  let next = restore(reels, combo.slice(0, 4));
+  let next = restore(reels, combo.slice(0, maxN()));
   next = resizeSlots(next, clamp(next.length));
   setReels(next);
   say(`${comboText(next.map(r => r.value))} をスロットにセットしました`);
@@ -582,7 +589,7 @@ document.addEventListener('keydown', e => {
 // キー設定（settings.keys）の操作 → 動作。Esc（ポーズ）は割り当てず、上の keydown が固定で受ける
 const keyActions = {
   lever: pull, idea,
-  reel1: () => press(0), reel2: () => press(1), reel3: () => press(2), reel4: () => press(3),
+  reel1: () => press(0), reel2: () => press(1), reel3: () => press(2), reel4: () => press(3), reel5: () => press(4), reel6: () => press(5), reel7: () => press(6),
   more: () => changeCount(1), less: () => changeCount(-1),
   hist: () => panels.toggleDrawer('hist'), tpl: () => panels.toggleDrawer('tpl'), hits: () => panels.toggleDrawer('hits'),
   help: () => help.open(),

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { ACTIONS, DEFAULT_KEYS, normalizeKeys, assignKey, isAssignable, keyName, actionsFor, dupCodes, canonCode, keyHelp } from '../src/keys.js';
 
 test('defaults cover every action with unique codes', () => {
-  assert.deepEqual(ACTIONS.map(a => a.id), ['lever', 'idea', 'reel1', 'reel2', 'reel3', 'reel4', 'more', 'less', 'hist', 'hits', 'tpl', 'help']);
+  assert.deepEqual(ACTIONS.map(a => a.id), ['lever', 'idea', 'reel1', 'reel2', 'reel3', 'reel4', 'reel5', 'reel6', 'reel7', 'more', 'less', 'hist', 'hits', 'tpl', 'help']);
   assert.deepEqual(Object.keys(DEFAULT_KEYS), ACTIONS.map(a => a.id));
   assert.equal(new Set(Object.values(DEFAULT_KEYS)).size, ACTIONS.length);
   assert.deepEqual([DEFAULT_KEYS.lever, DEFAULT_KEYS.idea, DEFAULT_KEYS.reel1, DEFAULT_KEYS.more, DEFAULT_KEYS.less, DEFAULT_KEYS.hist, DEFAULT_KEYS.hits, DEFAULT_KEYS.tpl, DEFAULT_KEYS.help],
@@ -71,7 +71,7 @@ test('keyHelp: built from the keys, Esc stays last', () => {
   const lines = keyHelp({ ...DEFAULT_KEYS, lever: 'KeyZ' });
   assert.equal(lines[0], 'Z：レバー');
   assert.equal(lines[1], 'Enter：IDEA!');
-  assert.ok(lines.includes('1 / 2 / 3 / 4：リール1〜4の STOP / LOCK'));
+  assert.ok(lines.includes('1 / 2 / 3 / 4 / 5 / 6 / 7：リール1〜7の STOP / LOCK'));
   assert.ok(lines.includes('H：履歴'));
   assert.ok(lines.includes('T：テンプレート'));
   assert.equal(lines.at(-1), 'Esc：ポーズ');
