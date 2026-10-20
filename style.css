@@ -78,7 +78,7 @@ button:disabled { opacity: .45; cursor: default; }
 .hit { background: #fff8ec; color: #1a1020; border: 2px solid #000; box-shadow: 3px 3px 0 #000; padding: 8px 10px; margin: 8px 0; }
 .hit b { font-weight: 400; font-size: 15px; display: block; margin-bottom: 6px; overflow-wrap: anywhere; }
 .hit b i { font-style: normal; color: #c8202f; }
-.hit input, .hit textarea { background: #fff; color: #1a1020; border: 2px solid #1a1020; font: inherit; font-size: 13px; padding: 4px 6px; min-height: 40px; }
+.hit input, .hit textarea { background: #fff; color: #1a1020; border: 2px solid #1a1020; font: inherit; font-size: 16px; padding: 4px 6px; min-height: 40px; }
 .hit textarea { display: block; width: 100%; resize: none; overflow: hidden; line-height: 1.4; }
 /* 当たりカード: ★の評価 */
 .hit .stars { display: flex; margin: -4px 0 2px -4px; }
@@ -347,13 +347,13 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   .dbody { flex: 1 1 0; min-height: 0; height: auto; border-width: 3px; box-shadow: none; padding: 8px 10px; }
   .dhint, #d-hits .dhead, #d-tpl .dhead, .dhead h3, [data-dclose] { display: none; } /* 見出しと閉じるは要らない（履歴は「全部消す」だけ残す） */
   .dhead { margin: 0 0 4px; }
-  #hclear { min-height: 32px; padding: 2px 8px; font-size: 12px; box-shadow: 2px 2px 0 #000; } /* 低い画面でも履歴の行を多く見せる */
+  #hclear { min-height: 40px; padding: 2px 10px; font-size: 15px; box-shadow: 2px 2px 0 #000; } /* 低い画面でも履歴の行を多く見せる */
   #tpl { overflow-y: auto; overscroll-behavior: contain; } /* テンプレは低い一覧でも保存欄から全部が見えるよう、中身ぜんぶをスクロール */
   #tpl > .dscroll { flex: none; overflow: visible; }
 
   /* 当たり帳: 並べ替え・絞り込みは札を押すと開く。当たりは1行に畳み、押すとメモ・コピー・削除が出る */
   #hctl { margin-bottom: 6px; }
-  #hfold { display: block; align-self: flex-start; min-height: 36px; padding: 2px 10px; font-size: 13px; }
+  #hfold { display: block; align-self: flex-start; min-height: 40px; padding: 2px 12px; font-size: 15px; }
   #hctl:not(.open) .hrow:not(.hstat) { display: none; }
   .hit { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0 3px 8px 0; padding: 6px; cursor: pointer; }
   .hit b { order: 1; flex: 1 1 calc(100% - 56px); min-width: 0; margin: 0; } /* 開閉ボタンと並べて1行目を埋める（★は次の行へ） */
@@ -362,7 +362,7 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   .hit .stars { order: 3; flex: none; margin: 0 0 0 -4px; }
   .hit .star { min-width: 32px; }
   .hit .row { display: contents; }
-  .hit .go { order: 4; flex: none; margin-left: auto; padding: 6px; font-size: 13px; }
+  .hit .go { order: 4; flex: none; margin-left: auto; padding: 6px 10px; font-size: 15px; min-height: 40px; }
   .hit textarea, .hit .row button:not(.go) { display: none; }
   .hit.open textarea { display: block; order: 5; flex: 1 0 100%; }
   .hit.open .row button:not(.go) { display: block; order: 6; flex: 1 1 0; }
