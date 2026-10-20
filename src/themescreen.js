@@ -3,7 +3,7 @@
 import { parseWords, addWords, removeWord, createTheme, renameTheme, deleteTheme } from './mythemes.js';
 import { baseWords } from './pools.js';
 import { wordCount, wordRows, newCustom } from './wordlist.js';
-import { TYPE_LABELS, typeGroups } from './types.js';
+import { TYPE_LABELS, NG, NG_WARN, typeGroups } from './types.js';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const PAGE = 300; // 一度に描く語の数（「もっと見る」で増やす）
@@ -120,7 +120,7 @@ export function initThemeScreen({ store, data, isSpinning, changed }) {
     if (!b || isSpinning()) return;
     const act = b.dataset.act, w = b.dataset.w, li = b.closest('li'), n = li ? [...li.parentElement.children].indexOf(li) : -1;
     if (act === 'open') { const name = store.state.themes[Number(b.dataset.i)]?.name; go(name === undefined ? { v: 'list' } : { v: 'my', name }); return; }
-    if (act === 'type') { go({ v: 'type', k: b.dataset.k }); return; }
+    if (act === 'type') { if (b.dataset.k !== NG || confirm(`${NG_WARN}\n\n語の一覧を表示しますか？`)) go({ v: 'type', k: b.dataset.k }); return; }
     if (act === 'exl') { go({ v: 'ex' }); return; }
     if (act === 'back') { go({ v: 'list' }); return; }
     if (act === 'more') {

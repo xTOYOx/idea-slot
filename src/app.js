@@ -1,4 +1,4 @@
-import { TYPE_LABELS, TYPE_KEYS, MY, typeGroups } from './types.js';
+import { TYPE_LABELS, TYPE_KEYS, MY, NG, NG_WARN, typeGroups } from './types.js';
 import { buildPools } from './pools.js';
 import { spin, rerollOne, setSlotType, resizeSlots, pickWord } from './pick.js';
 import { parseType, toggleType, normalizeType, remapType } from './typekey.js';
@@ -402,6 +402,7 @@ function changeType(i, type) {
 
 function toggleReelType(k, i) {
   if (!ready || !canEdit(reels) || !reels[i]) return;
+  if (k === NG && !curKeys(i).includes(NG) && !confirm(`${NG_WARN}\n\nこのリールで使いますか？`)) return;
   const cur = reels[i].base ?? reels[i].type, next = toggleType(cur, k);
   if (next !== cur) changeType(i, next); else sound.play('deny'); // 最後の1つは外せない
   markTypes(i);
