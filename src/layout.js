@@ -1,6 +1,8 @@
 // リール窓の横配置（論理座標）。領域 x=33〜W-33、間隔7、全体を中央寄せ。筐体の論理幅 W は 200〜340（高さは 190 固定）
 const LEFT = 33, GAP = 7;
 export const W_MIN = 200, W_MAX = 340;
+// リールの最大本数: スマホの縦画面（幅 600 未満）は 4 本、横持ち・PC は 7 本
+export const maxReels = vw => (vw < 600 ? 4 : 7);
 
 // 縦の配置（論理座標）。モニターは窓の上、窓は筐体の絵と重ね物で共通
 export const MONITOR_Y = 62, MONITOR_H = 8, REEL_Y = 79, REEL_H = 48;

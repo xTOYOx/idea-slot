@@ -6,6 +6,9 @@ export const ACTIONS = [
   { id: 'reel2', label: '2番リール', key: 'Digit2' },
   { id: 'reel3', label: '3番リール', key: 'Digit3' },
   { id: 'reel4', label: '4番リール', key: 'Digit4' },
+  { id: 'reel5', label: '5番リール', key: 'Digit5' },
+  { id: 'reel6', label: '6番リール', key: 'Digit6' },
+  { id: 'reel7', label: '7番リール', key: 'Digit7' },
   { id: 'more', label: 'リールを増やす', key: 'ArrowUp' },
   { id: 'less', label: 'リールを減らす', key: 'ArrowDown' },
   { id: 'hist', label: '履歴', key: 'KeyH' },
@@ -48,10 +51,10 @@ export const keyName = code => NAMES[code] ?? code.replace(/^(?:Digit|Key)(?=.$)
 const label = id => ACTIONS.find(a => a.id === id).label;
 // 使い方の「キー操作」の行。キー設定から作る
 export function keyHelp(keys) {
-  const reels = ['reel1', 'reel2', 'reel3', 'reel4'].map(id => keyName(keys[id])).join(' / ');
+  const reels = ['reel1', 'reel2', 'reel3', 'reel4', 'reel5', 'reel6', 'reel7'].map(id => keyName(keys[id])).join(' / ');
   return [
     ...['lever', 'idea'].map(id => `${keyName(keys[id])}：${label(id)}`),
-    `${reels}：リール1〜4の STOP / LOCK`,
+    `${reels}：リール1〜7の STOP / LOCK`,
     ...['more', 'less', 'hist', 'hits', 'tpl', 'help'].map(id => `${keyName(keys[id])}：${label(id)}`),
     'Esc：ポーズ',
   ];
