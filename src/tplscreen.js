@@ -9,7 +9,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 
 export function initTemplateScreen({ store, isSpinning, current, label, use, count, copy }) {
   const body = document.getElementById('tpl');
-  let err = '', note = '', draft = ''; // draft: エラーで戻したときに残す名前の入力値
+  let err = '', note = ''; // err: 名前の欄の中に出すエラー
 
   const list = () => store.state.templates;
   const set = next => { store.state.templates = next; store.save('templates'); };
@@ -17,8 +17,8 @@ export function initTemplateScreen({ store, isSpinning, current, label, use, cou
     const mine = list(), off = isSpinning() ? ' disabled' : ''; // 回転中は使う・上書き・保存を押せない（止まったら app.js の sync が戻す）
     body.innerHTML = `<h4>今の構成</h4>
       <p class="cur">${esc(describeSlots(current(), label))}</p>
-      <form class="row" data-form="save"><input name="name" value="${esc(draft)}" placeholder="テンプレートの名前" aria-label="テンプレートの名前" autocomplete="off"><button class="sbtn" data-edit${off}>今の構成を保存</button></form>
-      <p class="err" role="alert">${esc(err)}</p><p class="note" role="status">${esc(note)}</p>
+      <form class="row" data-form="save"><input name="name" placeholder="${esc(err || 'テンプレートの名前')}"${err ? ' class="bad" aria-invalid="true"' : ''} aria-label="テンプレートの名前${err ? `（${esc(err)}）` : ''}" autocomplete="off"><button class="sbtn" data-edit${off}>今の構成を保存</button></form>
+      <p class="note" role="status">${esc(note)}</p>
       <h4>保存したテンプレート</h4>
       <div class="dscroll">${mine.length ? `<ul class="list tpl">${mine.map((t, i) => `<li><b>${esc(t.name)}</b><span>${esc(describeSlots(t.slots, label))}</span>
         <div class="row"><button class="sbtn" data-edit${off} data-act="use" data-i="${i}">使う</button><button class="sbtn" data-edit${off} data-act="over" data-i="${i}">上書き</button><button class="sbtn" data-act="del" data-i="${i}">削除</button><button class="sbtn" data-act="share" data-i="${i}">共有</button></div><div data-share></div></li>`).join('')}</ul>` : '<p>まだありません</p>'}</div>`;
@@ -30,7 +30,7 @@ export function initTemplateScreen({ store, isSpinning, current, label, use, cou
     cur.textContent = describeSlots(current(), label);
     body.querySelectorAll('.tpl span').forEach((el, i) => { el.textContent = describeSlots(list()[i].slots, label); }); // テーマの名前が変わった・消えたとき
   };
-  const show = (nextErr = '', nextNote = '') => { err = nextErr; note = nextNote; draft = ''; render(); };
+  const show = (nextErr = '', nextNote = '') => { err = nextErr; note = nextNote; render(); };
   const focus = sel => body.querySelector(sel)?.focus({ preventScroll: true });
 
   body.addEventListener('click', e => {
@@ -51,14 +51,15 @@ export function initTemplateScreen({ store, isSpinning, current, label, use, cou
     else { set(replaceTemplate(list(), t.name, current())); show('', `「${t.name}」を今の構成で上書きしました`); focus(`[data-act="over"][data-i="${i}"]`); }
   });
 
+  // 入力し始めたら、欄の中のエラーを消す
+  body.addEventListener('input', e => { if (e.target.name === 'name' && e.target.classList.contains('bad')) { err = ''; e.target.classList.remove('bad'); e.target.removeAttribute('aria-invalid'); e.target.placeholder = 'テンプレートの名前'; e.target.setAttribute('aria-label', 'テンプレートの名前'); } });
   body.addEventListener('submit', e => {
     e.preventDefault();
     if (isSpinning()) return;
     const input = e.target.elements.name, name = input.value.trim(), next = addTemplate(list(), name, current());
     if (!next) {
-      err = name ? 'その名前はすでにあります' : '名前を入れてください';
+      err = name ? `「${name}」はすでにあります。別の名前を入れてください` : '名前を入れてください'; // エラーは名前の欄の中に出す（下の一覧を押し下げない）
       note = '';
-      draft = input.value;
       render();
       focus('input[name=name]');
       return;

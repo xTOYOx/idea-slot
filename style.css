@@ -126,6 +126,9 @@ dialog input[type=text], dialog input:not([type]), dialog select, dialog textare
 .err { color: #ffb0b0; }
 .note { color: #9fd8b8; }
 .err:empty, .note:empty { margin: 0; }
+#tpl .note { min-height: 1.5em; margin: 4px 0; } /* 案内の文が出ても一覧が下がらないよう、1行分を先に取る */
+input.bad { border-color: #ff6b6b !important; } /* 入力欄の中に出すエラー */
+input.bad::placeholder { color: #ffb0b0; opacity: 1; }
 dialog textarea { width: 100%; font: inherit; resize: vertical; }
 .list li > button { max-width: 100%; white-space: normal; text-align: left; }
 /* テーマ画面: 種類のボタン（.tg）と語の一覧（.wg） */
@@ -144,7 +147,8 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 
 /* ⏸ ポーズボタン（画面の左上の角） */
 #pbtn, #hbtn { position: fixed; left: 6px; top: 6px; z-index: 30; width: 44px; height: 44px; padding: 0; display: flex; gap: 6px; align-items: center; justify-content: center; background: #6a2fb0; border: 3px solid #000; box-shadow: inset 0 0 0 2px #fff, 3px 3px 0 #000; cursor: pointer; }
-#pbtn i { width: 6px; height: 18px; background: #fff; }
+#pbtn { flex-direction: column; gap: 4px; } /* メニューの印（三本線） */
+#pbtn i { width: 22px; height: 4px; background: #fff; }
 #hbtn { left: 56px; font-size: 24px; line-height: 1; color: #fff; }
 #pbtn:active, #hbtn:active { transform: translate(2px, 2px); box-shadow: inset 0 0 0 2px #fff, 1px 1px 0 #000; }
 #pbtn:focus-visible, #hbtn:focus-visible, .dtab:focus-visible, #spin:focus-visible { outline: 2px solid #3ef0ff; outline-offset: 2px; }
@@ -325,8 +329,9 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   .dtab { width: var(--tab); font-size: var(--fs); gap: .5em; }
   .bdg { font-size: .8em; min-width: 1.5em; }
   #pbtn, #hbtn { width: var(--tab); height: var(--tab); left: 8px; top: 8px; gap: calc(var(--fs) * .4); }
+  #pbtn { gap: calc(var(--fs) * .22); }
   #hbtn { left: calc(var(--tab) + 16px); font-size: calc(var(--fs) * 1.5); }
-  #pbtn i { width: calc(var(--fs) * .4); height: calc(var(--fs) * 1.2); }
+  #pbtn i { width: calc(var(--fs) * 1.2); height: calc(var(--fs) * .22); }
   /* 種類えらびのパネル: 文字は基準サイズ、列は幅に合わせて増える */
   #types { max-width: min(calc(var(--fs) * 58), 94vw); }
   #types button { font-size: var(--fs); }
@@ -340,13 +345,13 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 }
 @media (max-width: 599px) {
   /* 縦いっぱいの1列: 筐体と SPIN の下の残りを、タブ付きの一覧（#dock）が埋める。縦が短い画面でも一覧は画面の約3割を確保し、足りなければページ全体をスクロール */
-  body { min-height: 100dvh; display: flex; flex-direction: column; padding-top: 56px; padding-bottom: 12px; } /* 上は ⏸ と ？ の分を空ける（筐体の飾りに重ならないように） */
+  body { min-height: 100dvh; display: flex; flex-direction: column; padding-top: 56px; padding-bottom: 12px; } /* 上は ≡ と ？ の分を空ける（筐体の飾りに重ならないように） */
   #app { flex: none; width: 100%; }
   #spin { display: block; margin-top: 10px; }
   [data-wide] { display: none !important; } /* 横幅の自動調整・キー設定・ポーズの履歴／当たり帳（PC のみ。スマホは下の一覧） */
   #pbtn, #hbtn { width: 40px; height: 40px; top: 8px; left: 8px; }
   #hbtn { left: 56px; font-size: 22px; }
-  #pbtn i { height: 16px; }
+  #pbtn i { width: 20px; }
 
   #dock { flex: 1 0 30dvh; min-height: 0; margin-top: 12px; display: flex; flex-direction: column; }
   #ptabs { display: flex; flex: none; gap: 6px; margin-bottom: 6px; }
