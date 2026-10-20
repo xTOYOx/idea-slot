@@ -1,7 +1,7 @@
 // ピクセルアート筐体の描画（論理 W×190。W は 200〜340、基準は 200）。見た目の基準は docs/superpowers/specs/mockups/casino-v6.html
 // 描くだけで、入力処理もHTMLの重ね物も持たない（それはアプリ側）。
 import { reelRects, stopRect, MONITOR_Y, MONITOR_H, REEL_Y, REEL_H, COUNT_BTN, W_MIN, LEVER_REST, LEVER_DOWN } from './layout.js';
-import { COL_W, MAX_H, colsFor, dropCoin, initialPile, fitPile, frameScale, stepCoin, launchCoin, hitCoin, spinCoin, isGone, takeCoins } from './coins.js';
+import { COL_W, MAX_H, colsFor, dropCoin, fitPile, frameScale, stepCoin, launchCoin, hitCoin, spinCoin, isGone, takeCoins } from './coins.js';
 
 // x 座標は三種類: 左に付く（そのまま）／右に付く（+ D、D = W - 200）／伸びる（幅に + D）／中央（CX 基準、CX = W/2）
 const H = 190, DY = 10; // DY: LEDバーより下（元の y ≥ 61）をモニターの分だけ下げる量
@@ -25,7 +25,8 @@ const RIM_Y = 176; // 受け皿の縁の高さ(+DY込み)。コインの底が�
 const FRAME_MS = 1000 / 60, CELEBRATE_MS = 3200, LEVER_MS = 220, PRESS_MS = 120;
 
 // onCollect(n): 受け皿のコインをなぞって n 枚回収したとき（音など）
-export function createCabinet(canvas, { onCollect = () => {} } = {}) {
+// onPile: 受け皿の山が変わったとき（積もった・回収した）に呼ぶ
+export function createCabinet(canvas, { onCollect = () => {}, onPile = () => {} } = {}) {
   let W = W_MIN, D = 0, CX = 100;
   canvas.width = W;
   canvas.height = H;
@@ -226,7 +227,9 @@ export function createCabinet(canvas, { onCollect = () => {} } = {}) {
     parts = parts.filter((p) => {
       if ((p.wait -= s * FRAME_MS) > 0) return true; // まだ出ていない
       stepCoin(p, s);
-      if (hitCoin(p, pile, tr) === 'settled' || isGone(p, tr)) return false; // 山に積もった／筐体の下へ落ちた
+      const hit = hitCoin(p, pile, tr) === 'settled';
+      if (hit) onPile();
+      if (hit || isGone(p, tr)) return false; // 山に積もった／筐体の下へ落ちた
       spinCoin(p, s);
       const w = COIN[Math.floor(p.f) % 6];
       px(Math.round(p.x + (4 - w) / 2), Math.round(p.y), w, 4, G2); px(Math.round(p.x + (4 - w) / 2), Math.round(p.y), Math.max(1, w - 1), 1, G4);
@@ -256,12 +259,13 @@ export function createCabinet(canvas, { onCollect = () => {} } = {}) {
     celebrate() {
       const now = performance.now();
       celebrateUntil = now + CELEBRATE_MS;
-      if (v.reduceMotion) { for (let i = 0; i < PAYOUT.rm; i++) dropCoin(pile, colOf(CX + (Math.random() - 0.5) * 32)); return; }
+      if (v.reduceMotion) { for (let i = 0; i < PAYOUT.rm; i++) dropCoin(pile, colOf(CX + (Math.random() - 0.5) * 32)); onPile(); return; }
       prevT = now; // 止まっていた間の時間を dt に入れない
       payout(PAYOUT.n);
     },
-    // 起動時の山: 当たり帳の件数 hits に応じた高さから始める
-    initPile(hits) { pile = initialPile(pile.length, hits); },
+    // 受け皿の山（列ごとの高さ）。保存した山を戻すときは今の列数に取り直す
+    setPile(h) { pile = fitPile(h, pile.length); },
+    getPile: () => [...pile],
     pressIdea() { pressUntil = performance.now() + PRESS_MS; },
     celebrating() { return performance.now() < celebrateUntil; },
   };
@@ -281,6 +285,7 @@ export function createCabinet(canvas, { onCollect = () => {} } = {}) {
     const now = performance.now();
     for (const g of got) picks.push({ x: PILE_X + g.col * COL_W, y: PILE_Y + DY - g.k * PILE_STEP, t: now });
     onCollect(got.length);
+    onPile();
   };
   canvas.addEventListener('pointerdown', e => { if (e.button === 0) { swiping = true; sweep(e); } });
   canvas.addEventListener('pointermove', e => { if (swiping || e.pointerType === 'mouse' && e.buttons & 1) sweep(e); });
