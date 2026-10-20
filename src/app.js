@@ -14,6 +14,8 @@ import { createSound } from './sound.js';
 import { createOverlay } from './reels.js';
 import { initScreens } from './screens.js';
 import { initThemeScreen } from './themescreen.js';
+import { initShareScreen } from './sharescreen.js';
+import { codeFromHash } from './share.js';
 import { effectiveWidth, fitWidth, widthAt, W_MIN, maxReels } from './layout.js';
 import { initGrips } from './grips.js';
 import { initTypePanel } from './typepanel.js';
@@ -714,14 +716,16 @@ async function start() {
   });
   tip.attach($('ov'), '.m');
   tip.attach($('hits'), '.w');
-  initThemeScreen({ store, data, isSpinning: () => isSpinning(reels), changed: themesChanged });
+  initThemeScreen({ store, data, isSpinning: () => isSpinning(reels), changed: themesChanged, copy: copyText });
   tpl = initTemplateScreen({
     store, isSpinning: () => isSpinning(reels),
     current: () => reels.map(r => ({ type: r.base ?? r.type })),
     label: type => typeText(normalizeType(type, validType)), // 使うときと同じ見え方（消えたテーマは外れる）
     use: useTemplate,
     count: n => { panels.setCount('tpl', n); pauseLabels(); },
+    copy: copyText,
   });
+  const share = initShareScreen({ store, isSpinning: () => isSpinning(reels), themesChanged, templatesChanged: () => tpl.render() }); // 共有リンクで届いたテーマ・テンプレート
   initKeyScreen({ store, changed: renderKeyHelp });
   initAbout();
   initScreens({
@@ -766,7 +770,11 @@ async function start() {
   renderHistory();
   tpl.render();
   boot.hide(reduceMotion());
-  if (!state.settings.tourSeen) tour.start();
+  if (!state.settings.tourSeen && !codeFromHash(location.hash)) tour.start(); // 共有リンクで開いたときは案内を後回し
+  if (!scripted) { // ?demo / ?shot は共有リンクを読まない
+    addEventListener('hashchange', share.openHash);
+    share.openHash();
+  }
   registerSw();
   say(themesOk ? '★ WELCOME TO IDEA CASINO ★ レバーで回す ★ 気に入った語はLOCK ★ いいね！と思ったら IDEA! ★' : `${THEME_FAIL} ... テーマなしで開始`);
   if (mode.shot) shoot();

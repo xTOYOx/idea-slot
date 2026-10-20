@@ -4,6 +4,7 @@ import { parseWords, addWords, removeWord, createTheme, renameTheme, deleteTheme
 import { baseWords } from './pools.js';
 import { wordCount, wordRows, newCustom } from './wordlist.js';
 import { TYPE_LABELS, NG, NG_WARN, typeGroups } from './types.js';
+import { linkInfo, themePayload } from './share.js';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const PAGE = 300; // 一度に描く語の数（「もっと見る」で増やす）
@@ -11,17 +12,22 @@ const PAGE = 300; // 一度に描く語の数（「もっと見る」で増や�
 const groups = typeGroups([]).map(g => ({ ...g, items: g.items.filter(x => x.k !== 'any') })).filter(g => g.items.length);
 
 // changed(remap?): 一覧や語が変わったとき。名前変更は {from, to}、削除は {from, to: null}
-export function initThemeScreen({ store, data, isSpinning, changed }) {
+export function initThemeScreen({ store, data, isSpinning, changed, copy }) {
   const dlg = document.getElementById('themes'), body = dlg.querySelector('.body');
   // view: {v:'list'} 一覧 / {v:'type', k} 元からある種類 / {v:'my', name} 自作テーマ / {v:'ex'} 除外した語
   let view = { v: 'list' }, q = '', limit = PAGE, err = '', note = '', draft = null; // draft: エラーで戻したときに残す名前の入力値
 
+  let share = null; // 共有リンクの結果 {note, manual}（コピーできなかったときは manual にリンク）
   const cur = () => (view.v === 'my' ? store.state.themes.find(t => t.name === view.name) : undefined);
   const excluded = () => store.state.excluded;
   const customOf = k => store.state.custom[k] ?? [];
   const set = (themes, remap) => { store.state.themes = themes; store.save('themes'); changed(remap); };
   const errP = () => `<p class="err" role="alert">${esc(err)}</p>`;
   const noteP = () => `<p class="note" role="status">${esc(note)}</p>`;
+  const paintShare = () => {
+    const el = body.querySelector('[data-share]');
+    if (el) el.innerHTML = share ? `<p class="note" role="status">${esc(share.note)}</p>${share.manual ? `<input readonly value="${esc(share.manual)}" aria-label="共有リンク">` : ''}` : '';
+  };
   const exCount = () => new Set(excluded()).size;
   const grid = items => `<div class="tg">${items.join('')}</div>`;
   const hint = '<p class="hint">「除外」は種類をまたいで効きます（語の文字列で除外します）</p>';
@@ -87,7 +93,8 @@ export function initThemeScreen({ store, data, isSpinning, changed }) {
         <h2 data-count></h2>
         <form class="row" data-form="rename"><input name="name" value="${esc(draft ?? t.name)}" aria-label="テーマの名前" autocomplete="off"><button>名前を変更</button></form>
         ${errP()}
-        <div class="row"><button data-act="del">削除</button></div>
+        <div class="row"><button data-act="del">削除</button><button data-act="share">共有リンクをコピー</button></div>
+        <div data-share></div>
         <h3>語を追加</h3>
         <form data-form="add"><textarea name="words" rows="4" placeholder="1語ずつ、または改行・、・, 区切りでまとめて" aria-label="追加する語"></textarea>
         <div class="row"><button>追加</button></div></form>
@@ -99,8 +106,9 @@ export function initThemeScreen({ store, data, isSpinning, changed }) {
         ${search}<div class="wl"></div>`;
     body.querySelector('input[name=q]').value = q;
     paintList();
+    paintShare();
   }
-  const show = (nextErr = '', nextNote = '') => { err = nextErr; note = nextNote; draft = null; render(); };
+  const show = (nextErr = '', nextNote = '') => { err = nextErr; note = nextNote; draft = null; share = null; render(); };
   // 別の画面へ: 絞り込みと「もっと見る」を戻して、上から見せる
   const go = next => { view = next; q = ''; limit = PAGE; show(); dlg.scrollTop = 0; };
   // 名前の入力でエラー: 入力値を残して、入力欄に focus を戻す
@@ -108,7 +116,7 @@ export function initThemeScreen({ store, data, isSpinning, changed }) {
 
   document.querySelector('[data-open="themes"]').onclick = () => { if (isSpinning()) return; view = { v: 'list' }; q = ''; limit = PAGE; show(); dlg.showModal(); };
   dlg.querySelector('[data-close]').onclick = () => dlg.close();
-  dlg.addEventListener('close', () => { view = { v: 'list' }; q = ''; limit = PAGE; err = note = ''; });
+  dlg.addEventListener('close', () => { view = { v: 'list' }; q = ''; limit = PAGE; err = note = ''; share = null; });
   dlg.addEventListener('input', e => { if (e.target.name === 'q') { q = e.target.value; limit = PAGE; paintList(); } });
 
   // 語の一覧を作り直したあと、押した行の位置（次の語）にフォーカスを戻す
@@ -116,6 +124,7 @@ export function initThemeScreen({ store, data, isSpinning, changed }) {
 
   // store を更新したあと changed() が例外を投げても、画面は必ず今の store に合わせる（finally）
   dlg.addEventListener('click', e => {
+    if (e.target.readOnly) e.target.select(); // 共有リンクの手コピー用
     const b = e.target.closest('button[data-act]');
     if (!b || isSpinning()) return;
     const act = b.dataset.act, w = b.dataset.w, li = b.closest('li'), n = li ? [...li.parentElement.children].indexOf(li) : -1;
@@ -123,6 +132,7 @@ export function initThemeScreen({ store, data, isSpinning, changed }) {
     if (act === 'type') { if (b.dataset.k !== NG || confirm(`${NG_WARN}\n\n語の一覧を表示しますか？`)) go({ v: 'type', k: b.dataset.k }); return; }
     if (act === 'exl') { go({ v: 'ex' }); return; }
     if (act === 'back') { go({ v: 'list' }); return; }
+    if (act === 'share') { const t = cur(); if (t) linkInfo(themePayload(t), copy).then(r => { share = r; paintShare(); }); return; }
     if (act === 'more') {
       const old = limit;
       limit += PAGE;

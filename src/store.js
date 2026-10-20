@@ -51,7 +51,7 @@ const fav = f => (isObj(f) && isStrs(f.combo)
   ? { combo: f.combo, memo: typeof f.memo === 'string' ? f.memo : '', savedAt: typeof f.savedAt === 'number' ? f.savedAt : 0, rating: cleanRating(f.rating) }
   : null);
 // 名前・語は前後の空白を除く（名前が空なら不正、語は空を捨てて重複を除く）
-const theme = t => {
+export const cleanTheme = t => {
   if (!isObj(t) || typeof t.name !== 'string' || !isStrs(t.words) || !t.name.trim()) return null;
   return { name: t.name.trim(), words: [...new Set(t.words.map(w => w.trim()).filter(Boolean))] };
 };
@@ -73,7 +73,7 @@ const normalize = {
   // 自作テーマ。名前は一覧の中で重複しない。読み込みでは不正・重複を落とし、インポートでは拒否する
   themes: (v, strict) => {
     if (!isArr(v)) return null;
-    const list = v.map(theme), names = new Set(), ok = [];
+    const list = v.map(cleanTheme), names = new Set(), ok = [];
     for (const t of list) if (t && !names.has(t.name)) { names.add(t.name); ok.push(t); }
     return strict && ok.length !== v.length ? null : ok;
   },

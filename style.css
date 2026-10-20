@@ -198,7 +198,9 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 .tpl li, .krows li { padding: 8px 10px; background: #083a26; border: 2px solid #1d7a52; }
 .tpl b { display: block; font-weight: 400; color: #ffe066; overflow-wrap: anywhere; }
 .tpl span { display: block; flex: none; margin: 2px 0 4px; }
-.tpl .row { margin: 4px 0 0; }
+.tpl .row { margin: 4px 0 0; flex-wrap: wrap; }
+.tpl [data-share] .note { margin: 4px 0 0; }
+[data-share] input { width: 100%; box-sizing: border-box; }
 .krows li { display: flex; align-items: center; gap: .6em; padding: 4px 10px; }
 .krows span { flex: 1; }
 .krows button { flex: 0 1 12em; white-space: normal; }
