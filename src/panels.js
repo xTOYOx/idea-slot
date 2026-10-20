@@ -51,6 +51,7 @@ export function initPanels({ pauseAction, open, tab, onTab }) {
     // 一番上の引き出しを閉じる。閉じたら true
     closeTop() { if (!order.length) return false; setDrawer(order.at(-1), false); return true; },
     closeAll(back = true) { [...order].forEach(n => setDrawer(n, false, { back })); },
+    isOpen,
     toggleDrawer: name => (narrow.matches ? setTab(name) : setDrawer(name, !isOpen(name))), // スマホは、その一覧のタブを開く
     setCount(name, n) { for (const b of [drawers[name].querySelector('.bdg'), ptabs[name]?.querySelector('.bdg')]) if (b) b.textContent = n; },
     flash(name) {

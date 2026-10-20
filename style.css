@@ -197,8 +197,12 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 .krows li { display: flex; align-items: center; gap: .6em; padding: 4px 10px; }
 .krows span { flex: 1; }
 .krows button { flex: 0 1 12em; white-space: normal; }
-.krows button.dup { background: #e0303e; color: #fff; } /* 同じキーが複数の操作にある */
-.krows button[aria-pressed=true] { background: #ffe066; }
+.krows button.dup, .kgrid button.dup { background: #e0303e; color: #fff; } /* 同じキーが複数の操作にある */
+.krows button[aria-pressed=true], .kgrid button[aria-pressed=true], .kmode button[aria-pressed=true] { background: #ffe066; }
+/* 詳細: 7本のリール × 止める／ロック／解除 の表 */
+.kgrid { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 6px 8px; align-items: center; margin: 0 0 8px; }
+.kgrid b { font-weight: 400; color: #ffe066; text-align: center; }
+.kgrid button { min-width: 0; white-space: normal; }
 /* 使い方 */
 #help { font-size: 15px; line-height: 1.7; }
 #help .thead { margin-bottom: 4px; }

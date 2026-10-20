@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStore } from '../src/store.js';
-import { DEFAULT_KEYS } from '../src/keys.js';
+import { DEFAULT_KEYS, DEFAULT_DETAIL } from '../src/keys.js';
 const mem = (init = {}) => { const m = { ...init }; return { getItem: k => m[k] ?? null, setItem: (k, v) => { m[k] = v; }, m }; };
 
 test('defaults when empty', () => {
@@ -54,7 +54,7 @@ test('wrong-typed settings → default; saved settings load', () => {
 });
 test('v1 settings with animate migrate to reduceMotion', () => {
   const s = createStore(mem({ 'slot.settings': JSON.stringify({ count: 2, slots: [{ type: 'verb' }, { type: 'any' }], animate: false }) }));
-  assert.deepEqual(s.state.settings, { count: 2, slots: [{ type: 'verb' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: true, width: 620, cabW: null, keys: DEFAULT_KEYS, tourSeen: false, dockTab: 'hist' });
+  assert.deepEqual(s.state.settings, { count: 2, slots: [{ type: 'verb' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: true, width: 620, cabW: null, keys: DEFAULT_KEYS, keyMode: 'basic', keysDetail: DEFAULT_DETAIL, tourSeen: false, dockTab: 'hist' });
 });
 test('defaults include stats and new settings', () => {
   const s = createStore(mem());
@@ -244,6 +244,15 @@ test('settings.keys: defaults, kept when valid, bad values fall back; old data g
   const b = createStore(mem());
   assert.deepEqual(b.importJSON(a.exportJSON()), { ok: true });
   assert.equal(b.state.settings.keys.lever, 'KeyZ');
+});
+test('settings.keyMode / keysDetail: defaults, kept when valid, bad values fall back', () => {
+  const st = createStore(mem()).state.settings;
+  assert.deepEqual([st.keyMode, st.keysDetail], ['basic', DEFAULT_DETAIL]);
+  const load = extra => createStore(mem({ 'slot.settings': JSON.stringify({ count: 3, slots: [], ...extra }) })).state.settings;
+  assert.equal(load({ keyMode: 'detail' }).keyMode, 'detail');
+  assert.equal(load({ keyMode: 'x' }).keyMode, 'basic');
+  assert.deepEqual(load({ keysDetail: { spin: 'KeyZ', stop1: null, ghost: 'KeyQ', lock1: 7 } }).keysDetail, { ...DEFAULT_DETAIL, spin: 'KeyZ', stop1: null });
+  assert.deepEqual(load({ keysDetail: 'x' }).keysDetail, DEFAULT_DETAIL);
 });
 test('templates default to []; load drops bad and duplicate entries', () => {
   assert.deepEqual(createStore(mem()).state.templates, []);

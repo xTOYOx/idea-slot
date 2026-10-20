@@ -1,5 +1,5 @@
 // localStorage persistence (DOM-free). `storage` has getItem/setItem, or is null for memory-only.
-import { DEFAULT_KEYS, normalizeKeys } from './keys.js';
+import { DEFAULT_KEYS, DEFAULT_DETAIL, normalizeKeys, normalizeDetailKeys } from './keys.js';
 import { cleanTemplate } from './templates.js';
 import { cleanRating } from './hits.js';
 import { MAX_H } from './coins.js';
@@ -14,7 +14,7 @@ const PILE_COLS = 200; // 受け皿の列数の上限の目安
 const cleanPile = v => (isArr(v) && v.length <= PILE_COLS && v.every(h => Number.isInteger(h) && h >= 0 && h <= MAX_H) ? v : []);
 
 const defaults = () => ({
-  settings: { count: 3, slots: [{ type: 'any' }, { type: 'any' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: false, width: 620, cabW: null, keys: { ...DEFAULT_KEYS }, tourSeen: false, dockTab: 'hist' },
+  settings: { count: 3, slots: [{ type: 'any' }, { type: 'any' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: false, width: 620, cabW: null, keys: { ...DEFAULT_KEYS }, keyMode: 'basic', keysDetail: { ...DEFAULT_DETAIL }, tourSeen: false, dockTab: 'hist' },
   history: [],
   favorites: [],
   custom: {},
@@ -37,6 +37,8 @@ const normalizeSettings = v => {
     width: Number.isFinite(v.width) ? Math.min(1400, Math.max(460, Math.round(v.width))) : 620, // PC での横幅(px)
     cabW: Number.isFinite(v.cabW) ? Math.max(200, Math.round(v.cabW)) : null, // 筐体の論理幅（null = 画面に合わせて自動）
     keys: normalizeKeys(v.keys), // キー設定（操作 → KeyboardEvent.code）
+    keyMode: v.keyMode === 'detail' ? 'detail' : 'basic', // キー設定の「標準／詳細」
+    keysDetail: normalizeDetailKeys(v.keysDetail), // 詳細のキー（操作 → KeyboardEvent.code か null）
     tourSeen: bool(v.tourSeen, false), // 初めての人向けの案内を見たか
     dockTab: DOCK_TABS.includes(v.dockTab) ? v.dockTab : 'hist', // スマホ縦で最後に開いた一覧のタブ
   };

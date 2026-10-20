@@ -31,6 +31,21 @@ test('pressReel: stop, then ignored within 300ms, then lock/unlock', () => {
   p = M.pressReel(p.reels, 0, 1400); assert.equal(p.action, 'lock'); assert.equal(p.reels[0].held, true);
   p = M.pressReel(p.reels, 0, 1500); assert.equal(p.action, 'unlock'); assert.equal(p.reels[0].held, false);
 });
+test('canHold / setHeld: lock needs a stopped, unlocked reel with a word; unlock needs a locked one', () => {
+  const reels = [R('x'), R('y', true), R(null), { ...R('z'), running: true }];
+  assert.deepEqual([0, 1, 2, 3, 4].map(i => M.canHold(reels, i, true)), [true, false, false, false, false]);
+  assert.deepEqual([0, 1, 2, 3, 4].map(i => M.canHold(reels, i, false)), [false, true, false, false, false]);
+  assert.equal(M.setHeld(reels, 0, true)[0].held, true);
+  assert.equal(M.setHeld(reels, 1, false)[1].held, false);
+  assert.deepEqual(M.setHeld(reels, 1, true), reels); // できないときは何もしない
+  assert.deepEqual(M.setHeld(reels, 3, true), reels);
+});
+test('canHold: just after a stop it waits LOCK_GUARD_MS when now is given', () => {
+  const reels = [{ ...R('x'), stoppedAt: 1000 }];
+  assert.equal(M.canHold(reels, 0, true, 1200), false);
+  assert.equal(M.canHold(reels, 0, true, 1300), true);
+  assert.equal(M.canHold(reels, 0, true), true);
+});
 test('isSpinning / allStopped', () => {
   const { reels } = M.startSpin([R('x'), R('y')], pools);
   assert.equal(M.isSpinning(reels), true);
@@ -68,6 +83,6 @@ test('restore keeps theme fields on the reel', () => {
 });
 test('pure: inputs not mutated', () => {
   const inp = [R('x'), R('y')]; const copy = structuredClone(inp);
-  M.startSpin(inp, pools); M.pressReel(inp, 0, 0); M.restore(inp, ['a']);
+  M.startSpin(inp, pools); M.pressReel(inp, 0, 0); M.restore(inp, ['a']); M.setHeld(inp, 0, true);
   assert.deepEqual(inp, copy);
 });
