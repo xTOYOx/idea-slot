@@ -5,12 +5,13 @@ import { cleanRating } from './hits.js';
 
 const KEYS = ['settings', 'history', 'favorites', 'custom', 'excluded', 'stats', 'themes', 'templates'];
 const HISTORY_MAX = 100;
+export const DOCK_TABS = ['hist', 'hits', 'tpl']; // スマホ縦の一覧のタブ（履歴・当たり帳・テンプレ）
 
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isArr = Array.isArray;
 
 const defaults = () => ({
-  settings: { count: 3, slots: [{ type: 'any' }, { type: 'any' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: false, width: 620, cabW: null, keys: { ...DEFAULT_KEYS }, tourSeen: false },
+  settings: { count: 3, slots: [{ type: 'any' }, { type: 'any' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: false, width: 620, cabW: null, keys: { ...DEFAULT_KEYS }, tourSeen: false, dockTab: 'hist' },
   history: [],
   favorites: [],
   custom: {},
@@ -34,6 +35,7 @@ const normalizeSettings = v => {
     cabW: Number.isFinite(v.cabW) ? Math.max(200, Math.round(v.cabW)) : null, // 筐体の論理幅（null = 画面に合わせて自動）
     keys: normalizeKeys(v.keys), // キー設定（操作 → KeyboardEvent.code）
     tourSeen: bool(v.tourSeen, false), // 初めての人向けの案内を見たか
+    dockTab: DOCK_TABS.includes(v.dockTab) ? v.dockTab : 'hist', // スマホ縦で最後に開いた一覧のタブ
   };
 };
 

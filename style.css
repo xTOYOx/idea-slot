@@ -244,8 +244,11 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 .r .dtab { right: 100%; border-right: 0; margin-top: calc(var(--th) * -.5); }
 .bdg { writing-mode: horizontal-tb; letter-spacing: 0; font-weight: 400; font-size: 12px; min-width: 22px; padding: 1px 3px; text-align: center; background: #c8202f; color: #fff; border: 2px solid #000; }
 .bdg:empty { display: none; }
-.dtab.flash { animation: fl .4s steps(2) 5; }
+#ptabs .flash, .dtab.flash { animation: fl .4s steps(2) 5; }
 @keyframes fl { 50% { background: #ffe066; color: #1a1020; } }
+
+/* スマホ縦だけで使う部品（幅 600 未満の CSS が出す）: 筐体の下の一覧のタブ、当たり帳の並べ替えを開く札、当たりの開閉ボタン */
+#ptabs, #hfold, .hit .fold { display: none; }
 
 /* SPIN（スマホだけ） */
 #spin { display: none; width: 100%; min-height: 60px; margin-top: 14px; font-size: 26px; letter-spacing: .3em; color: #fff; background: #8a1fa0; border: 5px dashed #fff; cursor: pointer; box-shadow: inset 0 0 0 5px #8a1fa0, inset 0 0 0 7px #fff, 0 5px 0 #000; }
@@ -271,7 +274,6 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   body { height: 100dvh; overflow: hidden; }
   #app { max-width: none; height: 100%; margin: 0; display: grid; place-items: center; }
   .grip { display: block; }
-  [data-narrow] { display: none !important; } /* ポーズのテンプレート（端のタブがあるので PC では出さない） */
   #wrap { width: min(100vw - 2 * var(--tab) - 32px, (100dvh - 32px) * var(--W) / 190); } /* 左右は端のタブの分を空ける（app.js も同じ式で W を決める） */
 
   /* 画面に合わせて UI を大きくする。基準の文字サイズ --fs（1280×800 で約 19px、1920×1080 で 26px）。スマホ（600 未満）は上の元の大きさのまま */
@@ -324,12 +326,44 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   .wg button { min-height: max(36px, 2em); }
 }
 @media (max-width: 599px) {
-  #spin { display: block; }
+  /* 縦いっぱいの1列: 筐体と SPIN の下の残りを、タブ付きの一覧（#dock）が埋める。縦が短い画面でも一覧は画面の約3割を確保し、足りなければページ全体をスクロール */
+  body { min-height: 100dvh; display: flex; flex-direction: column; padding-top: 56px; padding-bottom: 12px; } /* 上は ⏸ と ？ の分を空ける（筐体の飾りに重ならないように） */
+  #app { flex: none; width: 100%; }
+  #spin { display: block; margin-top: 10px; }
+  [data-wide] { display: none !important; } /* 横幅の自動調整・キー設定・ポーズの履歴／当たり帳（PC のみ。スマホは下の一覧） */
+  #pbtn, #hbtn { width: 40px; height: 40px; top: 8px; left: 8px; }
+  #hbtn { left: 56px; font-size: 22px; }
+  #pbtn i { height: 16px; }
+
+  #dock { flex: 1 0 30dvh; min-height: 0; margin-top: 12px; display: flex; flex-direction: column; }
+  #ptabs { display: flex; flex: none; gap: 6px; margin-bottom: 6px; }
+  #ptabs button { flex: 1 1 0; min-width: 0; min-height: 42px; padding: 0 4px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 15px; color: #fff; background: #0f5a3a; border: 3px solid #000; box-shadow: inset 0 0 0 2px #e8b020; cursor: pointer; }
+  #ptabs button[aria-pressed=true] { color: #1a1020; background: #ffe066; }
+  #ptabs button:focus-visible { outline: 2px solid #3ef0ff; outline-offset: 2px; }
+  /* 引き出しの中身（履歴・当たり帳・テンプレ）をそのまま一覧として使う。選んだタブだけを出し、残りの高さを埋める */
   .dtab { display: none; }
-  .drawer { width: 100%; }
-  .drawer.l, .drawer.r { left: 0; right: 0; transform: translateY(100%); }
-  .drawer.open { transform: none; }
-  .dbody { border-width: 0; box-shadow: none; }
-  .r .dhead { margin-left: 100px; }
-  [data-wide] { display: none !important; } /* 横幅の自動調整・キー設定（PC のみ） */
+  #dock > .drawer { display: none; position: static; width: auto; transform: none; transition: none; flex: 1 1 0; min-height: 0; }
+  body[data-pt=hist] #d-hist, body[data-pt=hits] #d-hits, body[data-pt=tpl] #d-tpl { display: flex; flex-direction: column; }
+  .dbody { flex: 1 1 0; min-height: 0; height: auto; border-width: 3px; box-shadow: none; padding: 8px 10px; }
+  .dhint, #d-hits .dhead, #d-tpl .dhead, .dhead h3, [data-dclose] { display: none; } /* 見出しと閉じるは要らない（履歴は「全部消す」だけ残す） */
+  .dhead { margin: 0 0 4px; }
+  #hclear { min-height: 32px; padding: 2px 8px; font-size: 12px; box-shadow: 2px 2px 0 #000; } /* 低い画面でも履歴の行を多く見せる */
+  #tpl { overflow-y: auto; overscroll-behavior: contain; } /* テンプレは低い一覧でも保存欄から全部が見えるよう、中身ぜんぶをスクロール */
+  #tpl > .dscroll { flex: none; overflow: visible; }
+
+  /* 当たり帳: 並べ替え・絞り込みは札を押すと開く。当たりは1行に畳み、押すとメモ・コピー・削除が出る */
+  #hctl { margin-bottom: 6px; }
+  #hfold { display: block; align-self: flex-start; min-height: 36px; padding: 2px 10px; font-size: 13px; }
+  #hctl:not(.open) .hrow:not(.hstat) { display: none; }
+  .hit { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0 3px 8px 0; padding: 6px; cursor: pointer; }
+  .hit b { order: 1; flex: 1 1 calc(100% - 56px); min-width: 0; margin: 0; } /* 開閉ボタンと並べて1行目を埋める（★は次の行へ） */
+  .hit .fold { display: block; order: 2; flex: none; min-width: 40px; padding: 0; }
+  .hit.open .fold { rotate: 180deg; }
+  .hit .stars { order: 3; flex: none; margin: 0 0 0 -4px; }
+  .hit .star { min-width: 32px; }
+  .hit .row { display: contents; }
+  .hit .go { order: 4; flex: none; margin-left: auto; padding: 6px; font-size: 13px; }
+  .hit textarea, .hit .row button:not(.go) { display: none; }
+  .hit.open textarea { display: block; order: 5; flex: 1 0 100%; }
+  .hit.open .row button:not(.go) { display: block; order: 6; flex: 1 1 0; }
 }

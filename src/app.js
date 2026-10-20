@@ -122,7 +122,6 @@ function pauseLabels() {
   $('cabw-d').textContent = manual ? `横幅 ${st.cabW}（左右の端をドラッグで調整）` : '画面に合わせます';
   p.querySelector('[data-p="hits"] em').textContent = `（${state.favorites.length}）`;
   p.querySelector('[data-p="hist"] em').textContent = `（${state.history.length}）`;
-  p.querySelector('[data-p="tpl"] em').textContent = `（${state.templates.length}）`;
 }
 
 function pauseAction(k) {
@@ -136,7 +135,10 @@ function pauseAction(k) {
   sync();
 }
 
-const panels = initPanels({ pauseAction, open() { typePanel.close(); pauseLabels(); } });
+const panels = initPanels({
+  pauseAction, open() { typePanel.close(); pauseLabels(); },
+  tab: state.settings.dockTab, onTab(t) { state.settings.dockTab = t; store.save('settings'); }, // スマホ縦の一覧は、最後に開いたタブを覚える
+});
 
 function setReels(next) {
   reels = next;
@@ -432,11 +434,13 @@ $('cards').addEventListener('click', e => { const c = e.target.closest('.card');
 
 // --- 当たり帳・履歴 ---
 const hv = { sort: 'new', text: '', min: 0 }; // 一覧の並べ替えと絞り込み（保存しない）
+let openFav = null; // スマホ縦で開いている当たり（1つだけ。位置は並べ替え・追加・削除でずれるので、中身そのもので覚える）
 const STARS = [1, 2, 3, 4, 5];
 // メモの先頭の改行は <textarea> が1つ捨てるので、1つ足しておく
-const hitHtml = ({ f, i }) => `<div class="hit${i === 0 ? ' new' : ''}">
+const hitHtml = ({ f, i }) => `<div class="hit${i === 0 ? ' new' : ''}${f === openFav ? ' open' : ''}">
   <div class="stars" role="group" aria-label="評価">${STARS.map(n => `<button class="star${n <= f.rating ? ' on' : ''}" data-star="${i}:${n}" aria-pressed="${n === f.rating}" aria-label="★${n}">★</button>`).join('')}</div>
   <b>${f.combo.map(w => `<span class="w">${esc(w)}</span>`).join(' <i>×</i> ')}</b>
+  <button class="sbtn fold" data-fold="${i}" aria-expanded="${f === openFav}" aria-label="メモ・コピー・削除">▾</button>
   <textarea data-h="${i}" rows="1" placeholder="ひとことメモ（思いついたことを書いておく）" aria-label="メモ">
 ${esc(f.memo)}</textarea>
   <div class="row"><button class="sbtn go" data-edit data-back="${i}">スロットにセット</button><button class="sbtn" data-copy="${i}">コピー</button><button class="sbtn" data-del="${i}">削除</button></div></div>`;
@@ -477,7 +481,6 @@ function restoreCombo(combo) {
   setReels(next);
   say(`${comboText(next.map(r => r.value))} をスロットにセットしました`);
 }
-const closeSheetOnMobile = () => { if (matchMedia('(max-width: 599px)').matches) panels.closeAll(false); }; // スマホではシートを閉じて筐体を見せる（ポーズには戻らない）
 
 // 履歴の ★: その組み合わせを当たり帳に入れる（コインは出さない）
 function historyToHit(i) {
@@ -505,10 +508,7 @@ document.addEventListener('click', e => {
   if (!b) return;
   if (e.detail > 0 && !b.closest('dialog')) b.blur(); // マウス・タップのあとはキー操作を筐体に返す
   const d = b.dataset;
-  if (d.back !== undefined || d.r !== undefined) {
-    restoreCombo(d.back !== undefined ? state.favorites[Number(d.back)].combo : state.history[Number(d.r)]);
-    closeSheetOnMobile();
-  }
+  if (d.back !== undefined || d.r !== undefined) restoreCombo(d.back !== undefined ? state.favorites[Number(d.back)].combo : state.history[Number(d.r)]);
   else if (d.tohit !== undefined) historyToHit(Number(d.tohit));
   else if (d.del !== undefined) { state.favorites.splice(Number(d.del), 1); store.save('favorites'); renderHits(); sync(); }
 });
@@ -526,11 +526,28 @@ $('hits').addEventListener('input', e => {
     fitMemo(t);
   }
 });
+// スマホ縦: 当たりの行を押すと開き、もう一度押すと閉じる（開くのは1つだけ。PC では見た目は変わらない）
+function toggleHit(el, f) {
+  const was = f === openFav;
+  $('hits').querySelector('.hit.open')?.classList.remove('open');
+  $('hits').querySelectorAll('.fold').forEach(b => b.setAttribute('aria-expanded', 'false'));
+  openFav = was ? null : f;
+  if (!was) {
+    el.classList.add('open');
+    el.querySelector('.fold').setAttribute('aria-expanded', 'true');
+    fitMemo(el.querySelector('textarea')); // 隠れていた間は高さが測れない
+  }
+}
 $('hits').addEventListener('click', e => {
   const b = e.target.closest('button');
-  if (!b) return;
+  if (!b) {
+    const hit = e.target.closest('.hit');
+    if (hit && !e.target.closest('textarea')) toggleHit(hit, state.favorites[Number(hit.querySelector('.fold').dataset.fold)]);
+    return;
+  }
   const d = b.dataset, kb = e.detail === 0; // キーボードで押したときは、描き直したあとにフォーカスを戻す
-  if (d.star !== undefined) {
+  if (d.fold !== undefined) toggleHit(b.closest('.hit'), state.favorites[Number(d.fold)]);
+  else if (d.star !== undefined) {
     const [i, n] = d.star.split(':').map(Number), f = state.favorites[i];
     f.rating = toggleRating(f.rating, n);
     store.save('favorites');
@@ -543,6 +560,11 @@ $('hits').addEventListener('click', e => {
 for (const [id, key, f] of [['hsort', 'sort', String], ['hmin', 'min', Number], ['hq', 'text', String]]) {
   $(id).addEventListener(id === 'hq' ? 'input' : 'change', e => { hv[key] = f(e.target.value); renderHits(); });
 }
+$('hfold').addEventListener('click', e => {
+  const on = $('hctl').classList.toggle('open');
+  e.currentTarget.setAttribute('aria-expanded', String(on));
+  e.currentTarget.textContent = `並べ替え・絞り込み ${on ? '▴' : '▾'}`;
+});
 $('hreset').addEventListener('click', () => {
   Object.assign(hv, { text: '', min: 0 });
   $('hq').value = '';
@@ -561,9 +583,8 @@ renderKeyHelp();
 // 使う: 本数と種類をテンプレートにして振り直す（ロックは外れる）。消えた自作テーマ・知らない種類は「全部ランダム」
 function useTemplate(t) {
   if (!ready || !canEdit(reels)) return false;
-  setReels(spin(applySlots(t.slots, validType).map(s => ({ ...s, value: null, held: false })), pools));
+  setReels(spin(applySlots(t.slots, validType).map(s => ({ ...s, value: null, held: false })), pools)); // 引き出しも一覧も開いたまま（リールが切り替わるのを見せる）
   say(`テンプレート「${t.name}」を使いました`);
-  closeSheetOnMobile(); // PC は開いたまま
   return true;
 }
 

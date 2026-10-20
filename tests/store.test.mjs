@@ -54,7 +54,7 @@ test('wrong-typed settings → default; saved settings load', () => {
 });
 test('v1 settings with animate migrate to reduceMotion', () => {
   const s = createStore(mem({ 'slot.settings': JSON.stringify({ count: 2, slots: [{ type: 'verb' }, { type: 'any' }], animate: false }) }));
-  assert.deepEqual(s.state.settings, { count: 2, slots: [{ type: 'verb' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: true, width: 620, cabW: null, keys: DEFAULT_KEYS, tourSeen: false });
+  assert.deepEqual(s.state.settings, { count: 2, slots: [{ type: 'verb' }, { type: 'any' }], autoStop: false, sound: true, reduceMotion: true, width: 620, cabW: null, keys: DEFAULT_KEYS, tourSeen: false, dockTab: 'hist' });
 });
 test('defaults include stats and new settings', () => {
   const s = createStore(mem());
@@ -211,6 +211,20 @@ test('settings.tourSeen is a boolean (false unless saved as true) and survives e
   const b = createStore(mem());
   assert.equal(b.importJSON(a.exportJSON()).ok, true);
   assert.equal(b.state.settings.tourSeen, true);
+});
+test('settings.dockTab (phone list tab): hist / hits / tpl, anything else falls back to hist; survives export / import', () => {
+  const load = t => createStore(mem({ 'slot.settings': JSON.stringify({ count: 3, slots: [], ...(t === undefined ? {} : { dockTab: t }) }) })).state.settings.dockTab;
+  assert.equal(createStore(mem()).state.settings.dockTab, 'hist');
+  assert.equal(load(undefined), 'hist');
+  assert.equal(load('nope'), 'hist');
+  assert.equal(load(3), 'hist');
+  assert.equal(load('hits'), 'hits');
+  assert.equal(load('tpl'), 'tpl');
+  const a = createStore(mem());
+  a.state.settings.dockTab = 'tpl';
+  const b = createStore(mem());
+  assert.equal(b.importJSON(a.exportJSON()).ok, true);
+  assert.equal(b.state.settings.dockTab, 'tpl');
 });
 test('cabW travels through export / import', () => {
   const s = createStore(mem());
