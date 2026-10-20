@@ -74,7 +74,7 @@ test('keyHelp: built from the keys, Esc stays last', () => {
   assert.ok(lines.includes('1 / 2 / 3 / 4 / 5 / 6 / 7：リール1〜7の STOP / LOCK'));
   assert.ok(lines.includes('H：履歴'));
   assert.ok(lines.includes('T：テンプレート'));
-  assert.equal(lines.at(-1), 'Esc：ポーズ');
+  assert.deepEqual(lines.slice(-3), ['Ctrl+Z：ひとつ前の結果に戻す', 'Ctrl+Y：やり直す', 'Esc：ポーズ']);
 });
 
 const S = (extra = {}) => ({ keyMode: 'detail', keys: DEFAULT_KEYS, keysDetail: DEFAULT_DETAIL, ...extra });
@@ -131,7 +131,7 @@ test('keyHelp (detail): merged reel line, unassigned omitted, Esc last', () => {
   assert.ok(lines.includes('H：履歴を開く / 履歴を閉じる'));
   assert.ok(lines.includes('Enter：IDEA!'));
   assert.ok(!lines.some(l => l.includes('全部')));
-  assert.equal(lines.at(-1), 'Esc：ポーズ');
+  assert.deepEqual(lines.slice(-3), ['Ctrl+Z：ひとつ前の結果に戻す', 'Ctrl+Y：やり直す', 'Esc：ポーズ']);
 });
 test('keyHelp (detail): split columns and partial assignment', () => {
   const d = { ...DEFAULT_DETAIL, stopAll: 'KeyA', lock1: 'KeyL', unlock1: null, lock2: null, histClose: null };

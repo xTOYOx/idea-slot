@@ -97,6 +97,8 @@ export function keyHelp({ keyMode, keys, keysDetail: d }) {
       ...['lever', 'idea'].map(id => `${keyName(keys[id])}：${label(id)}`),
       `${reels}：リール1〜7の STOP / LOCK`,
       ...['more', 'less', 'hist', 'hits', 'tpl', 'help'].map(id => `${keyName(keys[id])}：${label(id)}`),
+      'Ctrl+Z：ひとつ前の結果に戻す',
+      'Ctrl+Y：やり直す',
       'Esc：ポーズ',
     ];
   }
@@ -111,5 +113,5 @@ export function keyHelp({ keyMode, keys, keysDetail: d }) {
     if (on.length) add(`${on.map(n => keyName(d[m[1] + n])).join(' / ')}：${on.length === 7 ? '1〜7' : on.join('・')}番リールを`, VERB[m[1]]);
   }
   SHARED.forEach(id => add(`${keyName(keys[id])}：`, label(id)));
-  return [...[...out].map(([head, tails]) => head + tails.join(' / ')), 'Esc：ポーズ'];
+  return [...[...out].map(([head, tails]) => head + tails.join(' / ')), 'Ctrl+Z：ひとつ前の結果に戻す', 'Ctrl+Y：やり直す', 'Esc：ポーズ'];
 }
