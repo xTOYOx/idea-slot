@@ -3,7 +3,7 @@ import { buildPools } from './pools.js';
 import { spin, rerollOne, setSlotType, resizeSlots, pickWord } from './pick.js';
 import { parseType, toggleType, normalizeType, remapType } from './typekey.js';
 import { initPanels } from './panels.js';
-import { startSpin, stopReel, pressReel, isSpinning, allStopped, canEdit, canSave, autoStopDelays, restore } from './machine.js';
+import { startSpin, stopReel, pressReel, setHeld, canHold, isSpinning, allStopped, canEdit, canSave, autoStopDelays, restore } from './machine.js';
 import { hasCombo, isActive, toggleRating, viewHits } from './hits.js';
 import { buildIndex, searchWords } from './search.js';
 import { indexGraph, themeWords } from './theme.js';
@@ -18,7 +18,7 @@ import { effectiveWidth, fitWidth, widthAt, W_MIN, maxReels } from './layout.js'
 import { initGrips } from './grips.js';
 import { initTypePanel } from './typepanel.js';
 import { initHelp } from './help.js';
-import { actionsFor, canonCode, keyHelp } from './keys.js';
+import { activeActions, canonCode, keyHelp } from './keys.js';
 import { applySlots } from './templates.js';
 import { initKeyScreen } from './keyscreen.js';
 import { initTemplateScreen } from './tplscreen.js';
@@ -273,9 +273,20 @@ function press(i) {
   if (action === 'ignored') return;
   if (action === 'stop') { commitStops(next); return; }
   reels = next;
-  sound.play(action);
-  say(action === 'lock' ? `LOCK！「${r.value}」を固定` : `UNLOCK ...「${r.value}」も回るよ`);
+  heldFeedback(i, action === 'lock');
+}
+// ロック／解除の音・ひと言・表示（press と詳細のキーで共通）
+function heldFeedback(i, on) {
+  sound.play(on ? 'lock' : 'unlock');
+  say(on ? `LOCK！「${reels[i].value}」を固定` : `UNLOCK ...「${reels[i].value}」も回るよ`);
   paint(i);
+  sync();
+}
+function holdAll(on) {
+  reels = reels.reduce((rs, _, i) => setHeld(rs, i, on), reels);
+  sound.play(on ? 'lock' : 'unlock');
+  say(on ? '全部LOCK！' : '全部UNLOCK ...');
+  reels.forEach((_, i) => paint(i));
   sync();
 }
 
@@ -589,7 +600,7 @@ const help = initHelp();
 // 初めての案内（settings.tourSeen）。使い方の「案内をもう一度見る」でも開く
 const tour = createTour(() => { if (!state.settings.tourSeen) { state.settings.tourSeen = true; store.save('settings'); } });
 $('tour-again').addEventListener('click', () => { $('help').close(); tour.start(); });
-const renderKeyHelp = () => help.setKeys(keyHelp(state.settings.keys)); // 使い方の「キー操作」はキー設定から作る
+const renderKeyHelp = () => help.setKeys(keyHelp(state.settings)); // 使い方の「キー操作」はキー設定から作る
 renderKeyHelp();
 
 // --- テンプレート（リールの本数と各リールの種類） ---
@@ -615,16 +626,16 @@ document.addEventListener('keydown', e => {
     return;
   }
   if (a?.tagName === 'BUTTON' && e.key === 'Enter') return; // ボタン自身の押下に任せる
-  const acts = actionsFor(state.settings.keys, canonCode(e.code || ''));
+  const acts = activeActions(state.settings, canonCode(e.code || ''));
   if (!acts.length) return; // 割り当ての無いキー（Space も）は、フォーカスのあるボタンをそのまま押す
   e.preventDefault(); // Space などに割り当てがあれば、フォーカスのあるボタンを押さずにその操作だけ
   if (a && a !== document.body) a.blur(); // ダイアログを閉じて戻ったモニターなどに、フォーカスの枠・光りを残さない
-  acts.forEach(act => keyActions[act]()); // 同じキーを複数の操作に割り当てていたら、全部動かす
+  acts.filter(act => keyReady[act]?.() ?? true).forEach(act => keyActions[act]()); // 同じキーを複数の操作に割り当てていたら、全部動かす（詳細は、押した時点の状態で動くものを先に決めてから）
 });
 // ブラウザによっては Space を離したときにボタンを押すので、keyup でも止める（割り当てがあるときだけ）
 document.addEventListener('keyup', e => {
   if (e.code !== 'Space' || document.querySelector('dialog[open]') || document.activeElement?.tagName !== 'BUTTON') return;
-  if (actionsFor(state.settings.keys, 'Space').length) e.preventDefault();
+  if (activeActions(state.settings, 'Space').length) e.preventDefault();
 });
 // キー設定（settings.keys）の操作 → 動作。Esc（ポーズ）は割り当てず、上の keydown が固定で受ける
 const keyActions = {
@@ -633,7 +644,24 @@ const keyActions = {
   more: () => changeCount(1), less: () => changeCount(-1),
   hist: () => panels.toggleDrawer('hist'), tpl: () => panels.toggleDrawer('tpl'), hits: () => panels.toggleDrawer('hits'),
   help: () => help.open(),
+  spin: pull, stopAll: () => commitStops(reels.reduce((rs, _, i) => stopReel(rs, i, performance.now()), reels)),
+  lockAll: () => holdAll(true), unlockAll: () => holdAll(false),
 };
+// 詳細のキーが今の状態で動くか（同じキーに止める・ロック・解除があっても、押した時点の状態で動くものだけ動く）。無いものは常に動く
+const keyReady = {
+  spin: () => allStopped(reels), stopAll: () => isSpinning(reels),
+  lockAll: () => allStopped(reels) && reels.some((_, i) => canHold(reels, i, true)),
+  unlockAll: () => allStopped(reels) && reels.some((_, i) => canHold(reels, i, false)),
+};
+for (let i = 0; i < 7; i++) {
+  const n = i + 1, hold = on => () => { reels = setHeld(reels, i, on); heldFeedback(i, on); };
+  Object.assign(keyActions, { ['stop' + n]: () => commitStops(stopReel(reels, i, performance.now())), ['lock' + n]: hold(true), ['unlock' + n]: hold(false) });
+  Object.assign(keyReady, { ['stop' + n]: () => !!reels[i]?.running, ['lock' + n]: () => canHold(reels, i, true, performance.now()), ['unlock' + n]: () => canHold(reels, i, false, performance.now()) });
+}
+for (const p of ['hist', 'hits', 'tpl']) {
+  Object.assign(keyActions, { [p + 'Open']: () => panels.toggleDrawer(p), [p + 'Close']: () => panels.toggleDrawer(p) });
+  Object.assign(keyReady, { [p + 'Open']: () => !panels.isOpen(p), [p + 'Close']: () => panels.isOpen(p) });
+}
 
 // --- 起動 ---
 const validType = k => TYPE_KEYS.includes(k) || state.themes.some(m => MY + m.name === k);
