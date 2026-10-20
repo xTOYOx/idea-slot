@@ -8,6 +8,7 @@ import { hasCombo, isActive, toggleRating, viewHits } from './hits.js';
 import { buildIndex, searchWords } from './search.js';
 import { indexGraph, themeWords } from './theme.js';
 import { createStore } from './store.js';
+import { createUndo, snapOf } from './undo.js';
 import { createCabinet } from './cabinet.js';
 import { initialPile } from './coins.js';
 import { createSound } from './sound.js';
@@ -48,6 +49,7 @@ if (mode.shot) document.body.classList.add('shot'); // 部品を隠す（style.c
 const boot = createBoot(document.getElementById('boot'), 6);
 const { state } = store;
 const sound = createSound();
+const undo = createUndo(); // 止まったときの結果の履歴（Ctrl+Z / Ctrl+Y）
 const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 const $ = id => document.getElementById(id);
 const app = $('app');
@@ -125,6 +127,7 @@ function sync() {
   cab.update({ spinning: isSpinning(reels), canSave: canSave(reels, state.favorites), ideas: state.stats.spins, hits: state.favorites.length, coins: state.stats.coins, reduceMotion: reduceMotion() });
   view.setCount(reels.length, canEdit(reels), maxN());
   applyBusy();
+  if (!scripted && allStopped(reels)) undo.record(snapOf(reels)); // 止まった結果を残す（同じ結果は積まれない）
   tpl?.refresh(); // テンプレの「今の構成」
   document.body.classList.toggle('reduce-motion', reduceMotion());
 }
@@ -642,6 +645,19 @@ document.addEventListener('keydown', e => {
   e.preventDefault(); // Space などに割り当てがあれば、フォーカスのあるボタンを押さずにその操作だけ
   if (a && a !== document.body) a.blur(); // ダイアログを閉じて戻ったモニターなどに、フォーカスの枠・光りを残さない
   acts.filter(act => keyReady[act]?.() ?? true).forEach(act => keyActions[act]()); // 同じキーを複数の操作に割り当てていたら、全部動かす（詳細は、押した時点の状態で動くものを先に決めてから）
+});
+// Ctrl+Z で1つ前の結果、Ctrl+Y / Ctrl+Shift+Z でやり直し（Mac は Cmd）。入力欄・ダイアログの中はブラウザ標準の取り消しに任せる
+document.addEventListener('keydown', e => {
+  const z = e.code === 'KeyZ', redo = e.code === 'KeyY' || (z && e.shiftKey);
+  if (!view || scripted || e.repeat || e.isComposing || e.altKey || !(e.ctrlKey || e.metaKey) || !(z || redo) || document.querySelector('dialog[open]')) return;
+  if (document.activeElement?.closest('input, select, textarea, dialog, [contenteditable]')) return;
+  e.preventDefault();
+  if (!ready || isSpinning(reels)) return;
+  const snap = redo ? undo.redo() : undo.undo();
+  if (!snap) { sound.play('deny'); return; }
+  setReels(snap.map(s => ({ ...s, running: false })));
+  sound.play(redo ? 'lock' : 'unlock');
+  say(redo ? '↪ やり直しました' : '↩ ひとつ前の結果に戻しました');
 });
 // ブラウザによっては Space を離したときにボタンを押すので、keyup でも止める（割り当てがあるときだけ）
 document.addEventListener('keyup', e => {
