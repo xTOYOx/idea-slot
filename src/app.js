@@ -9,6 +9,7 @@ import { buildIndex, searchWords } from './search.js';
 import { indexGraph, themeWords } from './theme.js';
 import { createStore } from './store.js';
 import { createCabinet } from './cabinet.js';
+import { initialPile } from './coins.js';
 import { createSound } from './sound.js';
 import { createOverlay } from './reels.js';
 import { initScreens } from './screens.js';
@@ -641,8 +642,16 @@ function initialReels() {
 async function start() {
   rebuildPools();
   sound.enabled = state.settings.sound;
-  cab = createCabinet($('cv'), { onCollect: n => { store.addCoins(n); cab.update({ coins: state.stats.coins }); sound.play('coin'); } });
-  cab.initPile(state.favorites.length); // 受け皿の山は当たり帳の件数から
+  // 受け皿の山は保存しておき、次に開いたときもそのまま（変わるたびに少し待ってまとめて保存、閉じるときは即保存）
+  let pileTimer = 0;
+  const savePile = () => { clearTimeout(pileTimer); store.savePile(cab.getPile()); };
+  cab = createCabinet($('cv'), {
+    onCollect: n => { store.addCoins(n); cab.update({ coins: state.stats.coins }); sound.play('coin'); },
+    onPile: () => { clearTimeout(pileTimer); pileTimer = setTimeout(savePile, 500); },
+  });
+  cab.setPile(state.stats.pile);
+  addEventListener('pagehide', savePile);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) savePile(); });
   view = createOverlay($('wrap'), $('ov'), {
     reel: press, lever: pull, leverPos: a => cab.setLever(a), idea,
     word: copyWord,
@@ -683,7 +692,7 @@ async function start() {
         rebuildPools();
         sound.enabled = state.settings.sound;
         fitCabinet(); // 読み込んだ設定の筐体の幅に合わせる
-        cab.initPile(state.favorites.length); // 受け皿の山も読み込んだ当たり帳の件数に合わせる
+        cab.setPile(state.stats.pile); // 受け皿の山も読み込んだものに
         pauseLabels();
         renderKeyHelp();
         closePick();
@@ -725,7 +734,7 @@ function shoot() {
   reels = reels.map((r, i) => ({ ...r, value: DEMO_WORDS[i], held: false }));
   reels.forEach((_, i) => paint(i, true));
   state.favorites = [{ combo: [...DEMO_WORDS], memo: '', savedAt: 0, rating: 0 }];
-  cab.initPile(8); // 受け皿にはコインの山
+  cab.setPile(initialPile(cab.getPile().length, 8)); // 受け皿にはコインの山
   sync();
   cab.celebrate();
   say(`★★★ BIG IDEA!! ★★★ ${DEMO_WORDS.join(' × ')} ★★★`);
@@ -735,7 +744,7 @@ function shoot() {
 const demoActs = {
   reset() {
     state.favorites = [];
-    cab.initPile(0);
+    cab.setPile([]);
     renderHits();
     sync();
   },

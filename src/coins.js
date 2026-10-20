@@ -34,7 +34,7 @@ export function takeCoins(h, col, reach = 1) {
   return got;
 }
 
-// 当たり帳の件数 hits から、起動時の山を作る。中央あたりを中心に落とす
+// 当たり hits 件ぶんの山を作る（?shot のカード画像用）。中央あたりを中心に落とす
 export function initialPile(cols, hits, rnd = Math.random, max = MAX_H) {
   const h = Array(cols).fill(0);
   for (let i = 0; i < hits * PER_HIT; i++) dropCoin(h, Math.max(0, Math.min(cols - 1, Math.floor(cols * (0.5 + (rnd() + rnd() - 1) * 0.3)))), rnd, max);
