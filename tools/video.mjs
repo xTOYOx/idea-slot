@@ -1,6 +1,6 @@
 // X 用のデモ動画を、?demo の台本から作る。使い方: node tools/video.mjs [--promo] [--encode-only]
 //   （なし）: out/idea-slot-demo.mp4  1920×1080（16:9）、台本そのまま
-//   --promo : out/idea-slot-promo.mp4  1080×1080（正方形）、字幕・ブランド・最後の紹介つき（tools/promo.html）
+//   --promo : out/idea-slot-promo.mp4  1080×1080（正方形）、字幕・ブランドつき（tools/promo.html）
 //   --encode-only: 撮り済みの out/*-frames から変換だけやり直す。--sec=N: 台本の頭から N 秒だけ作る（試し用）
 // どちらも 30fps、H.264 + AAC（効果音）。
 // 1) ページの時計を手で進める（tools/video-clock.js）。1/30 秒ずつ進めては 1 コマ PNG に撮る（マシンの重さでコマが落ちない）。鳴った効果音の時刻も記録する
@@ -15,7 +15,7 @@ const promo = process.argv.includes('--promo');
 const PORT = 8189, DEBUG = 9333, FPS = 30, DSF = 1.5, BITRATE = 12e6;
 // モード別: page は撮る画面、view は CSS の大きさ（×DSF が動画の大きさ）、sec は撮る台本の秒、hold は最後の絵を置く秒、check は確認の静止画の秒
 const M = promo
-  ? { name: 'promo', page: '/tools/promo.html', view: [720, 720], sec: 29.5, hold: 0, check: [1, 3.5, 6.5, 9, 11, 13.5, 16.5, 20.5, 23.5, 27], cols: 5 }
+  ? { name: 'promo', page: '/tools/promo.html', view: [720, 720], sec: 27.5, hold: 0, check: [1, 3.5, 6.5, 9, 11, 13.5, 16.5, 20.5, 23.5, 26.5], cols: 5 }
   : { name: 'demo', page: '/index.html?demo', view: [1280, 720], sec: 25.3, hold: 0.5, check: [1, 3.5, 6.5, 9, 11, 13.5, 16.5, 20.5, 23.5], cols: 3 };
 const CHROME = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (!CHROME) throw new Error('Chrome が見つかりません');
