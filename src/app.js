@@ -852,6 +852,7 @@ const demoActs = {
   end() { if (mode.loop) playDemo(); },
 };
 function playDemo() {
+  window.__demoT0 = performance.now(); // 動画の撮影（tools/video.mjs）が台本の 0 の瞬間を知る印
   for (const s of DEMO_SCRIPT) setTimeout(() => demoActs[s.act](s), s.at);
 }
 
