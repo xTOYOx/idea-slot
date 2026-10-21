@@ -7,7 +7,7 @@
   N.date = Date.now();
   const off = N.date - N.now(), STEP = 1000 / 60, EPS = 1e-6;
   const timers = new Map(), rafs = new Map(), seen = new WeakMap(); // id → {fn, args, due, every, h}
-  let virt = false, T = 0, seq = 0, nextFrame = 0;
+  let virt = false, T = 0, T0 = 0, seq = 0, nextFrame = 0;
   const cur = () => (virt ? T : N.now());
 
   performance.now = cur;
@@ -35,11 +35,11 @@
 
   // 台本の 0 になった: 実時間のタイマーを全部こちらの待ち行列に移して、時間を止める
   const freeze = () => {
-    T = N.now(); virt = true; nextFrame = T + STEP;
+    T = T0 = N.now(); virt = true; nextFrame = T + STEP;
     for (const e of timers.values()) { N.ct(e.h); if (e.every) e.due = T + e.every; else e.due = Math.max(T, e.due); }
     for (const e of rafs.values()) N.caf(e.h);
   };
-  Object.defineProperty(window, '__demoT0', { configurable: true, get: () => T, set: freeze });
+  Object.defineProperty(window, '__demoT0', { configurable: true, get: () => T0, set: freeze });
 
   // 走っている CSS アニメーション/トランジションも止めて、こちらの時間に合わせる
   const syncAnims = () => {
