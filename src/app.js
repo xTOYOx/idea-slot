@@ -31,7 +31,7 @@ import { createTour } from './tour.js';
 import { registerSw } from './pwa.js';
 import { createBoot } from './boot.js';
 import { initAbout } from './about.js';
-import { DEMO_SCRIPT, DEMO_WORDS, DEMO_TYPES, LEVER_RAMP_MS, SWEEP_MS, modeOf, sweepAt } from './demo.js';
+import { DEMO_SCRIPT, DEMO_WORDS, DEMO_TYPES, LEVER_RAMP_MS, SWEEP_MS, TAP_MS, modeOf, sweepAt, startOf } from './demo.js';
 
 // 保存済みの WordNet テーマ（設定の slots[].theme）を読み込むかのスイッチ。false の間は読み込まない（保存データからは消さない）
 const THEMES_ON = false;
@@ -48,7 +48,7 @@ if (scripted) {
 if (mode.shot) document.body.classList.add('shot'); // 部品を隠す（style.css）。筐体の幅を決める前に付ける
 const boot = createBoot(document.getElementById('boot'), 6);
 const { state } = store;
-const sound = createSound();
+const sound = createSound(scripted ? name => (window.__soundLog ??= []).push([name, performance.now()]) : undefined); // ?demo: 鳴らした音を記録（動画の音声用。tools/video.mjs が読む）
 const undo = createUndo(); // 止まったときの結果の履歴（Ctrl+Z / Ctrl+Y）
 const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 const $ = id => document.getElementById(id);
@@ -809,15 +809,38 @@ function shoot() {
 }
 
 // --- ?demo: 台本（demo.js）どおりに1回演じる。?demo&loop は繰り返す ---
+// 指の印（タッチ表示）。popover なので、開いている dialog の上にも出る
+function finger() {
+  const el = document.body.appendChild(Object.assign(document.createElement('div'), { className: 'demo-finger', popover: 'manual' }));
+  el.showPopover();
+  return el;
+}
+// 指が sel の要素へ動き、押して（縮む）、本物のクリックをする。dialog の中の長い一覧は、見える所まで送る
+function tap(sel) {
+  const el = document.querySelector(sel);
+  if (!el) return;
+  el.scrollIntoView({ block: 'nearest' });
+  const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, f = finger();
+  f.style.cssText = `left:${x + 70}px;top:${y + 50}px;opacity:0;transition:none`;
+  void f.offsetWidth;
+  f.style.cssText = `left:${x}px;top:${y}px`;
+  setTimeout(() => f.classList.add('tap'), TAP_MS - 150);
+  setTimeout(() => el.click(), TAP_MS);
+  setTimeout(() => f.remove(), TAP_MS + 300);
+}
 const demoActs = {
   reset() {
+    panels.closeAll(false);
+    typePanel.close();
     state.favorites = [];
+    state.settings.slots = DEMO_TYPES.map(type => ({ type }));
     cab.setPile([]);
+    setReels(initialReels());
     renderHits();
     sync();
   },
-  // レバーを下まで引いて（引く動きが見える）、離すと回り始める。止まる語は決まった組み合わせにする
-  lever() {
+  // レバーを下まで引いて（引く動きが見える）、離すと回り始める。止まる語は words にする
+  lever({ words }) {
     const t0 = performance.now();
     const id = setInterval(() => {
       const a = Math.min(1, (performance.now() - t0) / LEVER_RAMP_MS);
@@ -826,17 +849,18 @@ const demoActs = {
       clearInterval(id);
       cab.setLever(0);
       pull();
-      reels = reels.map((r, i) => (r.running ? { ...r, target: DEMO_WORDS[i] } : r));
+      reels = reels.map((r, i) => (r.running ? { ...r, target: words[i] } : r));
     }, 16);
   },
   stop: ({ reel }) => press(reel),
-  idea,
+  tap: ({ sel }) => tap(sel),
   // 指の印を出して、受け皿のコインをなぞる（本物のポインタ操作を cabinet.js に送る）
   sweep() {
-    const cv = $('cv'), finger = document.body.appendChild(Object.assign(document.createElement('div'), { className: 'demo-finger' }));
+    const cv = $('cv'), f = finger();
+    f.style.transition = 'none';
     const t0 = performance.now(), fire = (type, p) => {
       const r = cv.getBoundingClientRect(), x = r.left + p.x / cabW * r.width, y = r.top + p.y / 190 * r.height;
-      finger.style.cssText = `left:${x}px;top:${y}px`;
+      f.style.cssText = `left:${x}px;top:${y}px;transition:none`;
       cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerType: 'touch', bubbles: true }));
     };
     fire('pointerdown', sweepAt(0, cabW));
@@ -846,14 +870,14 @@ const demoActs = {
       if (a < 1) return;
       clearInterval(id);
       fire('pointerup', p);
-      finger.remove();
+      f.remove();
     }, 16);
   },
   end() { if (mode.loop) playDemo(); },
 };
 function playDemo() {
   window.__demoT0 = performance.now(); // 動画の撮影（tools/video.mjs）が台本の 0 の瞬間を知る印
-  for (const s of DEMO_SCRIPT) setTimeout(() => demoActs[s.act](s), s.at);
+  for (const s of DEMO_SCRIPT) setTimeout(() => demoActs[s.act](s), startOf(s));
 }
 
 function fail() {

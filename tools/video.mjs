@@ -1,21 +1,31 @@
-// X 用のデモ動画 out/idea-slot-demo.mp4（1920×1080、30fps、H.264）を、?demo の台本から作る。使い方: node tools/video.mjs（撮り直さず変換だけなら --encode-only）
-// 1) ページの時計を手で進める（tools/video-clock.js）。1/30 秒ずつ進めては 1 コマ PNG に撮る（マシンの重さでコマが落ちない）
-// 2) tools/encode.html（WebCodecs + mp4-muxer）で H.264 にして mp4 に包む。mp4-muxer は jsDelivr から読むので通信が要る
-// 3) 出来た mp4 を <video> で読み直し、out/check/ に確認用の静止画を書く。ffmpeg も npm も要らない。
+// X 用のデモ動画を、?demo の台本から作る。使い方: node tools/video.mjs [--promo] [--encode-only]
+//   （なし）: out/idea-slot-demo.mp4  1920×1080（16:9）、台本そのまま
+//   --promo : out/idea-slot-promo.mp4  1080×1080（正方形）、字幕・ブランド・最後の紹介つき（tools/promo.html）
+//   --encode-only: 撮り済みの out/*-frames から変換だけやり直す。--sec=N: 台本の頭から N 秒だけ作る（試し用）
+// どちらも 30fps、H.264 + AAC（効果音）。
+// 1) ページの時計を手で進める（tools/video-clock.js）。1/30 秒ずつ進めては 1 コマ PNG に撮る（マシンの重さでコマが落ちない）。鳴った効果音の時刻も記録する
+// 2) tools/encode.html（WebCodecs + mp4-muxer）で、コマを H.264 に、記録した効果音を OfflineAudioContext で音にして AAC にし、mp4 に包む。mp4-muxer は jsDelivr から読むので通信が要る
+// 3) 出来た mp4 を <video> で読み直し、確認用の静止画と一覧を書く。ffmpeg も npm も要らない。
 import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-const PORT = 8189, DEBUG = 9333, FPS = 30, W = 1280, H = 720, DSF = 1.5;
-const END_MS = 11300, HOLD = 15, BITRATE = 12e6; // 台本の 0〜11.3 秒を撮り、最後の絵を 0.5 秒置く
-const CHECK_AT = [0.5, 2, 3, 5, 6.2, 7, 9, 10.8];
+const promo = process.argv.includes('--promo');
+const PORT = 8189, DEBUG = 9333, FPS = 30, DSF = 1.5, BITRATE = 12e6;
+// モード別: page は撮る画面、view は CSS の大きさ（×DSF が動画の大きさ）、sec は撮る台本の秒、hold は最後の絵を置く秒、check は確認の静止画の秒
+const M = promo
+  ? { name: 'promo', page: '/tools/promo.html', view: [720, 720], sec: 29.5, hold: 0, check: [1, 3.5, 6.5, 9, 11, 13.5, 16.5, 20.5, 23.5, 27], cols: 5 }
+  : { name: 'demo', page: '/index.html?demo', view: [1280, 720], sec: 25.3, hold: 0.5, check: [1, 3.5, 6.5, 9, 11, 13.5, 16.5, 20.5, 23.5], cols: 3 };
 const CHROME = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (!CHROME) throw new Error('Chrome が見つかりません');
-const root = resolve(import.meta.dirname, '..'), out = join(root, 'out'), frames = join(out, 'frames'), mp4 = join(out, 'idea-slot-demo.mp4');
+const root = resolve(import.meta.dirname, '..'), out = join(root, 'out'), frames = join(out, `${M.name}-frames`), checks = join(out, `${M.name}-check`), mp4 = join(out, `idea-slot-${M.name}.mp4`);
+const sec = +process.argv.find(a => a.startsWith('--sec='))?.slice(6) || M.sec, check = M.check.filter(t => t < sec);
 const base = `http://127.0.0.1:${PORT}`, sleep = ms => new Promise(r => setTimeout(r, ms));
+const pad = i => String(i + 1).padStart(5, '0');
+if (!process.argv.includes('--encode-only')) rmSync(frames, { recursive: true, force: true }); // 前の撮影の残りを混ぜない
 mkdirSync(frames, { recursive: true });
-mkdirSync(join(out, 'check'), { recursive: true });
+mkdirSync(checks, { recursive: true });
 
 // Chrome を捨てプロファイルで起動し、ページに繋ぐ。send(method, params) と once(event)
 async function launch() {
@@ -49,28 +59,33 @@ async function launch() {
   return { send, once, run, close };
 }
 
-// 1) 撮影: 手で進める時計（video-clock.js）を差し込み、台本の 0 から 1/30 秒ずつ進めて撮る
+// 1) 撮影: 手で進める時計（video-clock.js）を差し込み、台本の 0 から 1/30 秒ずつ進めて撮る。返り値は { 撮ったコマ数, 効果音の記録 }
 async function capture() {
   const c = await launch();
   try {
+    const app = promo ? 'document.querySelector("iframe").contentWindow' : 'window'; // 台本を演じているページ
     await c.send('Page.enable');
     await c.send('Page.addScriptToEvaluateOnNewDocument', { source: readFileSync(join(root, 'tools/video-clock.js'), 'utf8') });
-    await c.send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: DSF, mobile: false });
-    await c.send('Page.navigate', { url: `${base}/index.html?demo` });
+    await c.send('Emulation.setDeviceMetricsOverride', { width: M.view[0], height: M.view[1], deviceScaleFactor: DSF, mobile: false });
+    await c.send('Page.navigate', { url: base + M.page });
     // 台本の 0（時計が止まる）まで待つ。読み込み画面（まだ薄く残る）は外す
-    for (let i = 0; !(await c.run('window.__vt?.on === true')); i++) {
+    for (let i = 0; !(await c.run(`${app}.__vt?.on === true`).catch(() => false)); i++) {
       if (i > 200) throw new Error('デモが始まりません（読み込み失敗？）');
       await sleep(100);
     }
-    await c.run('document.getElementById("boot")?.remove(); document.fonts.ready.then(() => __vt.advance(0))');
-    const n = Math.round(END_MS * FPS / 1000);
+    await c.run(`${app}.document.getElementById("boot")?.remove(); document.fonts.ready.then(() => 1)`);
+    const n = Math.round(sec * FPS);
     for (let i = 0; i < n; i++) {
-      if (i) await c.run(`__vt.advance(${1000 / FPS})`);
+      // 字幕（promo）を時刻に合わせてから、台本のページを進める
+      await c.run(`(async () => { ${promo ? `await render(${i / FPS});` : ''} if (${i}) await ${app}.__vt.advance(${1000 / FPS}); })()`);
       const { data } = await c.send('Page.captureScreenshot', { format: 'png' });
-      writeFileSync(join(frames, `${String(i + 1).padStart(5, '0')}.png`), Buffer.from(data, 'base64'));
-      if (i % 30 === 0) console.log(`撮影 ${i + 1}/${n}（台本 ${(i / FPS).toFixed(1)} 秒）`);
+      writeFileSync(join(frames, `${pad(i)}.png`), Buffer.from(data, 'base64'));
+      if (i % 60 === 0) console.log(`撮影 ${i + 1}/${n}（台本 ${(i / FPS).toFixed(1)} 秒）`);
     }
-    return n;
+    // 鳴った効果音（app.js が window.__soundLog に [名前, performance.now()] で記録）を、台本の秒にして取る
+    const sounds = JSON.parse(await c.run(`JSON.stringify((${app}.__soundLog ?? []).map(([name, t]) => [name, +((t - ${app}.__demoT0) / 1000).toFixed(4)]))`));
+    writeFileSync(join(out, `${M.name}-sounds.json`), JSON.stringify(sounds));
+    return { n, sounds };
   } finally { await c.close(); }
 }
 
@@ -86,15 +101,15 @@ function boxes(buf) {
   return list;
 }
 
-// 2) 変換と 3) 確認: encode.html で mp4 にして受け取り、読み直して静止画を撮る
-async function encode(n) {
+// 2) 変換と 3) 確認: encode.html で mp4 にして受け取り、読み直して静止画と音を確かめる
+async function encode({ n, sounds }) {
   const c = await launch();
   try {
     await c.send('Page.enable');
     await c.send('Page.navigate', { url: `${base}/tools/encode.html` });
     for (let i = 0; !(await c.run('window.ready === true')); i++) { if (i > 100) throw new Error('encode.html が準備できません'); await sleep(200); }
-    const urls = Array.from({ length: n }, (_, i) => `/out/frames/${String(i + 1).padStart(5, '0')}.png`);
-    const len = await c.run(`encode(${JSON.stringify({ urls, hold: HOLD, fps: FPS, w: W * DSF, h: H * DSF, bitrate: BITRATE })})`);
+    const urls = Array.from({ length: n }, (_, i) => `/out/${M.name}-frames/${pad(i)}.png`), [w, h] = M.view.map(v => v * DSF), hold = sec < M.sec ? 0 : Math.round(M.hold * FPS);
+    const len = await c.run(`encode(${JSON.stringify({ urls, hold, fps: FPS, w, h, bitrate: BITRATE, audio: { events: sounds } })})`);
     const parts = [], CH = 3 << 20;
     for (let p = 0; p < len; p += CH) parts.push(Buffer.from(await c.run(`(() => { const a = window.mp4.subarray(${p}, ${p + CH}); let s = ''; for (let k = 0; k < a.length; k += 8192) s += String.fromCharCode(...a.subarray(k, k + 8192)); return btoa(s); })()`), 'base64'));
     const buf = Buffer.concat(parts);
@@ -102,9 +117,12 @@ async function encode(n) {
     const order = boxes(buf);
     console.log(`${mp4} (${(buf.length / 1048576).toFixed(1)} MB) ボックス順: ${order.join(' ')}`);
     if (order.indexOf('moov') > order.indexOf('mdat')) console.warn('警告: moov が mdat より後ろです');
-    const g = await c.run(`grab('/out/idea-slot-demo.mp4', ${JSON.stringify(CHECK_AT)})`);
-    g.shots.forEach((d, i) => writeFileSync(join(out, 'check', `t${CHECK_AT[i]}.png`), Buffer.from(d.split(',')[1], 'base64')));
-    console.log(`読み直し: ${g.w}×${g.h}、${g.duration.toFixed(2)} 秒、${n + HOLD} コマ、確認画像 ${join(out, 'check')}`);
+    console.log(`音声トラック: ${buf.includes('mp4a') ? 'mp4a (AAC)' : '無し（警告）'}、効果音 ${sounds.length} 個:`, JSON.stringify(await c.run('audioInfo')));
+    const url = `/out/idea-slot-${M.name}.mp4`;
+    const [g, a] = [await c.run(`grab('${url}', ${JSON.stringify(check)}, ${M.cols})`), await c.run(`probeAudio('${url}')`)];
+    g.shots.forEach((d, i) => writeFileSync(join(checks, `t${check[i]}.png`), Buffer.from(d.split(',')[1], 'base64')));
+    writeFileSync(join(out, `${M.name}-contact.png`), Buffer.from(g.sheet.split(',')[1], 'base64'));
+    console.log(`読み直し: ${g.w}×${g.h}、映像 ${g.duration.toFixed(2)} 秒、${n + hold} コマ、音 ${a.seconds.toFixed(2)} 秒 ${a.channels}ch 最大 ${a.peak.toFixed(3)}、確認画像 ${checks}、一覧 ${join(out, `${M.name}-contact.png`)}`);
   } finally { await c.close(); }
 }
 
@@ -115,7 +133,9 @@ try {
     if (i > 50) throw new Error('python -m http.server が起動しません');
     await sleep(100);
   }
-  await encode(process.argv.includes('--encode-only') ? readdirSync(frames).length : await capture()); // --encode-only: 撮り済みの out/frames を使う
+  await encode(process.argv.includes('--encode-only')
+    ? { n: readdirSync(frames).length, sounds: JSON.parse(readFileSync(join(out, `${M.name}-sounds.json`), 'utf8')) } // 撮り済みを使う
+    : await capture());
 } finally {
   server.kill();
 }

@@ -410,7 +410,9 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 #about-tag { color: #ffe066; font-weight: 400; }
 @media (min-width: 600px) { #about { font-size: var(--fs); max-width: min(calc(var(--fs) * 36), 92vw); max-height: 94dvh; } }
 
-/* ?demo の指の印（受け皿のコインをなぞるとき）と、?shot（カード画像の撮影）で隠す部品 */
-.demo-finger { position: fixed; z-index: 60; width: 28px; height: 28px; margin: -14px 0 0 -14px; border: 3px solid #000; border-radius: 50%; background: rgba(255, 224, 102, .85); box-shadow: 0 0 0 2px #fff; pointer-events: none; }
+/* ?demo の指の印（押す・なぞる）と、?shot（カード画像の撮影）で隠す部品 */
+.demo-finger { position: fixed; z-index: 60; width: 28px; height: 28px; margin: -14px 0 0 -14px; border: 3px solid #000; border-radius: 50%; background: rgba(255, 224, 102, .85); box-shadow: 0 0 0 2px #fff; pointer-events: none; padding: 0; overflow: visible; transition: left .35s ease-out, top .35s ease-out, opacity .15s; }
+.demo-finger.tap { animation: demo-tap .3s; }
+@keyframes demo-tap { 50% { transform: scale(.6); } }
 body.shot { --tab: 0px; }
 body.shot .grip, body.shot #pbtn, body.shot #hbtn, body.shot .drawer, body.shot #boot { display: none; }

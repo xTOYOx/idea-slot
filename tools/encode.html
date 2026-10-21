@@ -1,20 +1,51 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>encode</title>
-<!-- tools/video.mjs が Chrome で開く。撮ったフレーム(PNG)を WebCodecs で H.264 にして mp4 に包む。公開物には入れない -->
+<!-- tools/video.mjs が Chrome で開く。撮ったフレーム(PNG)を WebCodecs で H.264 に、効果音を AAC にして、mp4 に包む。公開物には入れない -->
 <script type="module">
 import { Muxer, ArrayBufferTarget } from 'https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.5/build/mp4-muxer.mjs';
+import { SOUNDS } from '/src/sound.js';
 
-// urls の順に 1 コマずつ、fps で並べる。末尾 hold コマは最後の絵を置き続ける。mp4 のバイト列は window.mp4 に置く
-window.encode = async ({ urls, hold, fps, w, h, bitrate }) => {
+const RATE = 48000, PEAK = 0.5; // 音は最大で -6dB に揃える
+
+// 効果音の記録 events（[名前, 秒]）を、同じ SOUNDS で seconds 秒の音にする。軽く圧縮してから、音量を揃えて返す（[左, 右]の Float32Array）
+async function renderAudio(events, seconds) {
+  const n = Math.ceil(seconds * RATE), dry = new OfflineAudioContext(2, n, RATE);
+  for (const [name, t] of events) SOUNDS[name](dry, t);
+  const raw = await dry.startRendering();
+  const wet = new OfflineAudioContext(2, n, RATE), src = new AudioBufferSourceNode(wet, { buffer: raw });
+  src.connect(new DynamicsCompressorNode(wet, { threshold: -24, knee: 20, ratio: 4, attack: 0.003, release: 0.15 })).connect(wet.destination);
+  src.start();
+  const out = await wet.startRendering(), ch = [0, 1].map(i => out.getChannelData(i));
+  const peak = ch.reduce((m, c) => c.reduce((x, v) => Math.max(x, Math.abs(v)), m), 0), g = peak ? PEAK / peak : 1;
+  ch.forEach(c => c.forEach((v, i) => { c[i] = v * g; }));
+  window.audioInfo = { events: events.length, peakBefore: peak, peakAfter: peak * g };
+  return ch;
+}
+
+// urls の順に 1 コマずつ、fps で並べる。末尾 hold コマは最後の絵を置き続ける。audio があれば AAC の音声も付ける。mp4 のバイト列は window.mp4 に置く
+window.encode = async ({ urls, hold, fps, w, h, bitrate, audio }) => {
   const config = { codec: 'avc1.640028', width: w, height: h, bitrate, framerate: fps, avc: { format: 'avc' }, latencyMode: 'quality' };
   if (!(await VideoEncoder.isConfigSupported(config)).supported) throw new Error('この Chrome は H.264 エンコードに対応していません');
+  const total = urls.length + hold, seconds = total / fps;
   const target = new ArrayBufferTarget();
-  const muxer = new Muxer({ target, video: { codec: 'avc', width: w, height: h, frameRate: fps }, fastStart: 'in-memory' });
+  const muxer = new Muxer({ target, video: { codec: 'avc', width: w, height: h, frameRate: fps }, audio: audio && { codec: 'aac', sampleRate: RATE, numberOfChannels: 2 }, fastStart: 'in-memory' });
   let err;
+  if (audio) {
+    const ac = { codec: 'mp4a.40.2', sampleRate: RATE, numberOfChannels: 2, bitrate: 128000 };
+    if (!(await AudioEncoder.isConfigSupported(ac)).supported) throw new Error('この Chrome は AAC エンコードに対応していません（X には AAC が要ります）');
+    const ch = await renderAudio(audio.events, seconds);
+    const aenc = new AudioEncoder({ output: (c, m) => muxer.addAudioChunk(c, m), error: e => (err = e) });
+    aenc.configure(ac);
+    for (let p = 0; p < ch[0].length; p += 4800) {
+      const data = new Float32Array(2 * Math.min(4800, ch[0].length - p)), len = data.length / 2;
+      data.set(ch[0].subarray(p, p + len)); data.set(ch[1].subarray(p, p + len), len); // f32-planar: 左のあとに右
+      aenc.encode(new AudioData({ format: 'f32-planar', sampleRate: RATE, numberOfFrames: len, numberOfChannels: 2, timestamp: Math.round(p * 1e6 / RATE), data }));
+    }
+    await aenc.flush();
+  }
   const enc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: e => (err = e) });
   enc.configure(config);
-  const total = urls.length + hold;
   let bmp;
   for (let i = 0; i < total; i++) {
     if (err) throw err;
@@ -31,21 +62,33 @@ window.encode = async ({ urls, hold, fps, w, h, bitrate }) => {
   return window.mp4.length;
 };
 
-// 出来た mp4 を <video> で再生し直し、ts（秒、昇順）を過ぎた最初のコマを PNG の dataURL で返す（確認用）
-window.grab = async (src, ts) => {
-  const v = Object.assign(document.createElement('video'), { src, muted: true });
+// 出来た mp4 を <video> で再生し直し、ts（秒、昇順）を過ぎた最初のコマを PNG の dataURL で返す（確認用）。cols 列に並べた一覧の画像 sheet も作る
+window.grab = async (src, ts, cols) => {
+  const v = Object.assign(document.createElement('video'), { src, muted: true, playbackRate: 4 });
   await new Promise((ok, ng) => { v.onloadeddata = ok; v.onerror = () => ng(new Error('mp4 を再生できません')); });
-  const c = Object.assign(document.createElement('canvas'), { width: v.videoWidth, height: v.videoHeight }), shots = [], times = [];
+  const c = Object.assign(document.createElement('canvas'), { width: v.videoWidth, height: v.videoHeight }), shots = [];
   await new Promise(done => {
     const cb = (_, meta) => {
-      if (meta.mediaTime >= ts[shots.length]) { c.getContext('2d').drawImage(v, 0, 0); shots.push(c.toDataURL('image/png')); times.push(meta.mediaTime); }
+      if (meta.mediaTime >= ts[shots.length]) { c.getContext('2d').drawImage(v, 0, 0); shots.push(c.toDataURL('image/png')); }
       if (shots.length === ts.length) done(); else v.requestVideoFrameCallback(cb);
     };
     v.requestVideoFrameCallback(cb);
     v.play();
-    setTimeout(done, 40000);
+    setTimeout(done, 60000);
   });
-  return { duration: v.duration, w: v.videoWidth, h: v.videoHeight, shots, times };
+  const tw = 400, th = Math.round(tw * v.videoHeight / v.videoWidth), sheet = Object.assign(document.createElement('canvas'), { width: tw * cols, height: th * Math.ceil(shots.length / cols) });
+  for (const [i, s] of shots.entries()) {
+    const im = await new Promise(ok => Object.assign(new Image(), { src: s, onload() { ok(this); } }));
+    sheet.getContext('2d').drawImage(im, (i % cols) * tw, Math.floor(i / cols) * th, tw, th);
+  }
+  return { duration: v.duration, w: v.videoWidth, h: v.videoHeight, shots, sheet: sheet.toDataURL('image/png') };
+};
+
+// 出来た mp4 の音を復号して、長さと最大音量を返す（確認用）
+window.probeAudio = async src => {
+  const buf = await new OfflineAudioContext(2, 1, RATE).decodeAudioData(await (await fetch(src)).arrayBuffer());
+  const peak = [0, 1].reduce((m, i) => buf.getChannelData(i).reduce((x, s) => Math.max(x, Math.abs(s)), m), 0);
+  return { seconds: buf.duration, channels: buf.numberOfChannels, peak };
 };
 window.ready = true;
 </script>
