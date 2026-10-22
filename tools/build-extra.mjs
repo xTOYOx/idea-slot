@@ -2,6 +2,7 @@
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { EXTRA } from '../src/types.js';
+import { BLOCKED } from './categorize.mjs';
 
 const MAX_LEN = 16; // この長さ以上の行は語として長すぎるので捨てる
 
@@ -11,6 +12,7 @@ export function tidyWords(text) {
   for (const line of text.split(/\r?\n/)) {
     const w = line.trim().normalize('NFC');
     if (!w) continue;
+    if (BLOCKED.has(w)) continue; // 完全に外す語（tools/blocked.txt）
     if ([...w].length >= MAX_LEN) long.push(w); else words.add(w);
   }
   return { words: [...words], long };

@@ -1,4 +1,8 @@
 // 上位語グラフをたどって名詞を小分類に振り分ける。ROOTS の並びは同段の優先順。
+import { readFileSync } from 'node:fs';
+
+// 完全に外す語（tools/blocked.txt。# で始まる行は説明）
+export const BLOCKED = new Set(readFileSync(new URL('./blocked.txt', import.meta.url), 'utf8').split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#')));
 export const ROOTS = [
   { cat: 'animal', id: '00015388-n', name: 'animate_being' },
   { cat: 'plant', id: '00017222-n', name: 'flora' },
@@ -39,6 +43,7 @@ export function categorize(synsetId, hypernyms) {
 }
 
 export function keepLemma(lemma) {
+  if (BLOCKED.has(lemma)) return false;
   if (/^[\x00-\x7f]*$/.test(lemma) || /\s/.test(lemma)) return false; // ASCIIだけ・空白入りは除く
   const s = lemma.replace(/[\p{P}\p{S}\p{Z}ー・〜～]/gu, '');
   if (!s) return false;

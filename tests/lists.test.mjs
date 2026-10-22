@@ -23,3 +23,10 @@ test('genres and tags share no ja', () => {
   const dup = Object.values(load('tags.json')).flat().filter(x => g.has(x.ja)).map(x => x.ja);
   assert.deepEqual(dup, []);
 });
+test('no blocked word (tools/blocked.txt) is left in any data list', async () => {
+  const { BLOCKED } = await import('../tools/categorize.mjs');
+  const all = [...Object.values(load('words.json')).flat(), ...load('verbs.json'), ...load('genres.json').map(x => x.ja),
+    ...Object.values(load('tags.json')).flat().map(x => x.ja), ...Object.values(load('extra.json')).flat()];
+  assert.ok(BLOCKED.size > 100);
+  assert.deepEqual(all.filter(w => BLOCKED.has(w)), []);
+});

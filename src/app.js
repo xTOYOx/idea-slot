@@ -632,6 +632,7 @@ $('spin').addEventListener('click', e => { if (e.detail > 0) e.currentTarget.blu
 // 入力欄・select・textarea・ダイアログの中では効かない（Esc は開いているダイアログが自分で閉じる）
 document.addEventListener('keydown', e => {
   if (!view || e.repeat || e.isComposing || e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]')) return;
+  if (document.activeElement?.closest('dialog:not([open])')) document.activeElement.blur(); // 閉じたダイアログ（スキップした案内など）に残ったフォーカスは外す
   const a = document.activeElement;
   if (a?.closest('input, select, textarea, dialog, [contenteditable]')) return;
   if (e.key === 'Escape') { // 開いているものを一番上から1つ閉じる。何も無ければポーズメニュー
@@ -650,7 +651,7 @@ document.addEventListener('keydown', e => {
 document.addEventListener('keydown', e => {
   const z = e.code === 'KeyZ', redo = e.code === 'KeyY' || (z && e.shiftKey);
   if (!view || scripted || e.repeat || e.isComposing || e.altKey || !(e.ctrlKey || e.metaKey) || !(z || redo) || document.querySelector('dialog[open]')) return;
-  if (document.activeElement?.closest('input, select, textarea, dialog, [contenteditable]')) return;
+  if (document.activeElement?.closest('input, select, textarea, dialog, [contenteditable]') && !document.activeElement.closest('dialog:not([open])')) return;
   e.preventDefault();
   if (!ready || isSpinning(reels)) return;
   const snap = redo ? undo.redo() : undo.undo();
