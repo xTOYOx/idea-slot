@@ -8,7 +8,7 @@ export const EXTRA = {
   monster: 'モンスター・幻獣', power: '超能力・スキル', chara: 'キャラの型', net: 'ネット・現代語', stage: '舞台・ロケーション', sf: 'SF・技術', plot: '物語の展開',
   world: '世界観', system: '仕組み', goal: '目標', twist: 'ルール', catharsis: 'カタルシス', rule: '制約', ng: 'NG語',
 };
-// 選んだときだけ出すテーマ。テーマ集（全部）と全部ランダムには入れない（作品名の「ゲーム」と同じ扱い）
+// 選んだときだけ出すテーマ。テーマ集（全部）と全部ランダムには入れない
 export const EXTRA_ONLY = ['goal', 'twist', 'catharsis', 'rule', 'ng']; // 目標・ルール・カタルシス・制約は短い文なので、ほかの語と混ぜない
 // 公開の画面に出ると問題になりそうな語（差別・性的・残虐など。AI が拾った候補）。ほかのテーマからは外し、このテーマを選んだときだけ出す
 export const NG = 'extra:ng';
@@ -24,7 +24,6 @@ export const TYPE_LABELS = {
   ...Object.fromEntries(Object.entries(NOUN).map(([k, v]) => [`noun:${k}`, v])),
   verb: '動詞',
   genre: 'ゲームジャンル',
-  game: 'ゲーム',
   extra: 'テーマ集（全部）',
   ...Object.fromEntries(Object.entries(EXTRA).map(([k, v]) => [`extra:${k}`, v])),
   tag: 'タグ（全部）',
@@ -45,7 +44,7 @@ export function typeGroups(themes) {
   return [
     { title: null, items: of(k => k === 'any') },
     grp('単語', sub('noun'), 'noun'),
-    grp('その他の種類', of(k => ['verb', 'genre', 'game'].includes(k))),
+    grp('その他の種類', of(k => ['verb', 'genre'].includes(k))),
     // 制約・NG語は選んだときだけ出すので、見出しのチェックには含めない
     grp('テーマ集', extra, 'extra', extra.map(x => x.k).filter(k => !EXTRA_ONLY.includes(k.slice(6)))),
     grp('タグ', sub('tag'), 'tag'),

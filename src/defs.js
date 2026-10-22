@@ -16,9 +16,8 @@ export function groupByShard(entries) {
   return out;
 }
 
-// load(name) → Promise<{語: 意味}>。games: [{ja, en}]（作品名は英題を出す）。読めなかったファイルは覚えず、次の機会にやり直す
-export function createDefs(load, games = []) {
-  const en = new Map(games.map(g => [g.ja, g.en]));
+// load(name) → Promise<{語: 意味}>。読めなかったファイルは覚えず、次の機会にやり直す
+export function createDefs(load) {
   const files = new Map();
   const shard = name => {
     if (!files.has(name)) files.set(name, Promise.resolve().then(() => load(name)).catch(() => { files.delete(name); return {}; }));
@@ -28,10 +27,7 @@ export function createDefs(load, games = []) {
     async lookup(word) {
       if (!word) return null;
       const o = await shard(shardOf(word));
-      const def = Object.hasOwn(o, word) ? o[word] : null;
-      if (!en.has(word)) return def;
-      const title = `英題: ${en.get(word)}`; // 作品名でもある語（チェス・将棋など）は、意味のあとに英題
-      return def ? `${def}\n${title}` : title;
+      return Object.hasOwn(o, word) ? o[word] : null;
     },
   };
 }

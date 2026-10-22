@@ -26,11 +26,10 @@ test('groupByShard: always 64 files; each word is stored under its own shard, ke
   for (const o of Object.values(many)) assert.deepEqual(Object.keys(o), Object.keys(o).sort());
 });
 
-const games = [{ ja: 'テトリス', en: 'Tetris' }];
 function make(files) {
   const calls = [];
   const load = async name => { calls.push(name); if (!(name in files)) throw new Error('404'); return files[name]; };
-  return { calls, defs: createDefs(load, games) };
+  return { calls, defs: createDefs(load) };
 }
 test('createDefs: loads only the file of the word and keeps it in memory', async () => {
   const { calls, defs } = make({ [shardOf('犬')]: { 犬: 'いぬ科の動物' } });
@@ -48,10 +47,6 @@ test('createDefs: a word without a meaning is null (also names that only look li
   assert.equal(await defs.lookup('猫'), null);
   assert.equal(await defs.lookup('constructor'), null);
   assert.equal(await defs.lookup('__proto__'), null);
-});
-test('createDefs: a game title gives its English title (after the meaning when the word also has one)', async () => {
-  assert.equal(await make({}).defs.lookup('テトリス'), '英題: Tetris');
-  assert.equal(await make({ [shardOf('テトリス')]: { テトリス: '落ち物パズル' } }).defs.lookup('テトリス'), '落ち物パズル\n英題: Tetris');
 });
 test('createDefs: a failed load gives null and is retried next time', async () => {
   const files = {};
