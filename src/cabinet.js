@@ -268,6 +268,7 @@ export function createCabinet(canvas, { onCollect = () => {}, onPile = () => {} 
     getPile: () => [...pile],
     pressIdea() { pressUntil = performance.now() + PRESS_MS; },
     celebrating() { return performance.now() < celebrateUntil; },
+    endCelebrate() { celebrateUntil = 0; }, // 当たりの演出をすぐ終える（?demo の場面の切り替え）
   };
   // 受け皿のコインをなぞって回収する（押したまま・指でなぞる）。縦のスクロールはそのまま使えるよう pan-y
   canvas.style.touchAction = 'pan-y';

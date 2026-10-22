@@ -12,6 +12,7 @@
 html, body { margin: 0; width: 720px; height: 720px; overflow: hidden; background: #1b0b14; color: #fff; font-family: 'DotGothic16', monospace; }
 body { position: relative; background: radial-gradient(circle at 50% 42%, #4a1030 0, #1b0b14 78%); }
 iframe { position: absolute; left: 0; top: 150px; width: 720px; height: 450px; border: 0; box-shadow: 0 0 0 4px #000, 0 -4px 0 4px #e8b020, 0 4px 0 4px #e8b020; }
+#flash { position: absolute; left: 0; top: 150px; width: 720px; height: 450px; background: #fff; opacity: 0; pointer-events: none; }
 .band { position: absolute; left: 0; width: 720px; display: flex; align-items: center; justify-content: center; }
 .top { top: 0; height: 146px; }
 .cap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; opacity: 0; }
@@ -23,30 +24,30 @@ y { color: #ffe066; }
 </head>
 <body>
 <iframe src="../index.html?demo" title="デモ"></iframe>
+<div id="flash"></div>
 <div class="band top" id="top"></div>
 <div class="band bot"><span>アイデアスロット ｜ toyogame.github.io/idea-slot</span></div>
 <script>
 // 字幕: [始まり, 終わり（秒）, 文（y: 黄色）]。大きさは、幅 660px に収まるように自動で縮める
 const CAPS = [
   [0, 2.2, 'ゲームのアイデア、\n出てこない…？'],
-  [2.2, 5.6, 'そんな時は、<y>回すだけ！</y>'],
-  [5.6, 7.6, '「ドラゴン」…いいかも！\n<y>LOCK</y> で固定'],
-  [7.6, 10.6, 'ほかは<y>回し直し！</y>'],
-  [10.6, 12.0, '<y>ドラゴン × 料理 ×\nローグライク</y>…!?', 58],
-  [12.0, 15.0, 'ピンときたら <y>IDEA!</y>'],
-  [15.0, 18.2, '<y>当たり帳</y>に保存されるよ'],
-  [18.2, 22.0, '<y>テーマ</y>も選べる\n動物・妖怪・ゲーム用語・制約…'],
-  [22.0, 25.0, 'コインは<y>なぞって回収</y>'],
-  [25.0, 27.5, '<y>アイデアスロット</y>', 56, true], // 締め: 弾ませず、そっと出す
+  [2.2, 5.0, 'そんな時は、<y>回すだけ！</y>'],
+  [5.0, 7.0, '「ドラゴン」…いいかも！\n<y>LOCK</y> で固定'],
+  [7.0, 9.4, 'ほかは<y>回し直し！</y>'],
+  [9.4, 10.8, '<y>ドラゴン × 料理 ×\nローグライク</y>…!?', 58],
+  [10.8, 13.0, 'ピンときたら <y>IDEA!</y>'],
+  [13.0, 16.6, '<y>テーマ</y>も選べる\n動物・妖怪・ゲーム用語・制約…'],
+  [16.6, 28.5, 'あなたに、<y>新しい発想</y>を。', 64], // 動画の終わりまで出したままにする
 ];
+const CUTS = [16.6, 19.4, 22.4, 25.4]; // 場面の切り替え（src/demo.js の scene）。つなぎに白い光を重ねる
 const FS = 56, MAX_W = 660;
 const clamp = x => Math.min(1, Math.max(0, x));
 // 出てくるときの弾み: 0.8 → 1.08 → 1（0.25 秒）
 const pop = u => (u >= 1 ? 1 : u < 0.6 ? 0.8 + 0.28 * (u / 0.6) : 1.08 - 0.08 * ((u - 0.6) / 0.4));
-const topEl = document.getElementById('top');
-const caps = CAPS.map(([, , html, fs = FS, calm]) => {
+const topEl = document.getElementById('top'), flash = document.getElementById('flash');
+const caps = CAPS.map(([, , html, fs = FS]) => {
   const el = topEl.appendChild(Object.assign(document.createElement('div'), { className: 'cap', innerHTML: `<span>${html}</span>` }));
-  return { el, span: el.firstChild, fs, calm };
+  return { el, span: el.firstChild, fs };
 });
 const fit = () => { for (const c of caps) { c.span.style.fontSize = c.fs + 'px'; c.span.style.fontSize = Math.min(c.fs, c.fs * MAX_W / c.span.offsetWidth) + 'px'; } };
 const ready = document.fonts.load('56px DotGothic16').then(() => document.fonts.ready).then(fit);
@@ -54,10 +55,11 @@ const ready = document.fonts.load('56px DotGothic16').then(() => document.fonts.
 // 時刻 t（台本の秒）の字幕を決める。前の字幕は次の字幕と 0.16 秒かけて入れ替わる
 window.render = async t => {
   await ready;
+  flash.style.opacity = Math.max(...CUTS.map(c => (t >= c ? 0.85 * (1 - clamp((t - c) / 0.2)) : 0))); // 場面の頭で白く光って、すぐ消える
   CAPS.forEach(([s, e], i) => {
-    const { el, span, calm } = caps[i], last = i === CAPS.length - 1; // 最後の字幕は動画の終わりまで消さない
-    el.style.opacity = clamp((t - s) / (calm ? 0.5 : 0.15)) * (last ? 1 : clamp((e + 0.08 - t) / 0.16));
-    span.style.transform = calm ? '' : `scale(${pop(clamp((t - s) / 0.25))})`;
+    const { el, span } = caps[i], last = i === CAPS.length - 1; // 最後の字幕は動画の終わりまで消さない
+    el.style.opacity = clamp((t - s) / 0.15) * (last ? 1 : clamp((e + 0.08 - t) / 0.16));
+    span.style.transform = `scale(${pop(clamp((t - s) / 0.25))})`;
   });
 };
 </script>

@@ -15,8 +15,8 @@ const promo = process.argv.includes('--promo');
 const PORT = 8189, DEBUG = 9333, FPS = 30, DSF = 1.5, BITRATE = 12e6;
 // モード別: page は撮る画面、view は CSS の大きさ（×DSF が動画の大きさ）、sec は撮る台本の秒、hold は最後の絵を置く秒、check は確認の静止画の秒
 const M = promo
-  ? { name: 'promo', page: '/tools/promo.html', view: [720, 720], sec: 27.5, hold: 0, check: [1, 3.5, 6.5, 9, 11, 13.5, 16.5, 20.5, 23.5, 26.5], cols: 5 }
-  : { name: 'demo', page: '/index.html?demo', view: [1280, 720], sec: 25.3, hold: 0.5, check: [1, 3.5, 6.5, 9, 11, 13.5, 16.5, 20.5, 23.5], cols: 3 };
+  ? { name: 'promo', page: '/tools/promo.html', view: [720, 720], sec: 28.5, hold: 0, check: [1, 3.5, 6, 9, 10, 12, 15, 18.6, 21.5, 24.5, 27.5], cols: 4 }
+  : { name: 'demo', page: '/index.html?demo', view: [1280, 720], sec: 28.8, hold: 0.5, check: [1, 3.5, 6, 9, 10, 12, 15, 18.6, 21.5, 24.5, 27.5], cols: 4 };
 const CHROME = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (!CHROME) throw new Error('Chrome が見つかりません');
 const root = resolve(import.meta.dirname, '..'), out = join(root, 'out'), frames = join(out, `${M.name}-frames`), checks = join(out, `${M.name}-check`), mp4 = join(out, `idea-slot-${M.name}.mp4`);
