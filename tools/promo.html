@@ -5,14 +5,17 @@
 <title>promo</title>
 <!-- X 用の正方形の動画（tools/video.mjs --promo）の元の画面。720×720 に、上に字幕・中に本物の ?demo（iframe）・下にブランド。公開物には入れない。
      字幕は時刻 t から決まる render(t) だけで動かす（壁時計の CSS アニメーションは使わない）。
-     締めは宣伝っぽくしない: 全面のカードは出さず、筐体を映したまま上にアプリ名だけ（URL は下の帯にずっと出ている） -->
+     場面の切り替えは、替わる直前の iframe の絵（video.mjs が撮って setSnap で渡す）を img で重ね、透明にしていくクロスフェード。
+     締めは、全体（#stage）を暗くぼかして、og.png を重ねる -->
 <style>
 @font-face { font-family: 'DotGothic16'; src: url('../fonts/DotGothic16-Regular.woff2') format('woff2'); }
 * { box-sizing: border-box; }
 html, body { margin: 0; width: 720px; height: 720px; overflow: hidden; background: #1b0b14; color: #fff; font-family: 'DotGothic16', monospace; }
 body { position: relative; background: radial-gradient(circle at 50% 42%, #4a1030 0, #1b0b14 78%); }
 iframe { position: absolute; left: 0; top: 150px; width: 720px; height: 450px; border: 0; box-shadow: 0 0 0 4px #000, 0 -4px 0 4px #e8b020, 0 4px 0 4px #e8b020; }
-#flash { position: absolute; left: 0; top: 150px; width: 720px; height: 450px; background: #fff; opacity: 0; pointer-events: none; }
+#stage { position: absolute; inset: 0; }
+#snap { position: absolute; left: 0; top: 150px; width: 720px; height: 450px; opacity: 0; pointer-events: none; image-rendering: pixelated; }
+#og { position: absolute; left: 58px; top: 201px; width: 604px; border: 3px solid #e8b020; box-shadow: 0 10px 30px rgba(0, 0, 0, .6); opacity: 0; pointer-events: none; }
 .band { position: absolute; left: 0; width: 720px; display: flex; align-items: center; justify-content: center; }
 .top { top: 0; height: 146px; }
 .cap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; opacity: 0; }
@@ -23,10 +26,13 @@ y { color: #ffe066; }
 </style>
 </head>
 <body>
+<div id="stage">
 <iframe src="../index.html?demo" title="デモ"></iframe>
-<div id="flash"></div>
+<img id="snap" alt="">
 <div class="band top" id="top"></div>
 <div class="band bot"><span>アイデアスロット ｜ toyogame.github.io/idea-slot</span></div>
+</div>
+<img id="og" src="../og.png" alt="">
 <script>
 // 字幕: [始まり, 終わり（秒）, 文（y: 黄色）]。大きさは、幅 660px に収まるように自動で縮める
 const CAPS = [
@@ -39,12 +45,14 @@ const CAPS = [
   [13.0, 16.6, '<y>テーマ</y>も選べる\n動物・妖怪・ゲーム用語・制約…'],
   [16.6, 28.5, 'あなたに、<y>新しい発想</y>を。', 64], // 動画の終わりまで出したままにする
 ];
-const CUTS = [16.6, 19.4, 22.4, 25.4]; // 場面の切り替え（src/demo.js の scene）。つなぎに白い光を重ねる
+const CUTS = [16.6, 19.4, 22.4, 25.4], FADE = 0.45; // 場面の切り替え（src/demo.js の scene）と、クロスフェードの長さ（秒）
+const OUT_AT = 27.9, OUT_SEC = 0.6, OG_AT = 28.1, OG_SEC = 0.5; // 締め: 全体を暗くぼかし始める時刻と長さ、og.png が出始める時刻と長さ
 const FS = 56, MAX_W = 660;
 const clamp = x => Math.min(1, Math.max(0, x));
 // 出てくるときの弾み: 0.8 → 1.08 → 1（0.25 秒）
+const ease = u => u * u * (3 - 2 * u); // ゆっくり始まり、ゆっくり終わる
 const pop = u => (u >= 1 ? 1 : u < 0.6 ? 0.8 + 0.28 * (u / 0.6) : 1.08 - 0.08 * ((u - 0.6) / 0.4));
-const topEl = document.getElementById('top'), flash = document.getElementById('flash');
+const topEl = document.getElementById('top'), snap = document.getElementById('snap'), stage = document.getElementById('stage'), og = document.getElementById('og');
 const caps = CAPS.map(([, , html, fs = FS]) => {
   const el = topEl.appendChild(Object.assign(document.createElement('div'), { className: 'cap', innerHTML: `<span>${html}</span>` }));
   return { el, span: el.firstChild, fs };
@@ -52,10 +60,18 @@ const caps = CAPS.map(([, , html, fs = FS]) => {
 const fit = () => { for (const c of caps) { c.span.style.fontSize = c.fs + 'px'; c.span.style.fontSize = Math.min(c.fs, c.fs * MAX_W / c.span.offsetWidth) + 'px'; } };
 const ready = document.fonts.load('56px DotGothic16').then(() => document.fonts.ready).then(fit);
 
-// 時刻 t（台本の秒）の字幕を決める。前の字幕は次の字幕と 0.16 秒かけて入れ替わる
+// 替わる直前の iframe の絵（PNG の data URL）を、重ねる img に入れる
+window.setSnap = async src => { snap.src = src; await snap.decode(); };
+
+// 時刻 t（台本の秒）の画面を決める。前の字幕は次の字幕と 0.16 秒かけて入れ替わる
 window.render = async t => {
   await ready;
-  flash.style.opacity = Math.max(...CUTS.map(c => (t >= c ? 0.85 * (1 - clamp((t - c) / 0.2)) : 0))); // 場面の頭で白く光って、すぐ消える
+  const cut = CUTS.findLast(c => c <= t + 1e-6); // 直前の切り替え。その時点の旧い絵を 1 → 0 に透かす
+  snap.style.opacity = cut === undefined ? 0 : 1 - ease(clamp((t - cut) / FADE));
+  const out = ease(clamp((t - OUT_AT) / OUT_SEC)), ogu = ease(clamp((t - OG_AT) / OG_SEC));
+  stage.style.filter = out ? `blur(${6 * out}px) brightness(${1 - 0.55 * out})` : '';
+  og.style.opacity = ogu;
+  og.style.transform = `scale(${0.97 + 0.03 * ogu})`;
   CAPS.forEach(([s, e], i) => {
     const { el, span } = caps[i], last = i === CAPS.length - 1; // 最後の字幕は動画の終わりまで消さない
     el.style.opacity = clamp((t - s) / 0.15) * (last ? 1 : clamp((e + 0.08 - t) / 0.16));

@@ -24,6 +24,9 @@ async function renderAudio(events, seconds) {
   return ch;
 }
 
+// 読み込みが一瞬こけることがあるので、3 回まで試す
+const fetchRetry = async (u, n = 3) => { for (let i = 1; ; i++) try { return await fetch(u); } catch (e) { if (i >= n) throw e; await new Promise(r => setTimeout(r, 300)); } };
+
 // urls の順に 1 コマずつ、fps で並べる。末尾 hold コマは最後の絵を置き続ける。audio があれば AAC の音声も付ける。mp4 のバイト列は window.mp4 に置く
 window.encode = async ({ urls, hold, fps, w, h, bitrate, audio }) => {
   const config = { codec: 'avc1.640028', width: w, height: h, bitrate, framerate: fps, avc: { format: 'avc' }, latencyMode: 'quality' };
@@ -50,7 +53,7 @@ window.encode = async ({ urls, hold, fps, w, h, bitrate, audio }) => {
   let bmp;
   for (let i = 0; i < total; i++) {
     if (err) throw err;
-    if (i < urls.length) { bmp?.close(); bmp = await createImageBitmap(await (await fetch(urls[i])).blob()); }
+    if (i < urls.length) { bmp?.close(); bmp = await createImageBitmap(await (await fetchRetry(urls[i])).blob()); }
     const f = new VideoFrame(bmp, { timestamp: Math.round(i * 1e6 / fps), duration: Math.round(1e6 / fps) });
     enc.encode(f, { keyFrame: i % (fps * 2) === 0 }); // 2 秒ごとにキーフレーム
     f.close();
