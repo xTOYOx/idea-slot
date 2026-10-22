@@ -2,12 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TYPE_KEYS, TYPE_LABELS, typeGroups, MY } from '../src/types.js';
 test('type keys order and labels', () => {
-  assert.equal(TYPE_KEYS.length, 43);
+  assert.equal(TYPE_KEYS.length, 42);
   assert.deepEqual(TYPE_KEYS.slice(0, 3), ['any', 'noun', 'noun:animal']);
   assert.equal(TYPE_KEYS.at(-1), 'tag:mechanic');
-  assert.equal(TYPE_KEYS[TYPE_KEYS.indexOf('genre') + 1], 'game');
-  assert.equal(TYPE_LABELS.game, 'ゲーム');
-  assert.equal(TYPE_KEYS[TYPE_KEYS.indexOf('game') + 1], 'extra');
+  assert.equal(TYPE_KEYS[TYPE_KEYS.indexOf('genre') + 1], 'extra');
   assert.equal(TYPE_KEYS[TYPE_KEYS.indexOf('tag') - 1], 'extra:ng');
   assert.equal(TYPE_LABELS.extra, 'テーマ集（全部）');
   assert.equal(TYPE_LABELS['extra:ono'], 'オノマトペ');
@@ -24,8 +22,8 @@ test('typeGroups: grouped for the picker panel, every type key exactly once (as 
   assert.equal(g[1].all, 'noun');
   assert.deepEqual(g[1].members, g[1].items.map(x => x.k));
   assert.equal(g[2].all, undefined);
-  assert.deepEqual(g[2].members, ['verb', 'genre', 'game']);
-  assert.deepEqual(g[2].items.map(x => x.text), ['動詞', 'ゲームジャンル', 'ゲーム']);
+  assert.deepEqual(g[2].members, ['verb', 'genre']);
+  assert.deepEqual(g[2].items.map(x => x.text), ['動詞', 'ゲームジャンル']);
   assert.equal(g[3].items.length, 21);
   assert.deepEqual(g[3].items.slice(0, 2), [{ k: 'extra:ono', text: 'オノマトペ' }, { k: 'extra:jfood', text: '日本の食べ物' }]);
   assert.deepEqual(g[3].items.at(-1), { k: 'extra:ng', text: 'NG語' });

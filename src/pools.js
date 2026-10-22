@@ -14,7 +14,6 @@ export function baseWords(data, key) {
 function rawWords(data, key) {
   if (key === 'verb') return data.verbs;
   if (key === 'genre') return data.genres.map(g => g.ja);
-  if (key === 'game') return data.games.map(g => g.ja); // 作品名。any（全部ランダム）には入れない
   const [kind, sub] = key.split(':');
   if (kind === 'noun') return data.words[sub] ?? [];
   if (kind === 'extra') return data.extra?.[sub] ?? [];
@@ -27,7 +26,7 @@ export function buildPools(data, custom = {}, excluded = []) {
   const make = (base, key) => [...new Set([...base, ...(custom[key] ?? [])])].filter(w => !drop.has(w));
   const union = (keys) => make(keys.flatMap(k => pools[k]), '');
   const pools = {};
-  const keys = [...NOUN_KEYS.map(k => `noun:${k}`), 'verb', 'genre', 'game', ...EXTRA_KEYS.map(k => `extra:${k}`), ...TAG_KEYS.map(k => `tag:${k}`)];
+  const keys = [...NOUN_KEYS.map(k => `noun:${k}`), 'verb', 'genre', ...EXTRA_KEYS.map(k => `extra:${k}`), ...TAG_KEYS.map(k => `tag:${k}`)];
   for (const k of keys) pools[k] = make(baseWords(data, k), k);
   pools.noun = union(NOUN_KEYS.map(k => `noun:${k}`));
   pools.extra = union(EXTRA_KEYS.filter(k => !EXTRA_ONLY.includes(k)).map(k => `extra:${k}`));

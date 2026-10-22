@@ -10,12 +10,6 @@ test('genres: 80-150 items, shape, no duplicate ja', () => {
   assert.ok(g.every(ok));
   assert.equal(new Set(g.map(x => x.ja)).size, g.length);
 });
-test('games: 200-300 items, shape, no duplicate ja', () => {
-  const g = load('games.json');
-  assert.ok(g.length >= 200 && g.length <= 300, `count ${g.length}`);
-  assert.ok(g.every(ok));
-  assert.equal(new Set(g.map(x => x.ja)).size, g.length);
-});
 test('tags: 3 groups, 250-400 total, no duplicate ja across groups', () => {
   const t = load('tags.json');
   assert.deepEqual(Object.keys(t).sort(), ['look', 'mechanic', 'mood']);

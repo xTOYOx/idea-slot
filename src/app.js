@@ -46,7 +46,7 @@ if (scripted) {
   store.state.settings.slots = DEMO_TYPES.map(type => ({ type }));
 }
 if (mode.shot) document.body.classList.add('shot'); // 部品を隠す（style.css）。筐体の幅を決める前に付ける
-const boot = createBoot(document.getElementById('boot'), 6);
+const boot = createBoot(document.getElementById('boot'), 5);
 const { state } = store;
 const sound = createSound(scripted ? name => (window.__soundLog ??= []).push([name, performance.now()]) : undefined); // ?demo: 鳴らした音を記録（動画の音声用。tools/video.mjs が読む）
 const undo = createUndo(); // 止まったときの結果の履歴（Ctrl+Z / Ctrl+Y）
@@ -724,7 +724,7 @@ async function start() {
     count: changeCount,
   });
   // 語の意味: 窓の中央の語と当たり帳の語。PC はマウスを乗せる、スマホは長押し。使う語のファイルだけを読む
-  const defs = createDefs(n => fetch(`data/defs/${n}.json`).then(r => { if (!r.ok) throw new Error(n); return r.json(); }), data.games);
+  const defs = createDefs(n => fetch(`data/defs/${n}.json`).then(r => { if (!r.ok) throw new Error(n); return r.json(); }));
   tip = createTip(w => defs.lookup(w), el => {
     if (!el.classList.contains('m')) return el.textContent; // 当たり帳の語
     const r = reels[+el.dataset.w];
@@ -875,12 +875,12 @@ function fail() {
 async function load() {
   try {
     // 読み込み画面の「n / 6」は、読み終えたファイルの数（boot は全部で 6 つと数える）
-    const [words, verbs, genres, tags, games, extra] = await Promise.all([
-      ...['words', 'verbs', 'genres', 'tags', 'games'].map(n => fetch(`data/${n}.json`).then(r => { if (!r.ok) throw new Error(n); return r.json(); }).finally(boot.step)),
+    const [words, verbs, genres, tags, extra] = await Promise.all([
+      ...['words', 'verbs', 'genres', 'tags'].map(n => fetch(`data/${n}.json`).then(r => { if (!r.ok) throw new Error(n); return r.json(); }).finally(boot.step)),
       // テーマ集は無くても続行（全部空のテーマ）
       fetch('data/extra.json').then(r => (r.ok ? r.json() : {})).catch(() => ({})).finally(boot.step),
     ]);
-    data = { words, verbs, genres, tags, games, extra };
+    data = { words, verbs, genres, tags, extra };
   } catch {
     fail();
     return;
