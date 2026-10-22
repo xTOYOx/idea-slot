@@ -15,7 +15,7 @@ const promo = process.argv.includes('--promo');
 const PORT = 8189, DEBUG = 9333, FPS = 30, DSF = 1.5, BITRATE = 12e6;
 // モード別: page は撮る画面、view は CSS の大きさ（×DSF が動画の大きさ）、sec は撮る台本の秒、hold は最後の絵を置く秒、check は確認の静止画の秒
 const M = promo
-  ? { name: 'promo', page: '/tools/promo.html', view: [720, 720], sec: 28.5, hold: 0, check: [1, 3.5, 6, 9, 10, 12, 15, 18.6, 21.5, 24.5, 27.5], cols: 4 }
+  ? { name: 'promo', page: '/tools/promo.html', view: [720, 720], sec: 31, hold: 0, check: [1, 3.5, 6, 9, 10, 12, 15, 16.8, 18.6, 19.6, 21.5, 22.6, 24.5, 25.6, 27.5, 28, 28.5, 30], cols: 6 }
   : { name: 'demo', page: '/index.html?demo', view: [1280, 720], sec: 28.8, hold: 0.5, check: [1, 3.5, 6, 9, 10, 12, 15, 18.6, 21.5, 24.5, 27.5], cols: 4 };
 const CHROME = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (!CHROME) throw new Error('Chrome が見つかりません');
@@ -74,12 +74,16 @@ async function capture() {
       await sleep(100);
     }
     await c.run(`${app}.document.getElementById("boot")?.remove(); document.fonts.ready.then(() => 1)`);
-    const n = Math.round(sec * FPS);
+    const n = Math.round(sec * FPS), cuts = promo ? (await c.run('CUTS')).map(t => Math.round(t * FPS)) : []; // 場面の切り替えのコマ番号（promo）
     for (let i = 0; i < n; i++) {
       // 字幕（promo）を時刻に合わせてから、台本のページを進める
       await c.run(`(async () => { ${promo ? `await render(${i / FPS});` : ''} if (${i}) await ${app}.__vt.advance(${1000 / FPS}); })()`);
       const { data } = await c.send('Page.captureScreenshot', { format: 'png' });
       writeFileSync(join(frames, `${pad(i)}.png`), Buffer.from(data, 'base64'));
+      if (cuts.includes(i + 1)) { // 次のコマで場面が替わる: 今の iframe の絵を覚えさせる（替わったあと、これを透かしていく）
+        const snap = await c.send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 150, width: 720, height: 450, scale: 1 } });
+        await c.run(`setSnap('data:image/png;base64,${snap.data}')`);
+      }
       if (i % 60 === 0) console.log(`撮影 ${i + 1}/${n}（台本 ${(i / FPS).toFixed(1)} 秒）`);
     }
     // 鳴った効果音（app.js が window.__soundLog に [名前, performance.now()] で記録）を、台本の秒にして取る
