@@ -18,7 +18,8 @@ async function renderAudio(events, seconds) {
   src.start();
   const out = await wet.startRendering(), ch = [0, 1].map(i => out.getChannelData(i));
   const peak = ch.reduce((m, c) => c.reduce((x, v) => Math.max(x, Math.abs(v)), m), 0), g = peak ? PEAK / peak : 1;
-  ch.forEach(c => c.forEach((v, i) => { c[i] = v * g; }));
+  const fade = 0.5 * RATE; // 終わりの 0.5 秒は小さくして、音が途中で切れる感じを消す
+  ch.forEach(c => c.forEach((v, i) => { c[i] = v * g * Math.min(1, (n - i) / fade); }));
   window.audioInfo = { events: events.length, peakBefore: peak, peakAfter: peak * g };
   return ch;
 }

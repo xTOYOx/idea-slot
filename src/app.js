@@ -31,7 +31,7 @@ import { createTour } from './tour.js';
 import { registerSw } from './pwa.js';
 import { createBoot } from './boot.js';
 import { initAbout } from './about.js';
-import { DEMO_SCRIPT, DEMO_WORDS, DEMO_TYPES, LEVER_RAMP_MS, SWEEP_MS, TAP_MS, modeOf, sweepAt, startOf } from './demo.js';
+import { DEMO_SCRIPT, DEMO_WORDS, DEMO_TYPES, LEVER_RAMP_MS, TAP_MS, modeOf, startOf } from './demo.js';
 
 // 保存済みの WordNet テーマ（設定の slots[].theme）を読み込むかのスイッチ。false の間は読み込まない（保存データからは消さない）
 const THEMES_ON = false;
@@ -829,15 +829,20 @@ function tap(sel) {
   setTimeout(() => f.remove(), TAP_MS + 300);
 }
 const demoActs = {
-  reset() {
+  // 場面の切り替え: リールの本数と種類を、types の形に一瞬で替える（LOCK・開いた画面・当たりの演出も消える）
+  scene({ types }) {
     panels.closeAll(false);
     typePanel.close();
-    state.favorites = [];
-    state.settings.slots = DEMO_TYPES.map(type => ({ type }));
-    cab.setPile([]);
+    cab.endCelebrate();
+    state.settings.slots = types.map(type => ({ type }));
+    state.settings.count = types.length;
     setReels(initialReels());
+  },
+  reset() {
+    state.favorites = [];
+    cab.setPile([]);
+    demoActs.scene({ types: DEMO_TYPES });
     renderHits();
-    sync();
   },
   // レバーを下まで引いて（引く動きが見える）、離すと回り始める。止まる語は words にする
   lever({ words }) {
@@ -854,25 +859,6 @@ const demoActs = {
   },
   stop: ({ reel }) => press(reel),
   tap: ({ sel }) => tap(sel),
-  // 指の印を出して、受け皿のコインをなぞる（本物のポインタ操作を cabinet.js に送る）
-  sweep() {
-    const cv = $('cv'), f = finger();
-    f.style.transition = 'none';
-    const t0 = performance.now(), fire = (type, p) => {
-      const r = cv.getBoundingClientRect(), x = r.left + p.x / cabW * r.width, y = r.top + p.y / 190 * r.height;
-      f.style.cssText = `left:${x}px;top:${y}px;transition:none`;
-      cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerType: 'touch', bubbles: true }));
-    };
-    fire('pointerdown', sweepAt(0, cabW));
-    const id = setInterval(() => {
-      const a = Math.min(1, (performance.now() - t0) / SWEEP_MS), p = sweepAt(a, cabW);
-      fire('pointermove', p);
-      if (a < 1) return;
-      clearInterval(id);
-      fire('pointerup', p);
-      f.remove();
-    }, 16);
-  },
   end() { if (mode.loop) playDemo(); },
 };
 function playDemo() {
