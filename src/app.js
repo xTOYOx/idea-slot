@@ -384,7 +384,7 @@ async function prepareThemes() {
 function openPick(i) {
   if (!ready || !canEdit(reels) || !reels[i]) return;
   editing = i;
-  $('ph').textContent = `♦ ${i + 1}番リールに固定する語をえらぶ ♦`;
+  $('ph').textContent = `♦ ${i + 1}番リールに固定する語をえらぶ ♦`; // ♦ だけが次の行に落ちないよう、改行しない空白でつなぐ
   $('q').value = '';
   renderCards();
   $('pick').showModal();
