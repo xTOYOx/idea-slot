@@ -260,11 +260,12 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 .l .dhead { margin-left: 100px; } /* ⏸ と ？ の下に隠れないように */
 .dhead { flex-wrap: wrap; display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 8px; }
 .dhead h3 { flex: 1 1 auto; margin: 0; font-size: 15px; color: #ffe066; font-weight: 400; }
-.dtab { position: absolute; top: 50%; width: 44px; height: var(--th); padding: 0; writing-mode: vertical-rl; letter-spacing: .15em; font-size: 15px; color: #fff; background: #0f5a3a; border: 3px solid #000; box-shadow: inset 0 0 0 2px #e8b020; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.dtab { position: absolute; top: 50%; width: 44px; height: var(--th); padding: 0; flex-direction: column; letter-spacing: .15em; font-size: 15px; color: #fff; background: #0f5a3a; border: 3px solid #000; box-shadow: inset 0 0 0 2px #e8b020; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .l .dtab { left: 100%; border-left: 0; margin-top: calc(var(--th) * -1 - 3px); } /* 左は履歴（上）とテンプレ（下）を縦に並べ、全体を中央に置く */
 #d-tpl .dtab { margin-top: 3px; }
 .r .dtab { right: 100%; border-right: 0; margin-top: calc(var(--th) * -.5); }
-.bdg { writing-mode: horizontal-tb; letter-spacing: 0; font-weight: 400; font-size: 12px; min-width: 22px; padding: 1px 3px; text-align: center; background: #c8202f; color: #fff; border: 2px solid #000; }
+.dtab > span { writing-mode: vertical-rl; } /* 縦書きは文字だけに付ける（Safari はボタンごと縦書きにすると中身を横へずらす） */
+.bdg { letter-spacing: 0; font-weight: 400; font-size: 12px; min-width: 22px; padding: 1px 3px; text-align: center; background: #c8202f; color: #fff; border: 2px solid #000; }
 .bdg:empty { display: none; }
 #ptabs .flash, .dtab.flash { animation: fl .4s steps(2) 5; }
 @keyframes fl { 50% { background: #ffe066; color: #1a1020; } }
@@ -358,7 +359,7 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   #hbtn { left: 56px; font-size: 22px; }
   #pbtn i { width: 20px; }
 
-  #dock { flex: 1 0 30dvh; min-height: 0; margin-top: 12px; display: flex; flex-direction: column; }
+  #dock { flex: 1 0 min(30dvh, 140px); /* 低いスマホ（SE など）でページ全体が縦にスクロールしないように */ min-height: 0; margin-top: 12px; display: flex; flex-direction: column; }
   #ptabs { display: flex; flex: none; gap: 6px; margin-bottom: 6px; }
   #ptabs button { flex: 1 1 0; min-width: 0; min-height: 42px; padding: 0 4px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 15px; color: #fff; background: #0f5a3a; border: 3px solid #000; box-shadow: inset 0 0 0 2px #e8b020; cursor: pointer; }
   #ptabs button[aria-pressed=true] { color: #1a1020; background: #ffe066; }
@@ -389,6 +390,15 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
   .hit textarea, .hit .row button:not(.go) { display: none; }
   .hit.open textarea { display: block; order: 5; flex: 1 0 100%; }
   .hit.open .row button:not(.go) { display: block; order: 6; flex: 1 1 0; }
+}
+/* 幅の狭いスマホ（320px 前後）で、下のタブの文字が2行に折れないように */
+@media (max-width: 340px) {
+  #ptabs button { font-size: 13px; gap: 3px; white-space: nowrap; }
+}
+/* 低い画面（スマホの横向き）では保存欄だけで高さを使い切るので、テンプレは中身ぜんぶをスクロール */
+@media (max-height: 520px) {
+  #tpl { overflow-y: auto; overscroll-behavior: contain; }
+  #tpl > .dscroll { flex: none; overflow: visible; }
 }
 
 /* 読み込み画面（#boot）: HTML と CSS だけで最初から出す。読み終わったら app.js が .done を付けて、短くフェードして消す。文字は --fs 基準（スマホは 16px） */
