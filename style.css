@@ -156,8 +156,9 @@ dialog textarea { width: 100%; font: inherit; resize: vertical; }
 /* 種類（テーマ）えらびのパネル。チェック式のボタンをグループごとに並べる */
 #types { max-width: 94vw; max-height: 94dvh; }
 /* 見出し・いま・全部ランダムは固定し、その下の一覧だけをスクロールさせる */
-#types[open] { display: flex; flex-direction: column; overflow: hidden; }
-#types .tbody { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
+/* 高さは決め打ち（Safari は高さの決まっていない縦の flex で、flex: 1 の子を 0 にしてしまう） */
+#types[open] { display: flex; flex-direction: column; overflow: hidden; height: 94vh; height: 94dvh; }
+#types .tbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
 #types .tfix { flex: none; margin-top: .4em; padding-bottom: .6em; border-bottom: 2px solid #1d7a52; } /* 固定の部分と、スクロールする一覧の境目 */
 #types button { font-size: 16px; }
 .thead { display: flex; align-items: flex-start; gap: 8px; }
